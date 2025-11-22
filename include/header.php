@@ -338,7 +338,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_email'])) {
                 <div class="user-avatar-dropdown" style="position:relative;">
                     <img src="<?= $userAvatar ?>" style="width:26px;height:26px;border-radius:50%;cursor:pointer;" onclick="toggleUserDropdown()">
                     <div id="userDropdown" style="display:none;position:absolute;top:36px;right:0;background:#fff;border:1px solid #ddd;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,0.15);min-width:120px;z-index:1000;">
-                        <a href="profile.php" style="display:block;padding:10px;text-decoration:none;color:#333;">Profile</a>
+                        <a href="memberProfile.php" style="display:block;padding:10px;text-decoration:none;color:#333;">Profile</a>
                         <a href="logout.php" style="display:block;padding:10px;text-decoration:none;color:#333;">Logout</a>
                     </div>
                 </div>
