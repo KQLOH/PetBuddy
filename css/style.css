@@ -1,23 +1,52 @@
 /* --- PetBuddy Global Styles --- */
 
-/* Primary Color (Orange) */
-.bg-pet-primary {
-    background-color: #FF9F1C !important;
-}
-.text-pet-primary {
-    color: #FF9F1C !important;
-    border-color: #FF9F1C; /* For borders utilizing this class */
-}
-.hover\:text-pet-primary:hover {
-    color: #FF9F1C !important;
+:root {
+    /* Colors from your requested Admin CSS */
+    --primary-color: #F4A261;
+    --primary-dark: #E68E3F;
+    --bg-light: #f9f9f9;
+    --text-dark: #333333;
+    --border-color: #e0e0e0;
+    --danger-color: #e53935;
+
+    /* Secondary/Utility colors from original file */
+    --secondary-color: #2EC4B6;
+    --text-gray: #666666;
+    --white: #ffffff;
+    --danger-bg: #fee2e2;
+    --danger-text: #b91c1c;
 }
 
-/* Secondary Color (Teal) */
+/* Reset & Base */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    min-height: 100vh;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    /* Using the new gradient background from your Admin CSS */
+    background: linear-gradient(135deg, #fff7ec, #ffffff);
+    color: var(--text-dark);
+    /* Flex centering for pages that need it (can be overridden) */
+    display: flex;
+    flex-direction: column;
+}
+
+/* --- Utility Classes --- */
+.bg-pet-primary {
+    background-color: var(--primary-color) !important;
+}
+.text-pet-primary {
+    color: var(--primary-color) !important;
+}
 .bg-pet-secondary {
-    background-color: #2EC4B6 !important;
+    background-color: var(--secondary-color) !important;
 }
 .text-pet-secondary {
-    color: #2EC4B6 !important;
+    color: var(--secondary-color) !important;
 }
 
 /* Button Hover Effects */
@@ -27,4 +56,279 @@
 .btn-hover:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* --- ADMIN PANEL STYLES (Requested Update) --- */
+.admin-wrapper {
+    width: 100%;
+    max-width: 420px;
+    padding: 20px;
+    margin: auto; /* Centers it if flex is used on body */
+}
+
+.admin-card {
+    background-color: #ffffff;
+    border-radius: 16px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+    padding: 24px 22px 22px;
+}
+
+.admin-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.logo-circle {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: #ffffff;
+}
+
+.admin-logo-text {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.admin-subtitle {
+    font-size: 13px;
+    color: #777;
+    margin-bottom: 18px;
+}
+
+.badge-admin {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background-color: rgba(244, 162, 97, 0.12);
+    color: var(--primary-dark);
+    margin-bottom: 14px;
+}
+
+/* General Form Styles (Shared/Admin) */
+form {
+    margin-top: 8px;
+}
+
+.form-group {
+    margin-bottom: 14px;
+}
+
+label {
+    display: block;
+    font-size: 13px;
+    margin-bottom: 4px;
+    font-weight: 600;
+}
+
+/* Default inputs (Admin style) */
+input[type="email"],
+input[type="password"],
+input[type="text"] {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    font-size: 14px;
+}
+
+.errors {
+    background-color: #ffebee;
+    border: 1px solid #ffcdd2;
+    color: var(--danger-color);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 12px;
+    margin-bottom: 10px;
+}
+
+.errors ul {
+    padding-left: 18px;
+}
+
+.back-to-site {
+    margin-top: 12px;
+    text-align: center;
+    font-size: 12px;
+}
+
+.back-to-site a {
+    color: var(--primary-dark);
+    text-decoration: none;
+}
+
+
+/* --- PUBLIC PAGE STYLES (Login/Register with Icons) --- */
+
+/* Layout Helpers */
+.flex-center-screen {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 1rem;
+}
+
+.w-full { width: 100%; }
+.max-w-md { max-width: 450px; width: 100%; }
+.text-center { text-align: center; }
+.mt-2 { margin-top: 0.5rem; }
+.mt-4 { margin-top: 1rem; }
+.mt-6 { margin-top: 1.5rem; }
+.mb-4 { margin-bottom: 1rem; }
+.mb-6 { margin-bottom: 1.5rem; }
+
+/* Public Card Component (Login/Register) */
+.card {
+    background-color: var(--white);
+    border-radius: 1rem; 
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+}
+
+.card-header {
+    background-color: var(--primary-color);
+    padding: 1.5rem;
+    text-align: center;
+    color: white;
+}
+
+.card-header h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.card-header p {
+    margin: 0.5rem 0 0;
+    color: #fff7ed; 
+    font-size: 0.875rem;
+}
+
+.card-body {
+    padding: 2rem;
+}
+
+.card-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1f2937;
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+/* Form Styles with Icons (Specific to Login/Register) */
+.form-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: #374151;
+    margin-bottom: 0.5rem;
+}
+
+.input-group {
+    position: relative;
+}
+
+/* Absolute positioning for icons inside inputs */
+.input-icon {
+    position: absolute;
+    top: 50%;
+    left: 0.75rem;
+    transform: translateY(-50%);
+    width: 1.25rem;
+    height: 1.25rem;
+    color: #9ca3af; 
+    fill: currentColor;
+}
+
+/* Specific class for inputs with icons */
+.form-input {
+    width: 100%;
+    padding: 0.75rem 1rem 0.75rem 2.5rem; /* Left padding for icon */
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(244, 162, 97, 0.3);
+}
+
+/* Buttons */
+.btn {
+    border: none;
+    border-radius: 999px;
+    padding: 8px 14px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.btn-primary {
+    display: block;
+    width: 100%;
+    padding: 0.75rem;
+    border: none;
+    border-radius: 0.5rem;
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.2s;
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-dark);
+    transform: translateY(-2px);
+}
+
+/* Alert Box */
+.alert-error {
+    background-color: var(--danger-bg);
+    border-left: 4px solid #ef4444;
+    color: var(--danger-text);
+    padding: 1rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    margin-bottom: 1.5rem;
+}
+
+/* Links */
+.link-primary {
+    color: var(--primary-color);
+    font-weight: 700;
+    text-decoration: none;
+}
+.link-primary:hover {
+    text-decoration: underline;
+}
+
+.link-muted {
+    color: #9ca3af;
+    font-size: 0.875rem;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+.link-muted:hover {
+    color: #4b5563;
 }
