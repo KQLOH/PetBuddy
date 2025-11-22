@@ -1,0 +1,30 @@
+/* --- PetBuddy Global Styles --- */
+
+/* Primary Color (Orange) */
+.bg-pet-primary {
+    background-color: #FF9F1C !important;
+}
+.text-pet-primary {
+    color: #FF9F1C !important;
+    border-color: #FF9F1C; /* For borders utilizing this class */
+}
+.hover\:text-pet-primary:hover {
+    color: #FF9F1C !important;
+}
+
+/* Secondary Color (Teal) */
+.bg-pet-secondary {
+    background-color: #2EC4B6 !important;
+}
+.text-pet-secondary {
+    color: #2EC4B6 !important;
+}
+
+/* Button Hover Effects */
+.btn-hover {
+    transition: all 0.2s ease-in-out;
+}
+.btn-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
