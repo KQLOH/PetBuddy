@@ -19,7 +19,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $user = $stmt->fetch();
 
             // 2. Verify password
-            // password_verify checks the plain text password against the hash in DB
             if ($user && password_verify($password, $user['password_hash'])) {
                 
                 // 3. Set Session Variables
@@ -46,30 +45,74 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - PetBuddy</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- ONLY Local CSS -->
+    <link rel="stylesheet" href="../css/style.css">
     <style>
-        .bg-pet-primary { background-color: #FF9F1C; }
-        .text-pet-primary { color: #FF9F1C; }
+        /* --- ICON ADJUSTMENTS --- */
+
+        /* 1. Header Logo */
+        .header-logo {
+            height: 1.8rem; 
+            width: auto; 
+            margin-right: 0.5rem; 
+            vertical-align: bottom; /* Aligns nicely with text baseline */
+        }
+
+        /* 2. Input Icons (Mail & Lock) */
+        .input-group .input-icon {
+            width: auto; 
+            height: 1.25rem; /* Approx 20px - standard icon size */
+            position: absolute;
+            top: 50%;
+            left: 1rem; /* Space from the left edge */
+            transform: translateY(-50%); /* Perfect vertical centering */
+            pointer-events: none; /* Lets clicks pass through to the input */
+            opacity: 0.7;
+        }
+
+        /* 3. Input Field Spacing */
+        /* Overriding style.css to ensure text doesn't overlap the image */
+        .form-input {
+            padding-left: 3rem !important; /* Room for the icon */
+        }
+
+        /* 4. Show/Hide Password Toggle */
+        .password-toggle {
+            position: absolute;
+            top: 50%;
+            right: 1rem;
+            transform: translateY(-50%);
+            width: 1.25rem;
+            height: auto;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+        .password-toggle:hover {
+            opacity: 1;
+        }
     </style>
 </head>
-<body class="bg-gray-50 font-sans flex items-center justify-center min-h-screen">
+<body class="flex-center-screen">
 
-    <div class="w-full max-w-md bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">
+    <div class="card max-w-md">
         
         <!-- Header -->
-        <div class="bg-pet-primary p-6 text-center">
-            <h1 class="text-2xl font-bold text-white"><i class="fas fa-paw mr-2"></i> PetBuddy</h1>
-            <p class="text-orange-100 text-sm">Welcome back!</p>
+        <div class="card-header">
+            <h1>
+                <img src="../image/pawprint.png" alt="Logo" class="header-logo">
+                PetBuddy
+            </h1>
+            <p>Welcome back!</p>
         </div>
 
         <!-- Form Container -->
-        <div class="p-8">
+        <div class="card-body">
             
-            <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">Member Login</h2>
+            <h2 class="card-title">Member Login</h2>
 
             <?php if ($error): ?>
-                <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded text-sm" role="alert">
+                <div class="alert-error" role="alert">
                     <p><?php echo htmlspecialchars($error); ?></p>
                 </div>
             <?php endif; ?>
@@ -77,37 +120,63 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <form method="POST" action="">
                 <!-- Email -->
                 <div class="mb-4">
-                    <label class="block text-gray-700 text-sm font-bold mb-2" for="email">Email Address</label>
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400"><i class="fas fa-envelope"></i></span>
-                        <input type="email" name="email" id="email" class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-transparent" placeholder="you@example.com" required>
+                    <label class="form-label" for="email">Email Address</label>
+                    <div class="input-group">
+                        <!-- Left Icon -->
+                        <img src="../image/mail.png" alt="Email" class="input-icon">
+                        <input type="email" name="email" id="email" class="form-input" placeholder="you@example.com" required>
                     </div>
                 </div>
 
                 <!-- Password -->
                 <div class="mb-6">
-                    <label class="block text-gray-700 text-sm font-bold mb-2" for="password">Password</label>
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400"><i class="fas fa-lock"></i></span>
-                        <input type="password" name="password" id="password" class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-transparent" placeholder="••••••••" required>
+                    <label class="form-label" for="password">Password</label>
+                    <div class="input-group">
+                        <!-- Left Icon (Padlock) -->
+                        <img src="../image/padlock.png" alt="Lock" class="input-icon">
+                        
+                        <!-- Password Input (Added padding-right to prevent text hitting the eye icon) -->
+                        <input type="password" name="password" id="password" class="form-input" placeholder="••••••••" style="padding-right: 3rem;" required>
+                        
+                        <!-- Right Icon (Show/Hide Toggle) -->
+                        <img src="../image/show.png" id="togglePassword" class="password-toggle" alt="Show Password">
                     </div>
                 </div>
 
                 <!-- Submit Button -->
-                <button type="submit" class="w-full bg-pet-primary hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow-md transform hover:-translate-y-1">
+                <button type="submit" class="btn-primary">
                     Sign In
                 </button>
 
             </form>
 
-            <div class="mt-6 text-center text-sm text-gray-500">
-                Don't have an account? <a href="register.php" class="text-pet-primary font-bold hover:underline">Sign up here</a>
+            <div class="mt-6 text-center link-muted">
+                Don't have an account? <a href="register.php" class="link-primary">Sign up here</a>
             </div>
-            <div class="mt-2 text-center text-sm">
-                <a href="../index.php" class="text-gray-400 hover:text-gray-600">Back to Home</a>
+            <div class="mt-2 text-center">
+                <a href="../user/index.php" class="link-muted">Back to Home</a>
             </div>
         </div>
     </div>
+
+    <!-- Script to toggle Password Visibility -->
+    <script>
+        const togglePassword = document.querySelector('#togglePassword');
+        const password = document.querySelector('#password');
+
+        togglePassword.addEventListener('click', function (e) {
+            // 1. Toggle the type attribute
+            const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+            password.setAttribute('type', type);
+            
+            // 2. Toggle the eye icon image
+            if (type === 'text') {
+                this.src = '../image/hide.png';
+            } else {
+                this.src = '../image/show.png';
+            }
+        });
+    </script>
 
 </body>
 </html>
