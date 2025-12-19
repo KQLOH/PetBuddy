@@ -1,0 +1,213 @@
+<?php
+session_start();
+include '../include/db.php';
+
+$error = '';
+$registration_success_message = '';
+
+// login.php
+if (isset($_GET['registration_success']) && $_GET['registration_success'] === 'true') {
+    $registration_success_message = 'Account created successfully! You can now login';
+
+}
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $email = trim($_POST['email']);
+    $password = trim($_POST['password']);
+
+    if (empty($email) || empty($password)) {
+        $error = "Please enter both email and password.";
+    } else {
+        try {
+            $stmt = $pdo->prepare("SELECT member_id, full_name, password_hash, role, image FROM members WHERE email = ?");
+            $stmt->execute([$email]);
+            $user = $stmt->fetch();
+
+            if ($user && password_verify($password, $user['password_hash'])) {
+
+                $_SESSION['member_id'] = $user['member_id'];
+                $_SESSION['full_name'] = $user['full_name'];
+                $_SESSION['role'] = $user['role'];
+                $_SESSION['user_image'] = $user['image'] ?: 'images/default-avatar.png';
+
+                header("Location: home.php");
+                exit;
+            } else {
+                $error = "Invalid email or password.";
+            }
+        } catch (PDOException $e) {
+            $error = "System error: " . $e->getMessage();
+        }
+    }
+}
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - PetBuddy</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .header-logo {
+            height: 1.8rem;
+            width: auto;
+            margin-right: 0.5rem;
+            vertical-align: bottom;
+        }
+
+        .input-group .input-icon {
+            width: auto;
+            height: 1.25rem;
+            position: absolute;
+            top: 50%;
+            left: 1rem;
+            transform: translateY(-50%);
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        .form-input {
+            padding-left: 3rem !important;
+        }
+
+        .password-toggle {
+            position: absolute;
+            top: 50%;
+            right: 1rem;
+            transform: translateY(-50%);
+            width: 1.25rem;
+            height: auto;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+
+        .password-toggle:hover {
+            opacity: 1;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            margin: 0;
+        }
+
+        .page-content-wrapper {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 50px 0;
+            width: 100%;
+        }
+
+        .alert-success {
+            background-color: rgba(244, 162, 97, 0.12);
+            color: var(--primary-dark);
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+        }
+
+        .alert-error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<?php include '../include/header.php'; ?>
+
+<body>
+
+    <div class="page-content-wrapper">
+        <div class="card max-w-md">
+
+            <div class="card-header">
+                <h1>
+                    <img src="../images/pawprint.png" alt="Logo" class="header-logo">
+                    PetBuddy
+                </h1>
+                <p>Welcome back!</p>
+            </div>
+
+            <div class="card-body">
+
+                <h2 class="card-title">Member Login</h2>
+
+                <?php if (!empty($registration_success_message)): ?>
+                    <div class="alert-success" role="alert">
+                        <p><?php echo htmlspecialchars($registration_success_message); ?></p>
+                    </div>
+                <?php endif; ?>
+
+                <?php if ($error): ?>
+                    <div class="alert-error" role="alert">
+                        <p><?php echo htmlspecialchars($error); ?></p>
+                    </div>
+                <?php endif; ?>
+
+                <form method="POST" action="">
+                    <div class="mb-4">
+                        <label class="form-label" for="email">Email Address</label>
+                        <div class="input-group">
+                            <img src="../images/mail.png" alt="Email" class="input-icon">
+                            <input type="text" name="email" id="email" class="form-input" placeholder="you@example.com" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-6">
+                        <label class="form-label" for="password">Password</label>
+                        <div class="input-group">
+                            <img src="../images/padlock.png" alt="Lock" class="input-icon">
+
+                            <input type="password" name="password" id="password" class="form-input" placeholder="••••••••" style="padding-right: 3rem;" required>
+
+                            <img src="../images/show.png" id="togglePassword" class="password-toggle" alt="Show Password">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-primary">
+                        Sign In
+                    </button>
+
+                </form>
+
+                <div class="mt-6 text-center link-muted">
+                    Don't have an account? <a href="register.php" class="link-primary">Sign up here</a>
+                </div>
+                <div class="mt-2 text-center">
+                    <a href="home.php" class="link-muted">Back to Home</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const togglePassword = document.querySelector('#togglePassword');
+        const password = document.querySelector('#password');
+
+        togglePassword.addEventListener('click', function(e) {
+            const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+            password.setAttribute('type', type);
+
+            if (type === 'text') {
+                this.src = '../images/hide.png';
+            } else {
+                this.src = '../images/show.png';
+            }
+        });
+    </script>
+    <?php include '../include/footer.php'; ?>
+</body>
+
+</html>
