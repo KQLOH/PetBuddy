@@ -8,70 +8,76 @@ if (empty($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     exit;
 }
 
+// ===== DATABASE CONNECTION =====
+require_once '../db.php';  // Go up one level since we're in admin folder
+
 $adminName = $_SESSION['full_name'] ?? 'Admin';
 
-/*
- * ====== TEMP DATA (no database yet) ======
- * Later you can replace this part with SELECT from MySQL
- */
+// ===== FETCH CATEGORIES FROM DATABASE =====
+$categories = [];
+$sql = "SELECT category_id, name FROM product_categories ORDER BY name ASC";
+$result = $conn->query($sql);
+if ($result) {
+    while ($row = $result->fetch_assoc()) {
+        $categories[] = $row;
+    }
+}
 
-// Categories
-$categories = [
-    ['category_id' => 1, 'name' => 'Dog Food'],
-    ['category_id' => 2, 'name' => 'Cat Toys'],
-    ['category_id' => 3, 'name' => 'Pet Accessories'],
-];
-
-// All products (sample data)
-$allProducts = [
-    [
-        'product_id'    => 1,
-        'name'          => 'Premium Dog Kibble 5kg',
-        'price'         => 89.90,
-        'stock_qty'     => 15,
-        'image'         => '',             // no image yet
-        'category_id'   => 1,
-        'category_name' => 'Dog Food',
-    ],
-    [
-        'product_id'    => 2,
-        'name'          => 'Colorful Cat Teaser Wand',
-        'price'         => 19.90,
-        'stock_qty'     => 30,
-        'image'         => '',
-        'category_id'   => 2,
-        'category_name' => 'Cat Toys',
-    ],
-    [
-        'product_id'    => 3,
-        'name'          => 'Adjustable Pet Collar (M)',
-        'price'         => 25.00,
-        'stock_qty'     => 10,
-        'image'         => '',
-        'category_id'   => 3,
-        'category_name' => 'Pet Accessories',
-    ],
-];
-
+// ===== GET FILTER VALUES =====
 $selectedCategory = $_GET['category'] ?? 'all';
 $search = trim($_GET['search'] ?? '');
 
-// Filter products (by category & search) – all in PHP
-$products = $allProducts;
+// ===== BUILD SQL QUERY WITH FILTERS =====
+$sql = "SELECT 
+            p.product_id,
+            p.name,
+            p.price,
+            p.stock_qty,
+            p.image,
+            p.category_id,
+            pc.name AS category_name
+        FROM products p
+        LEFT JOIN product_categories pc ON p.category_id = pc.category_id
+        WHERE 1=1";
+
+$params = [];
+$types = '';
 
 // Category filter
 if ($selectedCategory !== 'all' && $selectedCategory !== '') {
-    $products = array_filter($products, function ($p) use ($selectedCategory) {
-        return $p['category_id'] == $selectedCategory;
-    });
+    $sql .= " AND p.category_id = ?";
+    $params[] = (int)$selectedCategory;
+    $types .= 'i';
 }
 
 // Search filter
 if ($search !== '') {
-    $searchLower = mb_strtolower($search);
-    $products = array_filter($products, function ($p) use ($searchLower) {
-        return mb_stripos($p['name'], $searchLower) !== false;
-    });
+    $sql .= " AND p.name LIKE ?";
+    $params[] = '%' . $search . '%';
+    $types .= 's';
+}
+
+$sql .= " ORDER BY p.product_id DESC";
+
+// ===== EXECUTE QUERY WITH PREPARED STATEMENT =====
+$products = [];
+if (!empty($params)) {
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param($types, ...$params);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $products[] = $row;
+    }
+    $stmt->close();
+} else {
+    // No parameters, execute directly
+    $result = $conn->query($sql);
+    if ($result) {
+        while ($row = $result->fetch_assoc()) {
+            $products[] = $row;
+        }
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -92,7 +98,7 @@ if ($search !== '') {
             --border-color: #e0e0e0;
         }
 
-        * {
+        *{
             box-sizing: border-box;
             margin: 0;
             padding: 0;
@@ -443,7 +449,7 @@ if ($search !== '') {
             <div class="page-header">
                 <div>
                     <div class="page-title">Product List</div>
-                    <div class="page-subtitle">Manage all products in PetBuddy online shop. (temporary sample data)</div>
+                    <div class="page-subtitle">Manage all products in PetBuddy online shop</div>
                 </div>
                 <a href="product_add.php" class="btn-primary">+ Add New Product</a>
             </div>
@@ -472,7 +478,7 @@ if ($search !== '') {
 
             <div class="panel">
                 <?php if (empty($products)): ?>
-                    <div class="no-data">No products found. Try changing the filter.</div>
+                    <div class="no-data">No products found. Try changing the filter or add new products.</div>
                 <?php else: ?>
                     <table>
                         <thead>
@@ -503,7 +509,7 @@ if ($search !== '') {
                                         <?php endif; ?>
                                     </td>
                                     <td><?php echo htmlspecialchars($p['name']); ?></td>
-                                    <td><?php echo htmlspecialchars($p['category_name']); ?></td>
+                                    <td><?php echo htmlspecialchars($p['category_name'] ?? 'N/A'); ?></td>
                                     <td><?php echo number_format($p['price'], 2); ?></td>
                                     <td><?php echo (int)$p['stock_qty']; ?></td>
                                     <td class="actions">
