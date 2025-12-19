@@ -115,7 +115,7 @@ $cart_items = getCartItems($pdo, $member_id);
                 </div>
                 <div class="col-product">Product</div>
                 <div class="col-price">Price</div>
-                <div class="col-qty">Quantity</div>
+                <div class="col-qty">Quant ity</div>
                 <div class="col-total">Total</div>
                 <div class="col-action"></div>
             </div>
