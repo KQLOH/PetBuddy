@@ -279,7 +279,8 @@ $productDescription = trim((string)$product['description']) !== '' ? $product['d
                     </div>
                     
                     <div class="pd-action-buttons">
-                        <button class="pd-btn pd-btn-primary add-btn" data-id="<?php echo (int)$product['product_id']; ?>">
+                        <button class="pd-btn pd-btn-primary" id="pd-add-to-cart" data-id="<?php echo (int)$product['product_id']; ?>">
+                            
                             <span class="pd-icon-cart"><img src="../images/add-to-cart.png" alt="Cart" style="width: 16px; height: 16px; vertical-align: middle; margin-right: 5px;"></span> Add to Cart
                         </button>
                     </div>
@@ -489,6 +490,133 @@ $productDescription = trim((string)$product['description']) !== '' ? $product['d
                 updateQuantityButtons();
             }
         });
+        const addToCartBtn = document.querySelector('.add-btn');
+if (addToCartBtn) {
+    addToCartBtn.addEventListener('click', function() {
+        const productId = this.getAttribute('data-id');
+        const quantityInput = document.querySelector('.pd-quantity-input');
+        const quantity = quantityInput ? parseInt(quantityInput.value) : 1;
+        
+        // 禁用按钮防止重复点击
+        addToCartBtn.disabled = true;
+        addToCartBtn.textContent = 'Adding...';
+        
+        // 发送 AJAX 请求
+        fetch('add_to_cart.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `product_id=${productId}&quantity=${quantity}`
+        })
+        .then(response => response.text())
+        .then(data => {
+            if (data === 'login_required') {
+                alert('Please login first to add items to cart');
+                window.location.href = '../member/login.php';
+            } else if (data === 'invalid_id') {
+                alert('Invalid product');
+            } else if (data === 'added' || data === 'quantity increased') {
+             
+                
+                // 可选：更新购物车图标数量
+                // updateCartCount();
+            } else {
+                alert('Failed to add to cart. Please try again.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred. Please try again.');
+        })
+        .finally(() => {
+            // 恢复按钮状态
+            addToCartBtn.disabled = false;
+            addToCartBtn.innerHTML = '<span class="pd-icon-cart"><img src="../images/add-to-cart.png" alt="Cart" style="width: 16px; height: 16px; vertical-align: middle; margin-right: 5px;"></span> Add to Cart';
+        });
+    });
+}
+// 在 product_detail.php底部的 script 标签内添加：
+
+$(document).ready(function() {
+    // 专门处理详情页的 Add to Cart 点击
+    $('#pd-add-to-cart').click(function(e) {
+        e.preventDefault();
+        
+        // 1. 获取按钮和商品ID
+        var $btn = $(this);
+        var pid = $btn.data('id');
+        
+        // 2. 获取用户输入的数量 (最重要的部分)
+        var qty = $('.pd-quantity-input').val();
+        
+        // 简单验证
+        if(!qty || qty < 1) qty = 1;
+        
+        // 防止重复点击
+        if($btn.prop('disabled')) return;
+        $btn.prop('disabled', true);
+
+        // 3. 发送 AJAX 请求
+        $.ajax({
+            url: "add_to_cart.php",
+            type: "POST",
+            data: { 
+                product_id: pid, 
+                quantity: qty  // 发送数量！
+            },
+            success: function(response) {
+                $btn.prop('disabled', false); // 解锁按钮
+                var res = response.trim();
+
+                if (res.includes("added") || res.includes("increased") || res.includes("success")) {
+                    // === 成功逻辑 ===
+                    
+                    // A. 刷新侧边栏 (调用 footer.php 定义的全局函数)
+                    if(typeof refreshCartSidebar === 'function') {
+                        refreshCartSidebar();
+                    }
+                    
+                    // B. 自动打开购物车 (如果您希望它弹出)
+                    if (typeof openCart === 'function') {
+                        openCart(); 
+                    }
+                    
+                    // C. 弹出成功提示
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: 'Added ' + qty + ' item(s) to cart', // 提示添加了多少个
+                        showConfirmButton: false,
+                        timer: 1500,
+                        timerProgressBar: true
+                    });
+
+                } else if (res.includes("login") || res.includes("required")) {
+                    // 需要登录
+                    Swal.fire({
+                        title: "Please Login",
+                        text: "You need to login to add items.",
+                        icon: "warning",
+                        confirmButtonText: "Go to Login"
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            window.location.href = "login.php";
+                        }
+                    });
+                } else {
+                    // 其他错误
+                    Swal.fire("Error", "Could not add item. " + res, "error");
+                }
+            },
+            error: function() {
+                $btn.prop('disabled', false);
+                Swal.fire("Error", "Connection failed.", "error");
+            }
+        });
+    });
+});
     </script>
 </body>
 </html>
