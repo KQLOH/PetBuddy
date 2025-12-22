@@ -39,15 +39,14 @@ function loadCategoriesWithImages(PDO $pdo): array {
 function loadTopRatedProducts(PDO $pdo, int $limit = 4): array {
     $products = [];
     
-    // 尝试查找评论表 (使用 PDO 方式检查表存在)
+    // 尝试查找评论表
     $tableNames = ['product_reviews', 'reviews', 'product_ratings'];
     $foundTable = null;
-    $ratingField = 'rating'; // 假设最常用的评分字段
+    $ratingField = 'rating';
     $productIdField = 'product_id';
     
     foreach ($tableNames as $tableName) {
         try {
-            // 尝试执行一个简单查询来检查表是否存在
             $pdo->query("SELECT $productIdField, $ratingField FROM $tableName LIMIT 1");
             $foundTable = $tableName;
             break;
@@ -57,7 +56,6 @@ function loadTopRatedProducts(PDO $pdo, int $limit = 4): array {
     }
     
     if ($foundTable) {
-        // 如果找到评论表，则查询评分最高的商品
         $sql = "SELECT p.product_id, p.name, p.description, p.price, p.image,
                        c.name AS category_name,
                        AVG(r.$ratingField) AS avg_rating,
@@ -71,7 +69,6 @@ function loadTopRatedProducts(PDO $pdo, int $limit = 4): array {
                 ORDER BY avg_rating DESC, review_count DESC
                 LIMIT :limit";
     } else {
-        // 评论表不存在或查询失败，则获取最新商品 (Fallback)
         $sql = "SELECT p.product_id, p.name, p.description, p.price, p.image,
                        c.name AS category_name
                 FROM products p
@@ -83,12 +80,10 @@ function loadTopRatedProducts(PDO $pdo, int $limit = 4): array {
     
     try {
         $stmt = $pdo->prepare($sql);
-        // 使用 bindValue 绑定 Limit 参数
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->execute();
         $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
-        // 数据库操作失败时返回空数组
         $products = [];
     }
     
@@ -101,16 +96,12 @@ function loadTopRatedProducts(PDO $pdo, int $limit = 4): array {
  */
 function loadLatestReviews(PDO $pdo, int $limit = 3): array {
     $reviews = [];
-    
-    // 尝试查找评论表 (使用 PDO 方式检查表存在)
     $tableNames = ['product_reviews', 'reviews', 'product_ratings'];
     $foundTable = null;
-    $fields = ['rating', 'comment', 'reviewer_name', 'created_at', 'product_id']; 
-    $orderField = 'created_at'; // 假设最新的评论日期字段
+    $orderField = 'created_at'; 
     
     foreach ($tableNames as $tableName) {
         try {
-            // 尝试执行一个简单查询来检查表是否存在
             $pdo->query("SELECT * FROM $tableName LIMIT 1"); 
             $foundTable = $tableName;
             break;
@@ -120,7 +111,6 @@ function loadLatestReviews(PDO $pdo, int $limit = 3): array {
     }
     
     if ($foundTable) {
-        // 假设表里有这些字段，并尝试查询
         $sql = "SELECT product_id, 
                        COALESCE(rating, 5) as rating, 
                        COALESCE(comment, review_text, message) as comment,
@@ -145,10 +135,8 @@ function loadLatestReviews(PDO $pdo, int $limit = 3): array {
                 ];
             }
         } catch (PDOException $e) {
-            // 查询失败时返回空数组
         }
     }
-    
     return $reviews;
 }
 
@@ -178,7 +166,6 @@ function loadHeroSlides(PDO $pdo, int $limit = 5): array {
                     'product_id' => $row['product_id'],
                     'name' => $row['name'],
                     'description' => $row['description'],
-                    // 确保使用 productImageUrl 函数处理路径
                     'image' => productImageUrl($row['image']), 
                     'price' => $row['price'],
                     'category_name' => $row['category_name']
@@ -186,10 +173,9 @@ function loadHeroSlides(PDO $pdo, int $limit = 5): array {
             }
         }
     } catch (PDOException $e) {
-        // 数据库查询失败
     }
     
-    // If no slides from database, use default
+    // Fallback if empty
     if (empty($slides)) {
         $slides[] = [
             'product_id' => 0,
@@ -204,15 +190,10 @@ function loadHeroSlides(PDO $pdo, int $limit = 5): array {
     return $slides;
 }
 
-// =========================================================
-// 最终执行逻辑：所有函数调用都使用 $pdo 对象
-// =========================================================
-
 // Fetch data
 $categories = loadCategoriesWithImages($pdo);
 $topProducts = loadTopRatedProducts($pdo, 4);
 
-// If no top products, get latest products from database (Fallback)
 if (empty($topProducts)) {
     $fallbackSql = "SELECT p.product_id, p.name, p.description, p.price, p.image,
                            c.name AS category_name
@@ -231,8 +212,8 @@ if (empty($topProducts)) {
 
 $reviews = loadLatestReviews($pdo, 3);
 $heroSlides = loadHeroSlides($pdo, 5);
-
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -240,6 +221,62 @@ $heroSlides = loadHeroSlides($pdo, 5);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PetBuddy - Premium Pet Products</title>
     <link rel="stylesheet" href="../css/product_page.css">
+    
+    <style>
+        /* Slider 容器：隐藏溢出内容 */
+        .hp-hero {
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+        }
+
+        /* 轨道：必须是 flex 布局 */
+        .hp-slides {
+            display: flex;
+            height: 100%;
+            transition: transform 0.5s ease-in-out;
+            /* 宽度会在 JS 里动态计算 */
+        }
+
+        /* 单个 Slide */
+        .hp-slide {
+            flex-shrink: 0; /* 防止被挤压 */
+            width: 100%;    /* JS 会覆盖这个，但默认给 100% */
+            height: 100%;
+            position: relative;
+        }
+
+        /* 左右按钮样式 */
+        .prev-btn, .next-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: rgba(0, 0, 0, 0.3);
+            color: white;
+            border: none;
+            padding: 15px;
+            cursor: pointer;
+            font-size: 18px;
+            z-index: 10;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s;
+        }
+        .prev-btn:hover, .next-btn:hover { background-color: rgba(0, 0, 0, 0.7); }
+        .prev-btn { left: 20px; }
+        .next-btn { right: 20px; }
+        
+        /* 确保图片覆盖 */
+        .hp-slide-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+    </style>
 </head>
 <body>
 <?php include_once '../include/header.php'; ?>
@@ -269,6 +306,8 @@ $heroSlides = loadHeroSlides($pdo, 5);
             <?php endforeach; ?>
         </div>
         
+        <button class="prev-btn">&#10094;</button>
+        <button class="next-btn">&#10095;</button>
         <div class="hp-slider-indicators">
             <?php foreach ($heroSlides as $index => $slide): ?>
                 <div class="hp-indicator <?php echo $index === 0 ? 'active' : ''; ?>" data-slide="<?php echo $index; ?>"></div>
@@ -309,17 +348,16 @@ $heroSlides = loadHeroSlides($pdo, 5);
                         <div class="hp-category-card" onclick="window.location.href='product_listing.php?category=<?php echo (int)$category['category_id']; ?>'">
                             <?php 
                             $catImage = $category['category_image'] ?? '';
-                            $catImageUrl = '../images/dog.jpg'; // Default Fallback
+                            $catImageUrl = '../images/dog.jpg'; 
 
                             if (!empty($catImage)) {
                                 $catImageUrl = productImageUrl($catImage);
                             } else {
-                                // Fallback logic using PDO (Simplified from original MySQLi logic)
                                 $fallbackSql = "SELECT image FROM products 
-                                               WHERE category_id = :cat_id
-                                               AND image IS NOT NULL AND image != '' 
-                                               ORDER BY product_id DESC 
-                                               LIMIT 1";
+                                                WHERE category_id = :cat_id
+                                                AND image IS NOT NULL AND image != '' 
+                                                ORDER BY product_id DESC 
+                                                LIMIT 1";
                                 try {
                                     $stmt = $pdo->prepare($fallbackSql);
                                     $stmt->bindValue(':cat_id', $category['category_id'], PDO::PARAM_INT);
@@ -329,7 +367,6 @@ $heroSlides = loadHeroSlides($pdo, 5);
                                         $catImageUrl = productImageUrl($fallbackRow['image']);
                                     }
                                 } catch (PDOException $e) {
-                                    // Keep default image
                                 }
                             }
                             ?>
@@ -354,8 +391,6 @@ $heroSlides = loadHeroSlides($pdo, 5);
                             <h3>Cat Supplies</h3>
                         </div>
                     </div>
-
-  
                 <?php endif; ?>
             </div>
         </div>
@@ -456,55 +491,19 @@ $heroSlides = loadHeroSlides($pdo, 5);
                     <?php endforeach; ?>
                 <?php else: ?>
                     <div class="testimonial-card">
-                        <div class="stars">
-                            <span class="hp-star-icon">★</span>
-                            <span class="hp-star-icon">★</span>
-                            <span class="hp-star-icon">★</span>
-                            <span class="hp-star-icon">★</span>
-                            <span class="hp-star-icon">★</span>
-                        </div>
+                        <div class="stars"><span class="hp-star-icon">★</span><span class="hp-star-icon">★</span><span class="hp-star-icon">★</span><span class="hp-star-icon">★</span><span class="hp-star-icon">★</span></div>
                         <p class="testimonial-text">"My picky eater CoCo finally loves to eat! His digestion has improved so much, I'm really surprised!"</p>
-                        <div class="testimonial-author">
-                            <div class="author-avatar">C</div>
-                            <div>
-                                <strong>CoCo's Mom</strong>
-                                <div>Golden Retriever</div>
-                            </div>
-                        </div>
+                        <div class="testimonial-author"><div class="author-avatar">C</div><div><strong>CoCo's Mom</strong><div>Golden Retriever</div></div></div>
                     </div>
                     <div class="testimonial-card">
-                        <div class="stars">
-                            <span class="hp-star-icon">★</span>
-                            <span class="hp-star-icon">★</span>
-                            <span class="hp-star-icon">★</span>
-                            <span class="hp-star-icon">★</span>
-                            <span class="hp-star-icon">★</span>
-                        </div>
+                        <div class="stars"><span class="hp-star-icon">★</span><span class="hp-star-icon">★</span><span class="hp-star-icon">★</span><span class="hp-star-icon">★</span><span class="hp-star-icon">★</span></div>
                         <p class="testimonial-text">"Since switching to PetBuddy, Mimi's coat has become super smooth, friends all ask me how I take care of her!"</p>
-                        <div class="testimonial-author">
-                            <div class="author-avatar">M</div>
-                            <div>
-                                <strong>Mimi's Dad</strong>
-                                <div>Ragdoll Cat</div>
-                            </div>
-                        </div>
+                        <div class="testimonial-author"><div class="author-avatar">M</div><div><strong>Mimi's Dad</strong><div>Ragdoll Cat</div></div></div>
                     </div>
                     <div class="testimonial-card">
-                        <div class="stars">
-                            <span class="hp-star-icon">★</span>
-                            <span class="hp-star-icon">★</span>
-                            <span class="hp-star-icon">★</span>
-                            <span class="hp-star-icon">★</span>
-                            <span class="hp-star-icon">★</span>
-                        </div>
+                        <div class="stars"><span class="hp-star-icon">★</span><span class="hp-star-icon">★</span><span class="hp-star-icon">★</span><span class="hp-star-icon">★</span><span class="hp-star-icon">★</span></div>
                         <p class="testimonial-text">"The regular delivery service is so convenient, I never have to worry about forgetting to buy food, and the price is very reasonable!"</p>
-                        <div class="testimonial-author">
-                            <div class="author-avatar">D</div>
-                            <div>
-                                <strong>Doudou's Owner</strong>
-                                <div>Corgi</div>
-                            </div>
-                        </div>
+                        <div class="testimonial-author"><div class="author-avatar">D</div><div><strong>Doudou's Owner</strong><div>Corgi</div></div></div>
                     </div>
                 <?php endif; ?>
             </div>
@@ -523,17 +522,19 @@ $heroSlides = loadHeroSlides($pdo, 5);
     </section>
 
 <?php include_once '../include/footer.php'; ?>
-<?php include '../include/chat_widget.php'; ?>
+<?php include '../include/chat_widget.php'; ?>
 
     <script>
-        // Modern Homepage Slider Class - Updated with new design logic
+        // 修复版 Homepage Slider Class (Dynamic Width)
         class HomepageSlider {
             constructor() {
-                this.slides = document.querySelector('.hp-slides');
+                this.slidesContainer = document.querySelector('.hp-slides');
+                this.slides = document.querySelectorAll('.hp-slide');
                 this.indicators = document.querySelectorAll('.hp-indicator');
                 this.prevBtn = document.querySelector('.prev-btn');
                 this.nextBtn = document.querySelector('.next-btn');
-                this.totalSlides = document.querySelectorAll('.hp-slide').length;
+                
+                this.totalSlides = this.slides.length;
                 this.currentSlide = 0;
                 this.slideInterval = null;
                 this.isAnimating = false;
@@ -542,30 +543,48 @@ $heroSlides = loadHeroSlides($pdo, 5);
             }
             
             init() {
-                if (this.totalSlides > 1) {
-                    this.startAutoplay();
-                    this.bindEvents();
-                    
-                    // Pause autoplay on hover
-                    const hero = document.querySelector('.hp-hero');
-                    if (hero) {
-                        hero.addEventListener('mouseenter', () => {
-                            clearInterval(this.slideInterval);
-                        });
-                        
-                        hero.addEventListener('mouseleave', () => {
-                            this.startAutoplay();
-                        });
-                    }
+                // 如果只有1张或没有图，不启动轮播，隐藏按钮
+                if (this.totalSlides <= 1) {
+                    if (this.prevBtn) this.prevBtn.style.display = 'none';
+                    if (this.nextBtn) this.nextBtn.style.display = 'none';
+                    return; 
+                }
+
+                // ✨✨✨ 核心修复：动态计算宽度 ✨✨✨
+                // 容器宽度 = Slide 数量 * 100%
+                if (this.slidesContainer) {
+                    this.slidesContainer.style.width = `${this.totalSlides * 100}%`;
+                }
+                
+                // 每个 Slide 宽度 = 100 / 数量 %
+                this.slides.forEach(slide => {
+                    slide.style.width = `${100 / this.totalSlides}%`;
+                });
+                // ===================================
+
+                this.startAutoplay();
+                this.bindEvents();
+                
+                // 鼠标悬停时暂停
+                const hero = document.querySelector('.hp-hero');
+                if (hero) {
+                    hero.addEventListener('mouseenter', () => clearInterval(this.slideInterval));
+                    hero.addEventListener('mouseleave', () => this.startAutoplay());
                 }
             }
             
             bindEvents() {
                 if (this.prevBtn) {
-                    this.prevBtn.addEventListener('click', () => this.prevSlide());
+                    this.prevBtn.addEventListener('click', (e) => {
+                        e.preventDefault(); 
+                        this.prevSlide();
+                    });
                 }
                 if (this.nextBtn) {
-                    this.nextBtn.addEventListener('click', () => this.nextSlide());
+                    this.nextBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        this.nextSlide();
+                    });
                 }
                 
                 this.indicators.forEach(indicator => {
@@ -577,12 +596,12 @@ $heroSlides = loadHeroSlides($pdo, 5);
                 
                 // Touch swipe support
                 let touchStartX = 0;
-                if (this.slides) {
-                    this.slides.addEventListener('touchstart', (e) => {
+                if (this.slidesContainer) {
+                    this.slidesContainer.addEventListener('touchstart', (e) => {
                         touchStartX = e.touches[0].clientX;
                     });
                     
-                    this.slides.addEventListener('touchend', (e) => {
+                    this.slidesContainer.addEventListener('touchend', (e) => {
                         const touchEndX = e.changedTouches[0].clientX;
                         const diff = touchStartX - touchEndX;
                         
@@ -607,7 +626,7 @@ $heroSlides = loadHeroSlides($pdo, 5);
             }
             
             goToSlide(slideIndex) {
-                if (this.isAnimating) return;
+                if (this.isAnimating || slideIndex === this.currentSlide) return;
                 this.currentSlide = slideIndex;
                 this.updateSlider();
             }
@@ -615,9 +634,12 @@ $heroSlides = loadHeroSlides($pdo, 5);
             updateSlider() {
                 this.isAnimating = true;
                 
-                if (this.slides) {
-                    // Use 20% translation since slides width is 500% (each slide is 20%)
-                    this.slides.style.transform = `translateX(-${this.currentSlide * 20}%)`;
+                if (this.slidesContainer) {
+                    // ✨✨✨ 移动逻辑修复 ✨✨✨
+                    // 计算每个Slide占容器的百分比 (例如 5张图 = 20%)
+                    const movePercentage = 100 / this.totalSlides;
+                    // 移动距离 = 当前索引 * 单个Slide占比
+                    this.slidesContainer.style.transform = `translateX(-${this.currentSlide * movePercentage}%)`;
                 }
                 
                 // Update indicators
@@ -629,15 +651,15 @@ $heroSlides = loadHeroSlides($pdo, 5);
                     }
                 });
                 
-                // Restart autoplay
                 this.restartAutoplay();
             
                 setTimeout(() => {
                     this.isAnimating = false;
-                }, 800);
+                }, 500); 
             }
             
             startAutoplay() {
+                clearInterval(this.slideInterval); 
                 this.slideInterval = setInterval(() => this.nextSlide(), 3000);
             }
 
@@ -668,7 +690,7 @@ $heroSlides = loadHeroSlides($pdo, 5);
             }, observerOptions);
 
             // Add animation to elements
-            const animatedElements = document.querySelectorAll('.product-card, .testimonial-card, .badge');
+            const animatedElements = document.querySelectorAll('.hp-product-card, .hp-testimonial-card, .hp-badge');
             animatedElements.forEach(el => {
                 el.style.opacity = 0;
                 el.style.transform = 'translateY(20px)';
@@ -687,16 +709,18 @@ $heroSlides = loadHeroSlides($pdo, 5);
                     const productName = this.getAttribute('data-product-name');
                     const originalHTML = this.innerHTML;
                     
-                    // Visual feedback - show correct icon
+                    // Visual feedback
                     this.classList.add('added');
                     this.innerHTML = '<span class="cart-icon"><img src="../images/correct.png" alt="Correct" style="width: 18px; height: 18px; vertical-align: middle;"></span><span class="cart-text">Added!</span>';
                     this.style.pointerEvents = 'none';
                     
                     // Show cart notification
-                    showCartNotification(productName);
+                    if(typeof showCartNotification === 'function') {
+                        showCartNotification(productName);
+                    }
                     
-                    // Here you can add actual cart functionality
-                    // For example: addToCart(productId);
+                    // AJAX Add to Cart (Assuming you have this logic)
+                    // addToCart(productId);
                     console.log('Added to cart:', productId, productName);
                     
                     // Reset after 2 seconds
@@ -708,69 +732,16 @@ $heroSlides = loadHeroSlides($pdo, 5);
                 });
             });
 
-            // Cart Notification Function
-            window.showCartNotification = function(productName, quantity = 1) {
-                // Remove any existing notification first
-                let notification = document.getElementById('cart-notification');
-                if (notification) {
-                    notification.remove();
-                }
-                
-                // Create new notification element
-                notification = document.createElement('div');
-                notification.id = 'cart-notification';
-                notification.className = 'cart-notification';
-                
-                // Update notification content with quantity
-                const quantityText = quantity > 1 ? ` x${quantity}` : '';
-                notification.innerHTML = `
-                    <div class="cart-notification-icon">
-                        <img src="../image/correct.png" alt="Success" style="width: 24px; height: 24px;">
-                    </div>
-                    <div class="cart-notification-text">
-                        <strong>Added to Cart!</strong><br>
-                        <span style="font-size: 0.9em; opacity: 0.9;">${productName || 'Product'}${quantityText}</span>
-                    </div>
-                `;
-                
-                document.body.appendChild(notification);
-                
-                // Force reflow to ensure initial state
-                notification.offsetHeight;
-                
-                // Show notification with a small delay
-                setTimeout(() => {
-                    notification.classList.add('show');
-                }, 10);
-                
-                // Hide notification after 3 seconds
-                setTimeout(() => {
-                    notification.classList.remove('show');
-                    setTimeout(() => {
-                        if (notification.parentNode) {
-                            notification.remove();
-                        }
-                    }, 300);
-                }, 3000);
-            };
-
-            // Newsletter form submission
+            // Newsletter form
             const newsletterForm = document.getElementById('newsletter-form');
             const newsletterEmail = document.getElementById('newsletter-email');
             if (newsletterForm && newsletterEmail) {
                 newsletterForm.addEventListener('submit', function(e) {
                     e.preventDefault();
-                    
                     const email = newsletterEmail.value.trim();
                     if (email) {
-                        // Show success message
                         alert('Thank you for subscribing!');
-                        
-                        // Clear the email input
                         newsletterEmail.value = '';
-                        
-                        // Here you can add actual newsletter subscription functionality
-                        console.log('Subscribed email:', email);
                     }
                 });
             }
