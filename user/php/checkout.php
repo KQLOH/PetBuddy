@@ -351,6 +351,27 @@ $total = $checkout_subtotal + $shipping_fee;
                             </div>
                         </label>
                         <div class="payment-details">
+                            
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label style="font-size:12px; color:#555; margin-bottom:4px; display:block;">Issuing Bank</label>
+                                <select name="card_bank" style="cursor:pointer;">
+                                    <option value="" disabled selected>Choose your bank...</option>
+                                    <option value="Maybank">Maybank</option>
+                                    <option value="CIMB">CIMB Bank</option>
+                                    <option value="Public Bank">Public Bank</option>
+                                    <option value="RHB">RHB Bank</option>
+                                    <option value="Hong Leong">Hong Leong Bank</option>
+                                    <option value="AmBank">AmBank</option>
+                                    <option value="UOB">UOB Bank</option>
+                                    <option value="OCBC">OCBC Bank</option>
+                                    <option value="HSBC">HSBC Bank</option>
+                                    <option value="Standard Chartered">Standard Chartered</option>
+                                    <option value="Alliance Bank">Alliance Bank</option>
+                                    <option value="Affin Bank">Affin Bank</option>
+                                    <option value="Other">Other Bank</option>
+                                </select>
+                            </div>
+
                             <div class="form-group" style="margin-bottom: 12px;">
                                 <label style="font-size:12px; color:#555; margin-bottom:4px; display:block;">Cardholder Name</label>
                                 <input type="text" name="card_name" placeholder="Name on Card" oninput="validateText(this)">
@@ -390,7 +411,7 @@ $total = $checkout_subtotal + $shipping_fee;
                         </div>
                     </div>
 
-                    <div class="payment-card">
+                    <div class="payment-card">    
                         <label class="payment-header-row">
                             <input type="radio" name="payment_method" value="FPX" required onclick="selectPayment(this)">
                             <div class="custom-radio"></div>
@@ -401,18 +422,37 @@ $total = $checkout_subtotal + $shipping_fee;
                         </label>
                         <div class="payment-details">
                             <div class="helper-text"><i class="fas fa-lock"></i> Securely login to your bank account via FPX.</div>
-                            <div class="form-group" style="margin-bottom: 15px;">
+                            
+                            <div class="form-group" style="margin-bottom: 12px;">
                                 <label style="font-size:12px; color:#555; margin-bottom:6px; display:block;">Select Bank</label>
                                 <select name="fpx_bank" style="cursor:pointer; margin-bottom:0;">
                                     <option value="" disabled selected>Choose your bank...</option>
-                                    <option value="Maybank2U">Maybank2U</option>
-                                    <option value="CIMB Clicks">CIMB Clicks</option>
+                                    <option value="Maybank">Maybank</option>
+                                    <option value="CIMB">CIMB Bank</option>
                                     <option value="Public Bank">Public Bank</option>
-                                    <option value="RHB Bank">RHB Bank</option>
-                                    <option value="Hong Leong Bank">Hong Leong Bank</option>
-                                    <option value="Ambank">Ambank</option>
+                                    <option value="RHB">RHB Bank</option>
+                                    <option value="Hong Leong">Hong Leong Bank</option>
+                                    <option value="AmBank">AmBank</option>
+                                    <option value="UOB">UOB Bank</option>
+                                    <option value="OCBC">OCBC Bank</option>
+                                    <option value="HSBC">HSBC Bank</option>
+                                    <option value="Standard Chartered">Standard Chartered</option>
+                                    <option value="Alliance Bank">Alliance Bank</option>
+                                    <option value="Affin Bank">Affin Bank</option>
+                                    <option value="Other">Other Bank</option>
                                 </select>
                             </div>
+
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label style="font-size:12px; color:#555; margin-bottom:4px; display:block;">Bank Username</label>
+                                <input type="text" name="fpx_username" placeholder="Enter online banking username" autocomplete="off">
+                            </div>
+
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label style="font-size:12px; color:#555; margin-bottom:4px; display:block;">Bank Password</label>
+                                <input type="password" name="fpx_password" placeholder="Enter online banking password" autocomplete="new-password">
+                            </div>
+
                         </div>
                     </div>
 
@@ -424,7 +464,20 @@ $total = $checkout_subtotal + $shipping_fee;
                             <div class="payment-icons"><i class="fas fa-wallet" style="color:#005eb8;"></i></div>
                         </label>
                         <div class="payment-details">
-                            <input type="tel" name="tng_phone" placeholder="TNG Phone Number (e.g. 0123456789)" maxlength="11" oninput="validateNumber(this)">
+                            
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label style="font-size:12px; color:#555; margin-bottom:4px; display:block;">TNG Phone Number</label>
+                                <input type="tel" name="tng_phone" placeholder="e.g. 0123456789" maxlength="11" oninput="validateNumber(this)">
+                            </div>
+
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label style="font-size:12px; color:#555; margin-bottom:4px; display:block;">6-Digit PIN</label>
+                                <div style="position: relative;">
+                                    <input type="password" name="tng_pin" placeholder="Enter 6-digit PIN" maxlength="6" inputmode="numeric" oninput="validateNumber(this)" style="letter-spacing: 2px;">
+                                    <i class="fas fa-key" style="position: absolute; right: 15px; top: 15px; color: #aaa; font-size:12px;"></i>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
 
@@ -506,6 +559,7 @@ $total = $checkout_subtotal + $shipping_fee;
 
     <script>
         // 1. 支付方式切换逻辑 (自动处理必填项)
+        // 1. 支付方式切换逻辑
         function selectPayment(radio) {
             // A. 视觉切换
             const cards = document.querySelectorAll('.payment-card');
@@ -517,11 +571,13 @@ $total = $checkout_subtotal + $shipping_fee;
             const method = radio.value;
             
             // 先清空所有支付相关的 required
+            // [name^="tng_"] 会自动匹配 tng_phone 和 tng_pin
             const allInputs = document.querySelectorAll('[name^="card_"], [name^="fpx_"], [name^="tng_"], #card_auth');
             allInputs.forEach(input => input.removeAttribute('required'));
 
             // 根据选项重新添加 required
             if (method === 'Credit Card') {
+                setRequired('card_bank');
                 setRequired('card_name');
                 setRequired('card_number');
                 setRequired('card_cvc');
@@ -531,9 +587,12 @@ $total = $checkout_subtotal + $shipping_fee;
             } 
             else if (method === 'FPX') {
                 setRequired('fpx_bank');
+                setRequired('fpx_username');
+                setRequired('fpx_password');
             } 
             else if (method === 'TNG') {
                 setRequired('tng_phone');
+                setRequired('tng_pin'); // <--- ✨ 新增：TNG PIN 必填
             }
         }
 
