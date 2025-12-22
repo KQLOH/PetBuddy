@@ -269,4 +269,4 @@ include '../include/header.php';
 </div>
 
 <?php include '../include/footer.php'; ?>
-<?php include '../include/chat_widget.php'; ?>
+<?php include '../include/chat_widget.php'; ?>
