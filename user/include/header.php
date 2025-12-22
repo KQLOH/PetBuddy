@@ -240,10 +240,6 @@ try {
         .dropdown-menu a:hover {
             background-color: #FFF5EC; color: var(--primary-dark); padding-left: 25px;
         }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translate(-50%, 10px); }
-            to { opacity: 1; transform: translate(-50%, 0); }
-        }
 
         /* === 10. Free Shipping Bar Styles (Updated) === */
         .fs-container {
