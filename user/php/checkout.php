@@ -54,15 +54,28 @@ if (empty($checkout_items)) {
     exit;
 }
 
-// 5. 计算金额 (使用 checkout_subtotal 避免 header 冲突)
+// 5. 计算 Subtotal
 $checkout_subtotal = 0;
-
 foreach ($checkout_items as $item) {
     $line_total = (float)$item['price'] * (int)$item['quantity'];
     $checkout_subtotal += $line_total;
 }
 
-$shipping_fee = 15.00;
+// === ✨ 功能 1: 免邮费逻辑 (满50免邮) ✨ ===
+if ($checkout_subtotal >= 50) {
+    $shipping_fee = 0.00;
+} else {
+    $shipping_fee = 15.00;
+}
+
+// === ✨ 功能 2: 获取可用 Vouchers (用于弹窗) ✨ ===
+$today = date('Y-m-d');
+// 查询条件: 开始日期 <= 今天 <= 结束日期
+$stmt_v = $pdo->prepare("SELECT * FROM vouchers WHERE start_date <= ? AND end_date >= ? ORDER BY min_amount ASC");
+$stmt_v->execute([$today, $today]);
+$available_vouchers = $stmt_v->fetchAll(PDO::FETCH_ASSOC);
+
+// 6. 计算总额
 $total = $checkout_subtotal + $shipping_fee;
 ?>
 
@@ -123,7 +136,7 @@ $total = $checkout_subtotal + $shipping_fee;
 
             .checkout-layout {
                 flex-direction: row; /* 左右排布 */
-                flex: 1;             /* 占满剩余空间 */
+                flex: 1;            /* 占满剩余空间 */
                 overflow: hidden;
                 margin: 0 auto;
                 max-width: 1400px;
@@ -244,6 +257,57 @@ $total = $checkout_subtotal + $shipping_fee;
         .helper-text { font-size: 13px; color: #666; background: rgba(0,0,0,0.03); padding: 12px; border-radius: 6px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; }
         
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* === ✨ Voucher Modal Styles ✨ === */
+        .voucher-trigger-btn {
+            background: none; border: none; color: var(--primary-dark); 
+            font-size: 13px; font-weight: 600; cursor: pointer; 
+            text-decoration: underline; margin-top: 5px; display: inline-block;
+        }
+        
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 2000; display: none;
+            justify-content: center; align-items: center;
+        }
+        .modal-overlay.active { display: flex; animation: fadeIn 0.2s; }
+        
+        .voucher-modal {
+            background: #fff; width: 90%; max-width: 450px; 
+            border-radius: 12px; padding: 25px; position: relative;
+            max-height: 80vh; overflow-y: auto;
+        }
+        
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-title { font-size: 18px; font-weight: 700; color: #333; }
+        .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #999; }
+        
+        .voucher-list { display: flex; flex-direction: column; gap: 15px; }
+        
+        .voucher-item {
+            border: 2px dashed #ddd; border-radius: 8px; padding: 15px;
+            display: flex; justify-content: space-between; align-items: center;
+            transition: 0.2s; background: #fff;
+        }
+        .voucher-item:hover { border-color: var(--primary-color); background: #fffbf6; }
+        
+        .v-left { flex: 1; }
+        .v-code { font-weight: 700; font-size: 16px; color: var(--primary-dark); font-family: monospace; }
+        .v-desc { font-size: 13px; color: #666; margin-top: 4px; }
+        .v-min { font-size: 11px; color: #999; }
+        
+        .v-btn {
+            background: var(--primary-color); color: #fff; border: none;
+            padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 600;
+            cursor: pointer; white-space: nowrap;
+        }
+        .v-btn:hover { background: var(--primary-dark); }
+        
+        /* 禁用状态 */
+        .voucher-item.disabled { opacity: 0.6; background: #f9f9f9; border-color: #eee; cursor: not-allowed; }
+        .voucher-item.disabled .v-btn { background: #ccc; cursor: not-allowed; }
+        
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body>
@@ -289,35 +353,31 @@ $total = $checkout_subtotal + $shipping_fee;
                     <input type="tel" name="phone" placeholder="Phone" value="<?= htmlspecialchars($user_phone) ?>" required>
                 </div>
                 
-<div class="form-group" style="margin-bottom: 15px;">
-    <label style="font-size: 14px; color: #555; margin-bottom: 6px; display:block;">Shipping Address</label>
-    
-    <input type="text" name="address" placeholder="Address Line 1 " value="<?= htmlspecialchars($user_address) ?>" required style="margin-bottom: 10px;">
-    
-    <input type="text" name="apartment" placeholder="Address Line 2  ">
-    
-
-</div>
-<div class="form-row">
-    <div class="form-col">
-        <input type="text" name="postcode" id="billing_postcode" placeholder="Postcode" value="<?= htmlspecialchars($user_postcode) ?>" maxlength="5" required>
-    </div>
-    <div class="form-col">
-        <input type="text" name="city" id="billing_city" placeholder="City" value="<?= htmlspecialchars($user_city) ?>" required>
-    </div>
-    <div class="form-col">
-        <select name="state" id="billing_state" required style="color: #333;">
-            <option value="" disabled <?= empty($user_state) ? 'selected' : '' ?>>State</option>
-            <?php 
-                $states = ["Johor", "Selangor", "Kuala Lumpur", "Penang", "Perak", "Kedah", "Melaka", "Negeri Sembilan", "Pahang", "Terengganu", "Kelantan", "Perlis", "Sabah", "Sarawak", "Labuan", "Putrajaya"];
-                foreach($states as $st) {
-                    $selected = ($user_state == $st) ? "selected" : "";
-                    echo "<option value='$st' $selected>$st</option>";
-                }
-            ?>
-        </select>
-    </div>
-</div>
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="font-size: 14px; color: #555; margin-bottom: 6px; display:block;">Shipping Address</label>
+                    <input type="text" name="address" placeholder="Address Line 1 " value="<?= htmlspecialchars($user_address) ?>" required style="margin-bottom: 10px;">
+                    <input type="text" name="apartment" placeholder="Address Line 2  ">
+                </div>
+                <div class="form-row">
+                    <div class="form-col">
+                        <input type="text" name="postcode" id="billing_postcode" placeholder="Postcode" value="<?= htmlspecialchars($user_postcode) ?>" maxlength="5" required>
+                    </div>
+                    <div class="form-col">
+                        <input type="text" name="city" id="billing_city" placeholder="City" value="<?= htmlspecialchars($user_city) ?>" required>
+                    </div>
+                    <div class="form-col">
+                        <select name="state" id="billing_state" required style="color: #333;">
+                            <option value="" disabled <?= empty($user_state) ? 'selected' : '' ?>>State</option>
+                            <?php 
+                                $states = ["Johor", "Selangor", "Kuala Lumpur", "Penang", "Perak", "Kedah", "Melaka", "Negeri Sembilan", "Pahang", "Terengganu", "Kelantan", "Perlis", "Sabah", "Sarawak", "Labuan", "Putrajaya"];
+                                foreach($states as $st) {
+                                    $selected = ($user_state == $st) ? "selected" : "";
+                                    echo "<option value='$st' $selected>$st</option>";
+                                }
+                            ?>
+                        </select>
+                    </div>
+                </div>
                 
                 <div class="checkbox-wrapper">
                     <input type="checkbox" id="save_info" name="save_info">
@@ -330,8 +390,15 @@ $total = $checkout_subtotal + $shipping_fee;
                 <div class="radio-box-group">
                     <div class="radio-box">
                         <div class="radio-label">Standard Shipping</div>
-                        <div style="font-weight: 600;">RM <?= number_format($shipping_fee, 2) ?></div>
-                    </div>
+                        <div style="font-weight: 600;">
+                            <?php if($shipping_fee == 0): ?>
+                                <span style="color: #28a745; margin-right: 5px;">FREE</span>
+                                <span style="text-decoration: line-through; color: #999; font-size: 0.9em;">RM 15.00</span>
+                            <?php else: ?>
+                                RM <?= number_format($shipping_fee, 2) ?>
+                            <?php endif; ?>
+                        </div>
+                        </div>
                 </div>
 
                 <div class="section-header">
@@ -495,8 +562,6 @@ $total = $checkout_subtotal + $shipping_fee;
 
                 </div>
 
-
-
             </form>
         </div>
 
@@ -519,11 +584,55 @@ $total = $checkout_subtotal + $shipping_fee;
                 <?php endforeach; ?>
             </div>
 
-            <div class="discount-row">
-                <input type="text" class="discount-input" placeholder="Discount code or gift card">
-                <button type="button" class="btn-apply">Apply</button>
+            <div class="discount-section" style="margin: 25px 0; border-top: 1px solid rgba(0,0,0,0.08); border-bottom: 1px solid rgba(0,0,0,0.08); padding: 25px 0;">
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" class="discount-input" placeholder="Discount code or gift card">
+                    <button type="button" class="btn-apply">Apply</button>
+                </div>
+                <button type="button" class="voucher-trigger-btn" onclick="openVoucherModal()">
+                    <i class="fas fa-ticket-alt"></i> Select Voucher
+                </button>
             </div>
             
+            <div id="voucherModalOverlay" class="modal-overlay" onclick="closeVoucherModal(event)">
+                <div class="voucher-modal">
+                    <div class="modal-header">
+                        <div class="modal-title">Select Voucher</div>
+                        <button class="modal-close" onclick="closeVoucherModal(null)">&times;</button>
+                    </div>
+                    
+                    <div class="voucher-list">
+                        <?php if (empty($available_vouchers)): ?>
+                            <div style="text-align: center; color: #999; padding: 20px;">No vouchers available :(</div>
+                        <?php else: ?>
+                            <?php foreach ($available_vouchers as $v): 
+                                // 检查是否满足最低消费
+                                $min_spend = (float)$v['min_amount'];
+                                $is_eligible = $checkout_subtotal >= $min_spend;
+                            ?>
+                            <div class="voucher-item <?= $is_eligible ? '' : 'disabled' ?>">
+                                <div class="v-left">
+                                    <div class="v-code"><?= htmlspecialchars($v['code']) ?></div>
+                                    <div class="v-desc">RM <?= number_format($v['discount_amount'], 0) ?> OFF</div>
+                                    <?php if($min_spend > 0): ?>
+                                        <div class="v-min">Min. spend RM <?= number_format($min_spend, 2) ?></div>
+                                    <?php else: ?>
+                                        <div class="v-min">No min. spend</div>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="v-right">
+                                    <?php if ($is_eligible): ?>
+                                        <button class="v-btn" onclick="applySelectedVoucher('<?= $v['code'] ?>')">Use</button>
+                                    <?php else: ?>
+                                        <button class="v-btn" disabled>Locked</button>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
             <div class="total-line">
                 <span>Subtotal • <?= count($checkout_items) ?> items</span>
                 <span>RM <span id="display_subtotal"><?= number_format($checkout_subtotal, 2) ?></span></span>
@@ -540,7 +649,15 @@ $total = $checkout_subtotal + $shipping_fee;
                 <span style="display:flex; align-items:center; gap:5px;">
                     Shipping <i class="far fa-question-circle" style="font-size:12px; color:#737373;"></i>
                 </span>
-                <span>RM <?= number_format($shipping_fee, 2) ?></span>
+                
+                <span>
+                    <?php if($shipping_fee == 0): ?>
+                        <span style="color: #28a745; font-weight: bold;">FREE</span>
+                        <span style="text-decoration: line-through; color: #999; font-size: 0.9em; margin-left: 5px;">RM 15.00</span>
+                    <?php else: ?>
+                        RM <?= number_format($shipping_fee, 2) ?>
+                    <?php endif; ?>
+                </span>
             </div>
             
             <div class="grand-total">
@@ -551,15 +668,14 @@ $total = $checkout_subtotal + $shipping_fee;
                 </div>
             </div>
 
-                <button type="submit" class="btn-pay" form="checkoutForm">Pay now</button>
-                <a href="cart.php" class="return-cart">< Return to cart</a>
+            <button type="submit" class="btn-pay" form="checkoutForm">Pay now</button>
+            <a href="cart.php" class="return-cart">< Return to cart</a>
         </div>
 
     </div>
 
     <script>
         // 1. 支付方式切换逻辑 (自动处理必填项)
-        // 1. 支付方式切换逻辑
         function selectPayment(radio) {
             // A. 视觉切换
             const cards = document.querySelectorAll('.payment-card');
@@ -571,7 +687,6 @@ $total = $checkout_subtotal + $shipping_fee;
             const method = radio.value;
             
             // 先清空所有支付相关的 required
-            // [name^="tng_"] 会自动匹配 tng_phone 和 tng_pin
             const allInputs = document.querySelectorAll('[name^="card_"], [name^="fpx_"], [name^="tng_"], #card_auth');
             allInputs.forEach(input => input.removeAttribute('required'));
 
@@ -592,7 +707,7 @@ $total = $checkout_subtotal + $shipping_fee;
             } 
             else if (method === 'TNG') {
                 setRequired('tng_phone');
-                setRequired('tng_pin'); // <--- ✨ 新增：TNG PIN 必填
+                setRequired('tng_pin'); 
             }
         }
 
@@ -604,15 +719,38 @@ $total = $checkout_subtotal + $shipping_fee;
         function validateNumber(input) { input.value = input.value.replace(/[^0-9]/g, ''); }
         function validateText(input) { input.value = input.value.replace(/[^a-zA-Z\s]/g, ''); }
 
+        // === ✨ 新增: Voucher Modal JS ✨ ===
+        function openVoucherModal() {
+            document.getElementById('voucherModalOverlay').classList.add('active');
+        }
+
+        function closeVoucherModal(e) {
+            // 如果点击的是背景(overlay) 或者 专门的关闭按钮
+            if (!e || e.target.classList.contains('modal-overlay') || e.target.classList.contains('modal-close')) {
+                document.getElementById('voucherModalOverlay').classList.remove('active');
+            }
+        }
+
+        function applySelectedVoucher(code) {
+            // 1. 把 Code 填入输入框
+            $(".discount-input").val(code);
+            
+            // 2. 关闭弹窗
+            document.getElementById('voucherModalOverlay').classList.remove('active');
+            
+            // 3. 自动触发原本的 "Apply" 按钮点击事件
+            $(".btn-apply").click();
+        }
+
         // 2. 优惠券 AJAX 逻辑
         $(document).ready(function() {
             $(".btn-apply").click(function(e) {
                 e.preventDefault();
                 
                 let code = $(".discount-input").val().trim();
-                // 获取 PHP 渲染好的 subtotal
                 let subtotal = parseFloat($("#display_subtotal").text().replace(/,/g, ''));
-                let shipping = <?= $shipping_fee ?>;
+                
+                let shipping = <?= $shipping_fee ?>; 
 
                 if(!code) {
                     Swal.fire("Error", "Please enter a code", "error");
@@ -653,13 +791,11 @@ $total = $checkout_subtotal + $shipping_fee;
                         }
                     },
                     error: function() {
-                        // 如果还没有创建 apply_voucher.php，这里会报错
                         Swal.fire("Error", "Function not available yet (Missing backend file)", "error");
                     }
                 });
             });
         });
-
 
         // === 3. 自动填充 Postcode -> City & State ===
             $(document).ready(function() {
@@ -667,10 +803,7 @@ $total = $checkout_subtotal + $shipping_fee;
                 $("#billing_postcode").on("keyup change", function() {
                     var postcode = $(this).val();
 
-                    // 马来西亚邮编必须是 5 位数字
                     if (postcode.length === 5 && $.isNumeric(postcode)) {
-                        
-                        // 显示正在加载...
                         $("#billing_city").attr("placeholder", "Searching...");
                         
                         $.ajax({
@@ -679,43 +812,31 @@ $total = $checkout_subtotal + $shipping_fee;
                             dataType: "json",
                             type: "GET",
                             success: function(result, success) {
-                                // 1. 获取城市
-                                // API 返回的 place name 通常是大写，我们把它转为首字母大写
                                 var city = result['places'][0]['place name'];
                                 $("#billing_city").val(toTitleCase(city));
 
-                                // 2. 获取州属
                                 var state = result['places'][0]['state'];
-                                
-                                // 3. 匹配下拉菜单 (State Dropdown)
-                                // API 返回的可能叫 "Wilayah Persekutuan Kuala Lumpur"，我们要匹配简单的 "Kuala Lumpur"
                                 $("#billing_state option").each(function() {
                                     var optionText = $(this).text();
-                                    // 如果 API 的州属包含下拉单里的字 (例如 API="Selangor" 包含 Option="Selangor")
                                     if (state.includes(optionText) || optionText.includes(state)) {
                                         $(this).prop('selected', true);
                                     }
                                 });
-
-                                // 恢复 placeholder
                                 $("#billing_city").attr("placeholder", "City");
                             },
                             error: function(result, success) {
-                                // 如果找不到邮编 (比如输入了不存在的号码)
                                 console.log("Postcode not found");
                             }
                         });
                     }
                 });
 
-                // 辅助函数：把全大写转为首字母大写 (KUALA LUMPUR -> Kuala Lumpur)
                 function toTitleCase(str) {
                     return str.replace(/\w\S*/g, function(txt){
                         return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
                     });
                 }
             });
-
 
     </script>
 

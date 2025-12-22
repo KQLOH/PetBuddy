@@ -1,9 +1,8 @@
 <?php
 /**
- * Header Component (Fixed & Organized)
- * - Removed Login Sidebar (links directly to login.php).
- * - Fixed JS 'null' errors for missing elements.
- * - Organized CSS and JS for better readability.
+ * Header Component (Moved Progress Bar to Footer)
+ * - Progress Bar is now inside the Cart Footer
+ * - Real-time updates via JS
  */
 
 if (session_status() === PHP_SESSION_NONE) {
@@ -38,6 +37,16 @@ if ($loggedIn) {
     if ($row && !empty($row['image'])) {
         $userAvatar = $row['image'];
     }
+}
+
+// 5. Fetch Categories
+$categories = [];
+try {
+    $stmt_cat = $pdo->prepare("SELECT * FROM product_categories ORDER BY category_id ASC");
+    $stmt_cat->execute();
+    $categories = $stmt_cat->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("Category fetch error: " . $e->getMessage());
 }
 ?>
 
@@ -202,6 +211,64 @@ if ($loggedIn) {
         .modal, .alert { z-index: 9999 !important; }
 
         @media (max-width: 500px) { .sidebar-panel { width: 100%; right: -100%; } }
+
+        /* === 9. Categories Dropdown Styles === */
+        .nav-dropdown-wrapper {
+            position: relative; display: flex; align-items: center; height: 100%;
+        }
+        .nav-dropdown-wrapper > a {
+            display: flex; align-items: center; gap: 4px; cursor: pointer;
+        }
+        .dropdown-menu {
+            display: none; position: absolute; top: 100%; left: 50%;
+            transform: translateX(-50%); background: #fff;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-radius: 8px;
+            min-width: 200px; padding: 10px 0; z-index: 1100;
+            border: 1px solid #eee; margin-top: 10px;
+        }
+        .nav-dropdown-wrapper:hover .dropdown-menu {
+            display: block; animation: fadeIn 0.2s ease-in-out;
+        }
+        .dropdown-menu::before {
+            content: ""; position: absolute; top: -15px; left: 0;
+            width: 100%; height: 20px; background: transparent;
+        }
+        .dropdown-menu a {
+            display: block; padding: 12px 20px; color: var(--text-dark);
+            text-decoration: none; font-size: 15px; transition: 0.2s; white-space: nowrap;
+        }
+        .dropdown-menu a:hover {
+            background-color: #FFF5EC; color: var(--primary-dark); padding-left: 25px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, 10px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+        }
+
+        /* === 10. Free Shipping Bar Styles (Updated) === */
+        .fs-container {
+            padding: 0 0 15px 0; /* 减少padding，因为放在Footer里了 */
+            background: transparent;
+            border-bottom: 1px solid #eee; /* 在进度条和Subtotal之间加条线 */
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .fs-text {
+            font-size: 14px; margin-bottom: 8px; font-weight: 500; color: var(--text-dark);
+        }
+        .fs-text span {
+            font-weight: 700; color: var(--primary-dark);
+        }
+        .fs-bar-bg {
+            width: 100%; height: 8px; background: #eee; border-radius: 10px; overflow: hidden;
+        }
+        .fs-bar-fill {
+            height: 100%; width: 0%; background: var(--primary-color);
+            border-radius: 10px; transition: width 0.5s ease, background-color 0.3s ease;
+        }
+        .fs-success-text { color: #28a745 !important; }
+        .fs-success-bar { background: #28a745 !important; }
+
     </style>
 </head>
 <body>
@@ -220,14 +287,32 @@ if ($loggedIn) {
         </div>
 
         <div class="nav-links">
-            <a href="home.php" class="<?= basename($_SERVER['PHP_SELF'])==='index.php'?'active':'' ?>">Home</a>
+            <a href="home.php" class="<?= basename($_SERVER['PHP_SELF'])==='index.php' || basename($_SERVER['PHP_SELF'])==='home.php' ?'active':'' ?>">Home</a>
+
+            <div class="nav-dropdown-wrapper">
+                <a href="product_listing.php" class="<?= basename($_SERVER['PHP_SELF'])==='product_listing.php' && !isset($_GET['category']) ?'active':'' ?>">
+                    Categories ▾
+                </a>
+                <div class="dropdown-menu">
+                    <a href="product_listing.php">View All Products</a>
+                    <hr style="border:0; border-top:1px solid #eee; margin:5px 0;">
+                    <?php if (!empty($categories)): ?>
+                        <?php foreach ($categories as $cat): ?>
+                            <a href="product_listing.php?category=<?= $cat['category_id'] ?>">
+                                <?= htmlspecialchars($cat['name']) ?>
+                            </a>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <a href="#">No Categories Found</a>
+                    <?php endif; ?>
+                </div>
+            </div>
+
             <a href="about.php" class="<?= basename($_SERVER['PHP_SELF'])==='about.php'?'active':'' ?>">About</a>
-            <a href="product_listing.php" class="<?= basename($_SERVER['PHP_SELF'])==='products.php'?'active':'' ?>">Products</a>
             <a href="contact.php" class="<?= basename($_SERVER['PHP_SELF'])==='contact.php'?'active':'' ?>">Contact</a>
         </div>
 
         <div style="display:flex; gap:10px; align-items:center;">
-            
             <button class="nav-icon-btn" onclick="toggleSearchBar()">
                 <img src="../images/search-interface-symbol.png" alt="Search" class="custom-icon">
             </button>
@@ -293,7 +378,6 @@ if ($loggedIn) {
             if (isset($pdo)) {
                 $cart_items = getCartItems($pdo, $member_id);
                 
-                // Try to include UI template
                 $ui_path_1 = __DIR__ . '/../php/cart_ui.php'; 
                 $ui_path_2 = 'cart_ui.php';
 
@@ -310,6 +394,17 @@ if ($loggedIn) {
     </div>
 
     <div class="cart-footer" id="cartFooter" style="<?= ($loggedIn && isset($total_price) && $total_price > 0) ? '' : 'display:none;' ?>">
+        
+        <?php if ($loggedIn): ?>
+        <div class="fs-container">
+            <p class="fs-text" id="fsMessage">
+                Add <span>RM 50.00</span> more for <br><strong>Free Shipping!</strong> 🚚
+            </p>
+            <div class="fs-bar-bg">
+                <div class="fs-bar-fill" id="fsProgress"></div>
+            </div>
+        </div>
+        <?php endif; ?>
         <div class="cart-total">
             <span>Subtotal:</span>
             <span style="color: var(--primary-dark);">RM <span id="cartSidebarTotal"><?= number_format($total_price, 2) ?></span></span>
@@ -320,13 +415,13 @@ if ($loggedIn) {
 </div>
 
 <script>
-    // --- Search Bar Toggle ---
+    // --- 1. Search Bar Toggle ---
     function toggleSearchBar() {
         const bar = document.getElementById("searchBar");
         if(bar) bar.classList.toggle("active");
     }
 
-    // --- User Dropdown Toggle ---
+    // --- 2. User Dropdown Toggle ---
     function toggleUserDropdown() {
         const dropdown = document.getElementById("userDropdown");
         if (dropdown) {
@@ -334,7 +429,6 @@ if ($loggedIn) {
         }
     }
 
-    // Close dropdown when clicking outside
     document.addEventListener('click', function(e){
         const container = document.querySelector('.user-avatar-dropdown');
         const dropdown = document.getElementById("userDropdown");
@@ -343,21 +437,16 @@ if ($loggedIn) {
         }
     });
 
-    // --- Sidebar Functions ---
+    // --- 3. Sidebar Functions ---
 
-    // Close all sidebars (Cart & Login if it existed)
     function closeAllSidebars() {
         const cart = document.getElementById("cartSidebar");
         const overlay = document.getElementById("loginOverlay");
-
-        // Use conditional checks to prevent null errors
         if (cart) cart.classList.remove("active");
         if (overlay) overlay.classList.remove("active");
     }
 
-    // Open Cart Sidebar
     function openCart() {
-        // Close user dropdown if open
         const dropdown = document.getElementById("userDropdown");
         if (dropdown) dropdown.style.display = "none";
         
@@ -367,17 +456,89 @@ if ($loggedIn) {
         if (cart && overlay) {
             cart.classList.add("active");
             overlay.classList.add("active");
+            updateFreeShipping(); 
         }
     }
 
-    // Close Cart Sidebar
     function closeCart() {
         const cart = document.getElementById("cartSidebar");
         const overlay = document.getElementById("loginOverlay");
-        
         if (cart) cart.classList.remove("active");
         if (overlay) overlay.classList.remove("active");
     }
+
+    // --- 4. 增强版免邮逻辑 (Handle Empty Cart) ---
+    function updateFreeShipping() {
+        const totalEl = document.getElementById('cartSidebarTotal');
+        const footer = document.getElementById('cartFooter');
+        
+        // 获取进度条元素
+        const barFill = document.getElementById('fsProgress');
+        const msgText = document.getElementById('fsMessage');
+        
+        if (!barFill || !msgText) return;
+
+        // === 关键修改：检查购物车是否为空/结算栏是否被隐藏 ===
+        let isHidden = false;
+        if (footer) {
+            const style = window.getComputedStyle(footer);
+            if (style.display === 'none') isHidden = true;
+        }
+
+        let currentTotal = 0;
+
+        if (totalEl && !isHidden) {
+            let textVal = totalEl.innerText.replace(/,/g, ''); 
+            currentTotal = parseFloat(textVal);
+            if(isNaN(currentTotal)) currentTotal = 0;
+        }
+
+        // === 设置门槛 ===
+        const threshold = 50.00; 
+
+        if (currentTotal >= threshold) {
+            // === 达标 ===
+            barFill.style.width = '100%';
+            barFill.classList.add('fs-success-bar');
+            msgText.innerHTML = '🎉 Congratulations! You got <strong>Free Shipping!</strong>';
+            msgText.classList.add('fs-success-text');
+        } else if (currentTotal > 0) {
+            // === 进行中 ===
+            let diff = (threshold - currentTotal).toFixed(2);
+            let percentage = (currentTotal / threshold) * 100;
+            if(percentage > 100) percentage = 100;
+
+            barFill.style.width = percentage + '%';
+            barFill.classList.remove('fs-success-bar');
+            msgText.classList.remove('fs-success-text');
+            msgText.innerHTML = `Add <span>RM ${diff}</span> more for <br><strong>Free Shipping!</strong> 🚚`;
+        } else {
+            // === 购物车为空 (0元) ===
+            barFill.style.width = '0%';
+            barFill.classList.remove('fs-success-bar');
+            msgText.classList.remove('fs-success-text');
+            msgText.innerHTML = `Add <span>RM 50.00</span> more for <br><strong>Free Shipping!</strong> 🚚`;
+        }
+    }
+
+    // --- 5. 双重监视器 (Double Watcher) ---
+    document.addEventListener("DOMContentLoaded", function() {
+        updateFreeShipping(); // 初始运行
+
+        // 监视对象 1: 价格数字变化
+        const priceNode = document.getElementById('cartSidebarTotal');
+        if (priceNode) {
+            const priceObserver = new MutationObserver(() => updateFreeShipping());
+            priceObserver.observe(priceNode, { childList: true, characterData: true, subtree: true });
+        }
+
+        // 监视对象 2: 结算栏显示/隐藏变化 (style属性变化)
+        const footerNode = document.getElementById('cartFooter');
+        if (footerNode) {
+            const footerObserver = new MutationObserver(() => updateFreeShipping());
+            footerObserver.observe(footerNode, { attributes: true, attributeFilter: ['style', 'class'] });
+        }
+    });
 </script>
 
 </body>

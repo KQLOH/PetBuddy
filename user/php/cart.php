@@ -82,6 +82,26 @@ $cart_items = getCartItems($pdo, $member_id);
         .continue-link { display: block; text-align: center; margin-top: 15px; font-size: 14px; color: #888; text-decoration: none; transition: 0.3s; font-weight: 500; }
         .continue-link:hover { color: var(--primary-dark); text-decoration: underline; }
 
+        /* === ✨ New: Cart Progress Bar CSS === */
+        .fs-summary-container {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+            text-align: center;
+        }
+        .fs-summary-text { font-size: 14px; margin-bottom: 10px; color: #555; }
+        .fs-summary-text span { color: var(--primary-dark); font-weight: 700; }
+        .fs-summary-bar-bg {
+            width: 100%; height: 8px; background: #eee; border-radius: 10px; overflow: hidden;
+        }
+        .fs-summary-fill {
+            height: 100%; width: 0%; background: var(--primary-color);
+            border-radius: 10px; transition: width 0.3s ease, background-color 0.3s ease;
+        }
+        .fs-summary-success { background: #28a745 !important; }
+        .fs-text-success { color: #28a745 !important; }
+        /* =================================== */
+
         @media (max-width: 768px) {
             .cart-header-row { display: none; }
             .cart-row { flex-wrap: wrap; gap: 15px; position: relative; padding-left: 40px; }
@@ -99,7 +119,7 @@ $cart_items = getCartItems($pdo, $member_id);
 <div class="cart-container">
     
     <div class="cart-list">
-        <h2 style="margin-bottom: 25px;">Shopping Cart</h2>
+        <h2 style="margin-bottom: 25px;">Shopping Cart </h2>
 
         <?php if (empty($cart_items)): ?>
             <div class="empty-cart-msg">
@@ -161,6 +181,15 @@ $cart_items = getCartItems($pdo, $member_id);
 
     <?php if (!empty($cart_items)): ?>
     <div class="cart-summary">
+        
+        <div class="fs-summary-container">
+            <p class="fs-summary-text" id="fsSummaryMsg">
+                Add <span>RM 50.00</span> more for Free Shipping!
+            </p>
+            <div class="fs-summary-bar-bg">
+                <div class="fs-summary-fill" id="fsSummaryFill"></div>
+            </div>
+        </div>
         <div class="summary-title">Cart Totals</div>
         
         <div class="summary-row">
@@ -173,7 +202,7 @@ $cart_items = getCartItems($pdo, $member_id);
         </div>
         <div class="summary-row">
             <span>Shipping</span>
-            <span>Free</span>
+            <span id="shippingText">RM 15.00</span> 
         </div>
         
         <div class="summary-total">
@@ -195,7 +224,7 @@ $cart_items = getCartItems($pdo, $member_id);
 <script>
 $(document).ready(function() {
     
-    // === 1. 计算总价 ===
+    // === 1. 计算总价 + 更新进度条 ===
     function updatePageTotals() {
         let total = 0;
         let count = 0;
@@ -220,6 +249,40 @@ $(document).ready(function() {
             $("#btnCheckout").addClass("disabled").prop("disabled", true);
         } else {
             $("#btnCheckout").removeClass("disabled").prop("disabled", false);
+        }
+
+        // === ✨✨✨ 实时更新免邮进度条 ✨✨✨ ===
+        updateProgressBar(total);
+        // ==========================================
+    }
+
+    // === 新增: 进度条逻辑 ===
+    function updateProgressBar(currentTotal) {
+        const threshold = 50.00;
+        const barFill = $("#fsSummaryFill");
+        const msgText = $("#fsSummaryMsg");
+        const shipText = $("#shippingText");
+
+        if (currentTotal >= threshold) {
+            // 达标
+            barFill.css("width", "100%").addClass("fs-summary-success");
+            msgText.html('🎉 You got <strong>Free Shipping!</strong>').addClass("fs-text-success");
+            shipText.html('<span style="color:#28a745; font-weight:bold;">Free</span>');
+        } else {
+            // 未达标
+            let diff = (threshold - currentTotal).toFixed(2);
+            let percent = (currentTotal / threshold) * 100;
+            if(percent < 0) percent = 0;
+            if(percent > 100) percent = 100; // 防止溢出
+
+            barFill.css("width", percent + "%").removeClass("fs-summary-success");
+            msgText.html(`Add <span>RM ${diff}</span> more for Free Shipping!`).removeClass("fs-text-success");
+            
+            if(currentTotal > 0) {
+                shipText.text("RM 15.00");
+            } else {
+                 shipText.text("-"); // 如果没选东西，运费显示杠杠
+            }
         }
     }
 
@@ -278,7 +341,9 @@ $(document).ready(function() {
                     $display.text(newQty);
                     let newSubtotal = (price * newQty).toFixed(2);
                     $row.find(".row-subtotal").text(newSubtotal);
-                    updatePageTotals();
+                    
+                    updatePageTotals(); // 这里会自动更新进度条
+                    
                     if (typeof refreshCartSidebar === "function") refreshCartSidebar();
                 }
             }
@@ -306,7 +371,7 @@ $(document).ready(function() {
                         if (response.trim() === "success") {
                             $row.fadeOut(300, function() { 
                                 $(this).remove(); 
-                                updatePageTotals();
+                                updatePageTotals(); // 删除后自动更新进度条
                                 if ($(".cart-row").length === 0) location.reload(); 
                             });
                             if (typeof refreshCartSidebar === "function") refreshCartSidebar();
@@ -318,13 +383,11 @@ $(document).ready(function() {
     });
 
     // === 7. 跳转结算 (携带选中的ID) ===
-    // 用户点击 "Proceed to Checkout" 按钮时
     $("#btnCheckout").click(function() {
         let selectedIds = [];
         $(".item-check:checked").each(function() {
             selectedIds.push($(this).closest(".cart-row").data("id"));
         });
-        // 跳转到 checkout.php，只传递选中的商品ID
         window.location.href = "checkout.php?selected=" + selectedIds.join(",");
     });
 
