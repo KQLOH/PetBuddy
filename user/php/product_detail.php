@@ -283,6 +283,7 @@ $productDescription = trim((string)$product['description']) !== '' ? $product['d
                             
                             <span class="pd-icon-cart"><img src="../images/add-to-cart.png" alt="Cart" style="width: 16px; height: 16px; vertical-align: middle; margin-right: 5px;"></span> Add to Cart
                         </button>
+                        <a href="javascript:history.back()" class="continue-link">Or Continue Shopping</a>
                     </div>
                 </div>
             </div>
