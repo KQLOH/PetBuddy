@@ -41,7 +41,6 @@ if (isset($_GET['items']) && $_GET['items'] === 'all') {
 } elseif (!empty($_GET['selected'])) {
     $selected_ids_str = $_GET['selected'];
     $selected_ids = array_map('intval', explode(',', $selected_ids_str));
-
     foreach ($all_cart_items as $item) {
         if (in_array((int)$item['product_id'], $selected_ids)) {
             $checkout_items[] = $item;
@@ -62,20 +61,14 @@ foreach ($checkout_items as $item) {
     $checkout_subtotal += $line_total;
 }
 
+// Free Shipping Logic
+$shipping_fee = ($checkout_subtotal >= 50) ? 0.00 : 15.00;
 
-if ($checkout_subtotal >= 50) {
-    $shipping_fee = 0.00;
-} else {
-    $shipping_fee = 15.00;
-}
-
-
+// Get Vouchers
 $today = date('Y-m-d');
-
 $stmt_v = $pdo->prepare("SELECT * FROM vouchers WHERE start_date <= ? AND end_date >= ? ORDER BY min_amount ASC");
 $stmt_v->execute([$today, $today]);
 $available_vouchers = $stmt_v->fetchAll(PDO::FETCH_ASSOC);
-
 
 $total = $checkout_subtotal + $shipping_fee;
 ?>
@@ -92,20 +85,17 @@ $total = $checkout_subtotal + $shipping_fee;
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        
+        /* === Styles === */
         :root {
-            --primary-color: #FFB774;       
-            --primary-dark: #E89C55;        
-            --bg-sidebar: #fff9f2;          
-            --border-focus: #FFB774;        
-            --accent-bg: #fffbf6;           
+            --primary-color: #F4A261;
+            --primary-dark: #E89C55;
+            --bg-sidebar: #fff9f2;
+            --border-focus: #F4A261;
+            --accent-bg: #fffbf6;
             --text-dark: #2F2F2F;
             --border-color: #e1e1e1;
         }
-
-        
         * { box-sizing: border-box; font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif; }
-        
         body { margin: 0; padding: 0; background: #fff; color: var(--text-dark); display: flex; flex-direction: column; min-height: 100vh; }
 
         
@@ -178,13 +168,28 @@ $total = $checkout_subtotal + $shipping_fee;
         .form-col { flex: 1; min-width: 0; }
 
        
+        .checkout-layout { display: flex; flex-direction: column-reverse; width: 100%; }
+        .main-col { padding: 30px 5%; background: #fff; }
+        .sidebar-col { background: #fafafa; padding: 30px 5%; border-bottom: 1px solid #e1e1e1; }
+        
+        @media (min-width: 1001px) {
+            body { height: 100vh; overflow: hidden; }
+            .checkout-layout { flex-direction: row; flex: 1; overflow: hidden; margin: 0 auto; max-width: 1400px; }
+            .main-col { flex: 1 1 58%; height: 100%; overflow-y: auto; padding: 40px 6%; border-right: 1px solid var(--border-color); scrollbar-width: thin; scrollbar-color: #ccc transparent; }
+            .sidebar-col { flex: 1 1 42%; height: 100%; overflow-y: auto; background: var(--bg-sidebar); padding: 40px 6%; border-bottom: none; scrollbar-width: thin; scrollbar-color: #ddd transparent; }
+        }
+
+        /* Form Elements */
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; margin-top: 35px; }
+        .section-title { font-size: 19px; font-weight: 500; color: #333; }
+        .section-header:first-of-type { margin-top: 0; }
+        .form-group { margin-bottom: 25px; }
+        .form-row { display: flex; gap: 25px; width: 100%; margin-bottom: 25px; }
+        .form-col { flex: 1; min-width: 0; }
         input[type="text"], input[type="email"], input[type="tel"], select, input[type="password"] {
-            width: 100%; padding: 13px; border: 1px solid #d9d9d9; border-radius: 5px;
-            font-size: 14px; transition: all 0.2s ease-in-out; color: #333; background: #fff;
+            width: 100%; padding: 13px; border: 1px solid #d9d9d9; border-radius: 5px; font-size: 14px; transition: all 0.2s ease-in-out; color: #333; background: #fff;
         }
-        input:focus, select:focus {
-            border-color: var(--border-focus); outline: none; box-shadow: 0 0 0 1px var(--border-focus); 
-        }
+        input:focus, select:focus { border-color: var(--border-focus); outline: none; box-shadow: 0 0 0 1px var(--border-focus); }
         input[readonly] { background-color: #f9f9f9; color: #777; cursor: not-allowed; }
         label { font-size: 14px; color: #555; display:block; margin-bottom: 6px; }
 
@@ -207,19 +212,14 @@ $total = $checkout_subtotal + $shipping_fee;
             box-shadow: 0 4px 10px rgba(255, 183, 116, 0.4);
         }
         .btn-pay:hover { background: var(--primary-dark); transform: translateY(-2px); }
-        
         .return-cart { display: block; text-align: center; margin-top: 20px; color: var(--primary-dark); text-decoration: none; font-size: 14px; font-weight: 500; }
         .return-cart:hover { text-decoration: underline; }
 
-       
+        /* Sidebar Items */
         .summary-item { display: flex; align-items: center; gap: 15px; margin-bottom: 18px; }
         .img-wrap { position: relative; width: 65px; height: 65px; border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; background: #fff; }
         .img-wrap img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
-        .qty-badge {
-            position: absolute; top: -10px; right: -10px; background: #666; color: white;
-            border-radius: 50%; width: 21px; height: 21px; font-size: 12px; font-weight: 600;
-            display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.15); border: 2px solid #fff; 
-        }
+        .qty-badge { position: absolute; top: -10px; right: -10px; background: #666; color: white; border-radius: 50%; width: 21px; height: 21px; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.15); border: 2px solid #fff; }
         .item-info { flex: 1; }
         .item-name { font-size: 14px; font-weight: 500; color: #333; margin-bottom: 4px; line-height: 1.3; }
         .item-price { font-size: 14px; font-weight: 500; color: #333; }
@@ -240,26 +240,19 @@ $total = $checkout_subtotal + $shipping_fee;
         .payment-card { background: #fff; border: 2px solid #eee; border-radius: 12px; overflow: hidden; transition: all 0.3s ease; position: relative; }
         .payment-card:hover { border-color: #ddd; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
         .payment-card.selected { border-color: var(--primary-color); background-color: #fffbf6; box-shadow: 0 0 0 1px var(--primary-color); }
-        
         .payment-header-row { padding: 20px; display: flex; align-items: center; cursor: pointer; user-select: none; }
         .payment-header-row input[type="radio"] { display: none; }
-        
         .custom-radio { width: 22px; height: 22px; border: 2px solid #ccc; border-radius: 50%; margin-right: 15px; position: relative; transition: 0.2s; display: flex; align-items: center; justify-content: center; }
         .payment-card.selected .custom-radio { border-color: var(--primary-color); background: var(--primary-color); }
         .payment-card.selected .custom-radio::after { content: '\f00c'; font-family: "Font Awesome 6 Free"; font-weight: 900; color: white; font-size: 12px; }
-        
         .payment-label { font-weight: 600; font-size: 15px; color: #333; flex: 1; }
         .payment-icons { display: flex; gap: 8px; opacity: 0.7; }
         .payment-icons i { font-size: 22px; }
-        
         .payment-details { display: none; padding: 0 20px 20px 20px; margin-top: -5px; animation: slideDown 0.3s ease-out; }
         .payment-card.selected .payment-details { display: block; }
-        
         .helper-text { font-size: 13px; color: #666; background: rgba(0,0,0,0.03); padding: 12px; border-radius: 6px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; }
-        
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-
-        
+      
         .voucher-trigger-btn {
             background: none; border: none; color: var(--primary-dark); 
             font-size: 13px; font-weight: 600; cursor: pointer; 
@@ -272,42 +265,23 @@ $total = $checkout_subtotal + $shipping_fee;
             justify-content: center; align-items: center;
         }
         .modal-overlay.active { display: flex; animation: fadeIn 0.2s; }
-        
-        .voucher-modal {
-            background: #fff; width: 90%; max-width: 450px; 
-            border-radius: 12px; padding: 25px; position: relative;
-            max-height: 80vh; overflow-y: auto;
-        }
-        
+        .voucher-modal { background: #fff; width: 90%; max-width: 450px; border-radius: 12px; padding: 25px; position: relative; max-height: 80vh; overflow-y: auto; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .modal-title { font-size: 18px; font-weight: 700; color: #333; }
         .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #999; }
-        
         .voucher-list { display: flex; flex-direction: column; gap: 15px; }
-        
-        .voucher-item {
-            border: 2px dashed #ddd; border-radius: 8px; padding: 15px;
-            display: flex; justify-content: space-between; align-items: center;
-            transition: 0.2s; background: #fff;
-        }
+        .voucher-item { border: 2px dashed #ddd; border-radius: 8px; padding: 15px; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; background: #fff; }
         .voucher-item:hover { border-color: var(--primary-color); background: #fffbf6; }
-        
         .v-left { flex: 1; }
         .v-code { font-weight: 700; font-size: 16px; color: var(--primary-dark); font-family: monospace; }
         .v-desc { font-size: 13px; color: #666; margin-top: 4px; }
         .v-min { font-size: 11px; color: #999; }
-        
-        .v-btn {
-            background: var(--primary-color); color: #fff; border: none;
-            padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 600;
-            cursor: pointer; white-space: nowrap;
-        }
+        .v-btn { background: var(--primary-color); color: #fff; border: none; padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
         .v-btn:hover { background: var(--primary-dark); }
         
         
         .voucher-item.disabled { opacity: 0.6; background: #f9f9f9; border-color: #eee; cursor: not-allowed; }
         .voucher-item.disabled .v-btn { background: #ccc; cursor: not-allowed; }
-        
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
@@ -683,14 +657,10 @@ $total = $checkout_subtotal + $shipping_fee;
             const parentCard = radio.closest('.payment-card');
             parentCard.classList.add('selected');
 
-            
             const method = radio.value;
-            
-           
             const allInputs = document.querySelectorAll('[name^="card_"], [name^="fpx_"], [name^="tng_"], #card_auth');
             allInputs.forEach(input => input.removeAttribute('required'));
 
-            
             if (method === 'Credit Card') {
                 setRequired('card_bank');
                 setRequired('card_name');
@@ -732,30 +702,22 @@ $total = $checkout_subtotal + $shipping_fee;
         }
 
         function applySelectedVoucher(code) {
-            
             $(".discount-input").val(code);
-            
-            
             document.getElementById('voucherModalOverlay').classList.remove('active');
-            
-          
             $(".btn-apply").click();
         }
 
-       
+        // 3. jQuery & AJAX Logic (Voucher + Local Postcode)
         $(document).ready(function() {
+            
+            // A. Voucher Apply
             $(".btn-apply").click(function(e) {
                 e.preventDefault();
-                
                 let code = $(".discount-input").val().trim();
                 let subtotal = parseFloat($("#display_subtotal").text().replace(/,/g, ''));
-                
                 let shipping = <?= $shipping_fee ?>; 
 
-                if(!code) {
-                    Swal.fire("Error", "Please enter a code", "error");
-                    return;
-                }
+                if(!code) { Swal.fire("Error", "Please enter a code", "error"); return; }
 
                 $.ajax({
                     url: "apply_voucher.php", 
@@ -766,23 +728,13 @@ $total = $checkout_subtotal + $shipping_fee;
                         if (res.status === "success") {
                             let discount = parseFloat(res.discount_amount);
                             let newTotal = subtotal + shipping - discount;
-
                             $("#display_discount").text(discount.toFixed(2));
                             $("#discount_row").fadeIn();
                             $("#display_total").text(newTotal.toFixed(2));
-                            
                             $("#hidden_voucher_code").val(code);
-
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Applied!',
-                                text: 'Saved RM ' + discount.toFixed(2),
-                                toast: true, position: 'top-end', showConfirmButton: false, timer: 2000
-                            });
-                            
+                            Swal.fire({ icon: 'success', title: 'Applied!', text: 'Saved RM ' + discount.toFixed(2), toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
                             $(".discount-input").prop('disabled', true);
                             $(".btn-apply").text("Applied").css("background", "#2F2F2F");
-
                         } else {
                             Swal.fire("Invalid Code", res.message, "error");
                             $("#hidden_voucher_code").val("");
@@ -790,54 +742,49 @@ $total = $checkout_subtotal + $shipping_fee;
                             $("#display_total").text((subtotal + shipping).toFixed(2));
                         }
                     },
-                    error: function() {
-                        Swal.fire("Error", "Function not available yet (Missing backend file)", "error");
-                    }
+                    error: function() { Swal.fire("Error", "System error applying voucher", "error"); }
                 });
             });
-        });
 
-       
-            $(document).ready(function() {
-                
-                $("#billing_postcode").on("keyup change", function() {
-                    var postcode = $(this).val();
+            // B. LOCAL Postcode Auto-fill (Same as memberProfile.php)
+            $("#billing_postcode").on("keyup change", function() {
+                var postcode = $(this).val();
 
-                    if (postcode.length === 5 && $.isNumeric(postcode)) {
-                        $("#billing_city").attr("placeholder", "Searching...");
-                        
-                        $.ajax({
-                            url: "https://api.zippopotam.us/my/" + postcode,
-                            cache: false,
-                            dataType: "json",
-                            type: "GET",
-                            success: function(result, success) {
-                                var city = result['places'][0]['place name'];
-                                $("#billing_city").val(toTitleCase(city));
+                if (postcode.length === 5 && $.isNumeric(postcode)) {
+                    $("#billing_city").attr("placeholder", "Searching...");
+                    
+                    $.ajax({
+                        url: "get_location.php", // <--- Using LOCAL file now
+                        type: "GET",
+                        data: { postcode: postcode },
+                        dataType: "json",
+                        success: function(response) {
+                            if (response.success) {
+                                // 1. Set City
+                                $("#billing_city").val(response.city);
 
-                                var state = result['places'][0]['state'];
+                                // 2. Set State
+                                var state = response.state;
                                 $("#billing_state option").each(function() {
-                                    var optionText = $(this).text();
-                                    if (state.includes(optionText) || optionText.includes(state)) {
+                                    if ($(this).val() === state || $(this).text() === state) {
                                         $(this).prop('selected', true);
                                     }
                                 });
                                 $("#billing_city").attr("placeholder", "City");
-                            },
-                            error: function(result, success) {
-                                console.log("Postcode not found");
+                            } else {
+                                $("#billing_city").val("");
+                                $("#billing_city").attr("placeholder", "Not found in local DB");
                             }
-                        });
-                    }
-                });
-
-                function toTitleCase(str) {
-                    return str.replace(/\w\S*/g, function(txt){
-                        return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+                        },
+                        error: function() {
+                            $("#billing_city").val("");
+                            $("#billing_city").attr("placeholder", "Error searching");
+                        }
                     });
                 }
             });
 
+        });
     </script>
 
 </body>
