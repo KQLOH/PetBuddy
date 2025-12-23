@@ -30,12 +30,18 @@ try {
 
     include "cart_ui.php";
 
+    $cart_item_count = 0;
+    foreach ($cart_items as $item) {
+        $cart_item_count += (int)($item['quantity'] ?? 0);
+    }
 
     if (isset($total_price)) {
         echo '<input type="hidden" id="ajax-new-total" value="' . number_format($total_price, 2) . '">';
     } else {
         echo '<input type="hidden" id="ajax-new-total" value="0.00">';
     }
+    
+    echo '<input type="hidden" id="ajax-cart-count" value="' . $cart_item_count . '">';
 
 } catch (PDOException $e) {
     echo "Error";

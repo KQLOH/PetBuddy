@@ -150,6 +150,12 @@ function refreshCartSidebar() {
             } else {
                 $("#cartFooter").hide();
             }
+            
+            setTimeout(function() {
+                if (typeof updateCartBadge === 'function') {
+                    updateCartBadge();
+                }
+            }, 200);
         },
         error: function() {
             console.error("Failed to refresh cart sidebar.");

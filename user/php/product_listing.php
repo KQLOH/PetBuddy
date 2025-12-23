@@ -337,6 +337,10 @@ try {
                     if(typeof updateFreeShipping === 'function') updateFreeShipping();
                     if(parseFloat(newTotal) > 0) $('#cartFooter').show();
                 }
+
+                setTimeout(function() {
+                    if(typeof updateCartBadge === 'function') updateCartBadge();
+                }, 200);
             }
         });
     }

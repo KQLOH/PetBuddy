@@ -122,7 +122,6 @@ $reviews = fetchProductReviews($pdo, $productId);
 $reviewStats = calculateReviewStats($reviews);
 
 $mainImage = productImageUrl($product['image']);
-$thumbnails = [$mainImage, $mainImage, $mainImage, $mainImage]; 
 $categoryName = $product['category_name'] ?: 'All Products';
 $productDescription = trim((string)$product['description']) !== '' ? $product['description'] : 'No product description available';
 
@@ -226,13 +225,6 @@ if (isset($_SESSION['member_id'])) {
                 <div class="pd-main-image">
                     <img src="<?php echo $mainImage; ?>" alt="<?php echo htmlspecialchars($product['name']); ?>" id="main-image">
                 </div>
-                <div class="pd-thumbnail-images">
-                    <?php foreach ($thumbnails as $index => $thumbnail): ?>
-                        <div class="pd-thumbnail <?php echo $index === 0 ? 'active' : ''; ?>" data-image="<?php echo $thumbnail; ?>">
-                            <img src="<?php echo $thumbnail; ?>" alt="thumb">
-                        </div>
-                    <?php endforeach; ?>
-                </div>
             </div>
             
             <div class="pd-product-info">
@@ -249,18 +241,7 @@ if (isset($_SESSION['member_id'])) {
                     <span class="pd-stock-info">Stock: <?php echo (int)$product['stock_qty']; ?> items</span>
                 </div>
                 
-                <p class="pd-product-description">
-                    <?php echo nl2br(htmlspecialchars($productDescription)); ?>
-                </p>
-                
-                <div class="pd-product-features">
-                    <ul class="pd-feature-list">
-                        <li><span class="pd-icon-check"></span> 100% Natural Organic Ingredients</li>
-                        <li><span class="pd-icon-check"></span> No Artificial Additives</li>
-                        <li><span class="pd-icon-check"></span> Rich in Omega-3 & Omega-6</li>
-                        <li><span class="pd-icon-check"></span> Suitable for All Breeds</li>
-                    </ul>
-                </div>
+
                 
                 <div class="pd-purchase-options">
                     <div class="pd-quantity-selector">
@@ -303,7 +284,7 @@ if (isset($_SESSION['member_id'])) {
             
             <div class="pd-tab-content active" id="description">
                 <h3>Product Details</h3>
-                <p><?php echo htmlspecialchars($product['name']); ?> is carefully selected for your pet...</p>
+                <p><?php echo nl2br(htmlspecialchars($productDescription)); ?></p>
             </div>
             
             <div class="pd-tab-content" id="specs">
@@ -375,18 +356,8 @@ if (isset($_SESSION['member_id'])) {
     <?php include '../include/chat_widget.php'; ?>
     
     <script>
-        // === 1. Tab & Image & Quantity Logic ===
+        // === 1. Tab & Quantity Logic ===
         document.addEventListener('DOMContentLoaded', function() {
-            // Images
-            const mainImg = document.getElementById('main-image');
-            document.querySelectorAll('.pd-thumbnail').forEach(t => {
-                t.addEventListener('click', function() {
-                    document.querySelectorAll('.pd-thumbnail').forEach(th => th.classList.remove('active'));
-                    this.classList.add('active');
-                    if(mainImg) mainImg.src = this.getAttribute('data-image');
-                });
-            });
-
             // Tabs
             document.querySelectorAll('.pd-tab').forEach(tab => {
                 tab.addEventListener('click', function() {
