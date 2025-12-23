@@ -1,6 +1,7 @@
 <?php
 session_start();
-include '../include/db.php'; 
+include '../include/db.php';
+require_once "../include/product_utils.php";
 
 // --- Initialize Variables ---
 $message = "";
@@ -8,7 +9,7 @@ $msg_type = "";
 $active_tab = 'dashboard';
 $member = [];
 $orders = [];
-$addresses = []; 
+$addresses = [];
 $stats = ['total_orders' => 0, 'total_spent' => 0];
 $voucher_count = 0;
 
@@ -37,7 +38,7 @@ if (isset($_SESSION['flash_msg'])) {
 
 if (isset($pdo)) {
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
-        
+
         if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
             die("Security validation failed.");
         }
@@ -46,7 +47,7 @@ if (isset($pdo)) {
 
         // --- A. Change Password (UNCHANGED) ---
         if (isset($_POST['form_type']) && $_POST['form_type'] === 'change_password') {
-            $active_tab = 'profile'; 
+            $active_tab = 'profile';
             $current_pwd = $_POST['current_password'] ?? '';
             $new_pwd = $_POST['new_password'] ?? '';
             $confirm_pwd = $_POST['confirm_password'] ?? '';
@@ -65,34 +66,54 @@ if (isset($pdo)) {
                             $_SESSION['flash_type'] = "success";
                             $_SESSION['flash_tab'] = "profile";
                             $redirect_needed = true;
-                        } else { $message = "System error updating password."; $msg_type = "error"; }
-                    } else { $message = "Password too weak."; $msg_type = "error"; }
-                } else { $message = "New passwords do not match."; $msg_type = "error"; }
-            } else { $message = "Incorrect current password."; $msg_type = "error"; }
-        } 
-        
+                        } else {
+                            $message = "System error updating password.";
+                            $msg_type = "error";
+                        }
+                    } else {
+                        $message = "Password too weak.";
+                        $msg_type = "error";
+                    }
+                } else {
+                    $message = "New passwords do not match.";
+                    $msg_type = "error";
+                }
+            } else {
+                $message = "Incorrect current password.";
+                $msg_type = "error";
+            }
+        }
+
         // --- B. Update Profile (UNCHANGED LOGIC) ---
         else if (isset($_POST['form_type']) && $_POST['form_type'] === 'update_profile') {
             $active_tab = 'profile';
             $full_name = trim($_POST['full_name'] ?? '');
             $phone = trim($_POST['phone'] ?? '');
-            
+
             $image_path = null;
             $upload_error = false;
 
             if (isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] == 0) {
                 $target_dir = "uploads/";
-                if (!is_dir($target_dir)) mkdir($target_dir, 0777, true); 
+                if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
                 $file_ext = strtolower(pathinfo($_FILES["profile_image"]["name"], PATHINFO_EXTENSION));
                 $new_filename = "mem_" . $member_id . "_" . time() . "." . $file_ext;
                 $target_file = $target_dir . $new_filename;
-                
+
                 $check = getimagesize($_FILES["profile_image"]["tmp_name"]);
-                if($check !== false && in_array($file_ext, ['jpg', 'jpeg', 'png', 'gif'])) {
+                if ($check !== false && in_array($file_ext, ['jpg', 'jpeg', 'png', 'gif'])) {
                     if (move_uploaded_file($_FILES["profile_image"]["tmp_name"], $target_file)) {
                         $image_path = $target_file;
-                    } else { $upload_error = true; $message = "Upload failed."; $msg_type = "error"; }
-                } else { $upload_error = true; $message = "Invalid image."; $msg_type = "error"; }
+                    } else {
+                        $upload_error = true;
+                        $message = "Upload failed.";
+                        $msg_type = "error";
+                    }
+                } else {
+                    $upload_error = true;
+                    $message = "Invalid image.";
+                    $msg_type = "error";
+                }
             }
 
             if (!$upload_error) {
@@ -108,13 +129,16 @@ if (isset($pdo)) {
                     $_SESSION['flash_type'] = "success";
                     $_SESSION['flash_tab'] = "profile";
                     $redirect_needed = true;
-                } catch (PDOException $e) { $message = "Error updating profile."; $msg_type = "error"; }
+                } catch (PDOException $e) {
+                    $message = "Error updating profile.";
+                    $msg_type = "error";
+                }
             }
         }
 
         // --- C. Save Address (UPDATED: Handles Add AND Edit) ---
         else if (isset($_POST['form_type']) && $_POST['form_type'] === 'save_address') {
-            
+
             // New Fields
             $addr_id = $_POST['address_id'] ?? ''; // If ID exists, we are editing
             $r_name = trim($_POST['recipient_name']);
@@ -142,7 +166,9 @@ if (isset($pdo)) {
                 if ($is_default == 0) {
                     $stmtCheck = $pdo->prepare("SELECT COUNT(*) FROM member_addresses WHERE member_id = ?");
                     $stmtCheck->execute([$member_id]);
-                    if ($stmtCheck->fetchColumn() == 0) { $is_default = 1; }
+                    if ($stmtCheck->fetchColumn() == 0) {
+                        $is_default = 1;
+                    }
                 }
                 $sql = "INSERT INTO member_addresses (recipient_name, recipient_phone, address_line1, address_line2, city, state, postcode, is_default, member_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
                 $params = [$r_name, $r_phone, $addr1, $addr2, $city, $state, $postcode, $is_default, $member_id];
@@ -155,7 +181,8 @@ if (isset($pdo)) {
                 $_SESSION['flash_tab'] = "addresses";
                 $redirect_needed = true;
             } else {
-                $message = "Error saving address."; $msg_type = "error";
+                $message = "Error saving address.";
+                $msg_type = "error";
             }
         }
 
@@ -173,18 +200,52 @@ if (isset($pdo)) {
         }
 
         // --- E. Delete Address (UNCHANGED) ---
-        else if (isset($_POST['action']) && $_POST['action'] === 'delete_address') {
-            $addr_id = $_POST['address_id'];
-            if ($pdo->prepare("DELETE FROM member_addresses WHERE address_id = ? AND member_id = ?")->execute([$addr_id, $member_id])) {
-                $_SESSION['flash_msg'] = "Address deleted.";
-                $_SESSION['flash_type'] = "success";
-                $_SESSION['flash_tab'] = "addresses";
-                $redirect_needed = true;
+        // --- F. Order Actions (Cancel, Complete, Return) ---
+        else if (isset($_POST['action']) && in_array($_POST['action'], ['cancel_order', 'complete_order', 'request_return'])) {
+            $order_id = $_POST['order_id'];
+            $new_status = '';
+            $allow_update = false;
+
+            // Check current status first
+            $stmtCheck = $pdo->prepare("SELECT status FROM orders WHERE order_id = ? AND member_id = ?");
+            $stmtCheck->execute([$order_id, $member_id]);
+            $current_status = $stmtCheck->fetchColumn();
+
+            if ($_POST['action'] === 'cancel_order') {
+                // Can only cancel if Pending or Paid (Not shipped yet)
+                if (in_array($current_status, ['pending', 'paid'])) {
+                    $new_status = 'cancelled';
+                    $allow_update = true;
+                }
+            } elseif ($_POST['action'] === 'complete_order') {
+                // Can only complete if Shipped
+                if ($current_status === 'shipped') {
+                    $new_status = 'completed';
+                    $allow_update = true;
+                }
+            } elseif ($_POST['action'] === 'request_return') {
+                // Can request return if Completed (within valid time) or Shipped
+                if (in_array($current_status, ['shipped', 'completed'])) {
+                    $new_status = 'return_requested';
+                    $allow_update = true;
+                }
+            }
+
+            if ($allow_update) {
+                $stmtUpdate = $pdo->prepare("UPDATE orders SET status = ? WHERE order_id = ?");
+                if ($stmtUpdate->execute([$new_status, $order_id])) {
+                    $_SESSION['flash_msg'] = "Order status updated to " . ucfirst(str_replace('_', ' ', $new_status));
+                    $_SESSION['flash_type'] = "success";
+                    $_SESSION['flash_tab'] = "orders";
+                    $redirect_needed = true;
+                }
+            } else {
+                $message = "Action not allowed for current order status."; $msg_type = "error";
             }
         }
 
         if ($redirect_needed) {
-            header("Location: " . $_SERVER['PHP_SELF']); 
+            header("Location: " . $_SERVER['PHP_SELF']);
             exit;
         }
     }
@@ -196,18 +257,25 @@ if (isset($pdo)) {
         $member = $stmt->fetch();
 
         // Orders
-        $orderSql = "SELECT o.*, COUNT(oi.order_item_id) as item_count 
+        // --- UPDATED ORDER QUERY TO GET IMAGES ---
+        $orderSql = "SELECT o.*, 
+                     COUNT(oi.order_item_id) as item_count,
+                     (SELECT p.image FROM order_items oi2 JOIN products p ON oi2.product_id = p.product_id WHERE oi2.order_id = o.order_id LIMIT 1) as first_img,
+                     (SELECT p.name FROM order_items oi3 JOIN products p ON oi3.product_id = p.product_id WHERE oi3.order_id = o.order_id LIMIT 1) as first_item_name
                      FROM orders o 
                      LEFT JOIN order_items oi ON o.order_id = oi.order_id
                      WHERE o.member_id = ? 
                      GROUP BY o.order_id 
-                     ORDER BY o.order_date DESC LIMIT 10";
+                     ORDER BY o.order_date DESC LIMIT 20";
+
         $stmtOrders = $pdo->prepare($orderSql);
         $stmtOrders->execute([$member_id]);
         $orders = $stmtOrders->fetchAll();
 
         $stats['total_orders'] = count($orders);
-        foreach ($orders as $o) { $stats['total_spent'] += $o['total_amount']; }
+        foreach ($orders as $o) {
+            $stats['total_spent'] += $o['total_amount'];
+        }
 
         // Vouchers
         $today = date('Y-m-d');
@@ -221,15 +289,16 @@ if (isset($pdo)) {
         $stmtAddr = $pdo->prepare($addrSql);
         $stmtAddr->execute([$member_id]);
         $addresses = $stmtAddr->fetchAll();
-
     } catch (PDOException $e) {
-        $message = "Error loading data."; $msg_type = "error";
+        $message = "Error loading data.";
+        $msg_type = "error";
     }
 }
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -237,38 +306,14 @@ if (isset($pdo)) {
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="../css/memberProfileStyle.css">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <style>
-        .fade-out { animation: fadeOut 3s forwards; animation-delay: 2s; }
-        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; visibility: hidden; } }
-        .btn-loading { opacity: 0.7; pointer-events: none; cursor: wait; }
-        
-        /* Address Card Styles */
-        .address-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 15px; margin-top: 20px; }
-        .address-card { background: #fff; border: 1px solid #EAECF0; border-radius: 8px; padding: 20px; position: relative; transition: all 0.2s; }
-        .address-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-color: var(--primary-color); }
-        .address-card.default { border: 2px solid var(--primary-color); background-color: #FFF9F5; }
-        .badge-default { background: var(--primary-color); color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; position: absolute; top: 15px; right: 15px; }
-        
-        /* Action Buttons Row */
-        .address-actions { margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px; display: flex; align-items: center; justify-content: space-between; }
-        .btn-link-action { background:none; border:none; cursor:pointer; font-size: 0.85rem; color:#666; display:flex; align-items:center; gap:5px; padding: 5px 8px; border-radius: 4px; transition:0.2s; }
-        .btn-link-action:hover { background: #f0f0f0; color: #333; }
-        .text-red:hover { background: #fee2e2; color: red; }
-
-        /* Profile Readonly Styles */
-        .form-input[readonly] { background-color: #f9fafb; border-color: #e5e7eb; color: #6b7280; cursor: not-allowed; }
-        .btn-edit-profile { background: #fff; border: 1px solid var(--primary-color); color: var(--primary-color); padding: 8px 16px; border-radius: 6px; cursor: pointer; transition: 0.2s; font-weight:600; }
-        .btn-edit-profile:hover { background: var(--primary-color); color: white; }
-        #saveProfileBtnGroup { display: none; margin-top: 20px; gap: 10px; }
-        .btn-add-addr { background: var(--primary-color); color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; float: right; }
-    </style>
 </head>
+
 <body>
 
     <?php include '../include/header.php'; ?>
 
     <div class="dashboard-container">
-        
+
         <aside>
             <div class="card-box">
                 <div class="user-brief">
@@ -318,15 +363,24 @@ if (isset($pdo)) {
                 <div class="stat-grid">
                     <div class="stat-card">
                         <div class="stat-icon-box bg-blue-light"><img src="../images/cart.png" style="width:24px;"></div>
-                        <div class="stat-info"><p>Total Orders</p><h3><?php echo $stats['total_orders']; ?></h3></div>
+                        <div class="stat-info">
+                            <p>Total Orders</p>
+                            <h3><?php echo $stats['total_orders']; ?></h3>
+                        </div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-icon-box bg-green-light"><img src="../images/wallet.png" style="width:24px;"></div>
-                        <div class="stat-info"><p>Total Spent</p><h3>RM <?php echo number_format($stats['total_spent'], 2); ?></h3></div>
+                        <div class="stat-info">
+                            <p>Total Spent</p>
+                            <h3>RM <?php echo number_format($stats['total_spent'], 2); ?></h3>
+                        </div>
                     </div>
                     <div class="stat-card" onclick="window.location.href='vouchers.php'" style="cursor: pointer;">
                         <div class="stat-icon-box bg-orange-light"><img src="../images/voucher.png" style="width:24px;"></div>
-                        <div class="stat-info"><p>Available Vouchers</p><h3><?php echo $voucher_count ?? 0; ?></h3></div>
+                        <div class="stat-info">
+                            <p>Available Vouchers</p>
+                            <h3><?php echo $voucher_count ?? 0; ?></h3>
+                        </div>
                     </div>
                 </div>
 
@@ -342,39 +396,96 @@ if (isset($pdo)) {
                                     </div>
                                     <div class="text-right">
                                         <div style="font-weight:bold;">RM <?php echo number_format($order['total_amount'], 2); ?></div>
-                                        <span class="status-badge <?php echo $order['status']=='completed'?'status-completed':'status-pending'; ?>"><?php echo ucfirst($order['status']); ?></span>
+                                        <span class="status-badge <?php echo $order['status'] == 'completed' ? 'status-completed' : 'status-pending'; ?>"><?php echo ucfirst($order['status']); ?></span>
                                     </div>
                                 </div>
                             <?php endforeach; ?>
                         </div>
                     <?php else: ?>
-                        <div class="empty-state"><p class="empty-text">No recent activity.</p></div>
+                        <div class="empty-state">
+                            <p class="empty-text">No recent activity.</p>
+                        </div>
                     <?php endif; ?>
                 </div>
             </div>
 
             <div id="orders" class="tab-content">
-                <div class="card-box" style="min-height: 400px;">
-                    <h3 class="section-title">Order History</h3>
+                <div class="card-box" style="min-height: 400px; background: transparent; border:none; box-shadow:none; padding:0;">
+                    
+                    <div class="order-tabs">
+                        <div class="order-tab active" onclick="filterOrders('all', this)">All</div>
+                        <div class="order-tab" onclick="filterOrders('pending', this)">To Pay</div>
+                        <div class="order-tab" onclick="filterOrders('paid', this)">To Ship</div>
+                        <div class="order-tab" onclick="filterOrders('shipped', this)">To Receive</div>
+                        <div class="order-tab" onclick="filterOrders('completed', this)">Completed</div>
+                        <div class="order-tab" onclick="filterOrders('cancelled', this)">Cancelled</div>
+                        <div class="order-tab" onclick="filterOrders('return_requested', this)">Return/Refund</div>
+                    </div>
+
                     <?php if (count($orders) > 0): ?>
-                        <div class="table-responsive">
-                            <table class="custom-table">
-                                <thead><tr><th>Order ID</th><th>Date</th><th>Items</th><th>Total</th><th>Status</th></tr></thead>
-                                <tbody>
-                                    <?php foreach ($orders as $order): ?>
-                                        <tr>
-                                            <td><strong>#<?php echo $order['order_id']; ?></strong></td>
-                                            <td><?php echo date('d M Y', strtotime($order['order_date'])); ?></td>
-                                            <td><?php echo $order['item_count']; ?> Items</td>
-                                            <td>RM <?php echo number_format($order['total_amount'], 2); ?></td>
-                                            <td><span class="status-badge <?php echo $order['status']=='completed'?'status-completed':'status-pending'; ?>"><?php echo ucfirst($order['status']); ?></span></td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
+                        <div class="order-card-list">
+                            <?php foreach ($orders as $order): 
+                                $imgSrc = !empty($order['first_img']) ? productImageUrl($order['first_img']) : '../images/no-image.png';
+                                $moreItems = $order['item_count'] - 1;
+                                $itemText = htmlspecialchars($order['first_item_name']);
+                                if($moreItems > 0) { $itemText .= " <span style='color:#999; font-weight:400;'>+ $moreItems other items</span>"; }
+                                
+                                // Map DB status to Tab Categories for filtering
+                                $filterStatus = $order['status']; 
+                                if($order['status'] == 'return_requested' || $order['status'] == 'returned') { $filterStatus = 'return_requested'; }
+                            ?>
+                                <div class="order-card" data-status="<?php echo $filterStatus; ?>">
+                                    <div class="order-header">
+                                        <span>Order <strong>#<?php echo $order['order_id']; ?></strong></span>
+                                        <span><?php echo date('d M Y, h:i A', strtotime($order['order_date'])); ?></span>
+                                    </div>
+                                    <div class="order-body" onclick="viewOrderDetails(<?php echo $order['order_id']; ?>)" style="cursor:pointer;">
+                                        <div class="order-img-wrapper"><img src="<?php echo $imgSrc; ?>" alt="Product"></div>
+                                        <div class="order-info">
+                                            <div class="order-product-title"><?php echo $itemText; ?></div>
+                                            <div class="order-meta">Total: <strong>RM <?php echo number_format($order['total_amount'], 2); ?></strong></div>
+                                        </div>
+                                        <div><span class="order-status-badge status-<?php echo strtolower($order['status']); ?>"><?php echo ucfirst(str_replace('_', ' ', $order['status'])); ?></span></div>
+                                    </div>
+                                    
+                                    <div class="order-actions">
+                                        
+                                        <?php if (in_array($order['status'], ['pending', 'paid'])): ?>
+                                            <form method="POST" onsubmit="return confirm('Are you sure you want to cancel this order?');" style="margin:0;">
+                                                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                                                <input type="hidden" name="action" value="cancel_order">
+                                                <input type="hidden" name="order_id" value="<?php echo $order['order_id']; ?>">
+                                                <button type="submit" class="btn-order-action btn-cancel">Cancel Order</button>
+                                            </form>
+                                        <?php endif; ?>
+
+                                        <?php if ($order['status'] == 'shipped'): ?>
+                                            <form method="POST" onsubmit="return confirm('Confirm you have received the order?');" style="margin:0;">
+                                                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                                                <input type="hidden" name="action" value="complete_order">
+                                                <input type="hidden" name="order_id" value="<?php echo $order['order_id']; ?>">
+                                                <button type="submit" class="btn-order-action btn-receive">Order Received</button>
+                                            </form>
+                                        <?php endif; ?>
+
+                                        <?php if (in_array($order['status'], ['shipped', 'completed'])): ?>
+                                            <form method="POST" onsubmit="return confirm('Request a return/refund?');" style="margin:0;">
+                                                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                                                <input type="hidden" name="action" value="request_return">
+                                                <input type="hidden" name="order_id" value="<?php echo $order['order_id']; ?>">
+                                                <button type="submit" class="btn-order-action btn-return">Return / Refund</button>
+                                            </form>
+                                        <?php endif; ?>
+
+                                        <button type="button" class="btn-order-action btn-view" onclick="viewOrderDetails(<?php echo $order['order_id']; ?>)">
+                                            View Details
+                                        </button>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
                         </div>
                     <?php else: ?>
-                        <div class="empty-state" style="margin-top: 4rem;">
+                        <div class="empty-state" style="background:white; padding:40px; border-radius:10px; border:1px solid #eee;">
                             <div class="empty-icon"><img src="../images/purchase-order.png" alt="Box"></div>
                             <p class="empty-text">You haven't placed any orders yet.</p>
                             <a href="home.php#shop" class="link-orange">Start Shopping</a>
@@ -395,19 +506,19 @@ if (isset($pdo)) {
                             <?php foreach ($addresses as $addr): ?>
                                 <div class="address-card <?php echo $addr['is_default'] ? 'default' : ''; ?>">
                                     <?php if ($addr['is_default']): ?><span class="badge-default">Default</span><?php endif; ?>
-                                    
+
                                     <p style="font-size:1.1rem; font-weight:700; margin-bottom:5px;">
                                         <?php echo htmlspecialchars($addr['recipient_name'] ?? $member['full_name']); ?>
                                     </p>
                                     <p style="color:#666; font-size:0.9rem; margin-bottom:10px;">
                                         <?php echo htmlspecialchars($addr['recipient_phone'] ?? $member['phone']); ?>
                                     </p>
-                                    
+
                                     <div style="border-top:1px solid #eee; margin:10px 0;"></div>
 
                                     <p style="color:#555; font-size:0.95rem; line-height:1.5;">
                                         <?php echo htmlspecialchars($addr['address_line1']); ?><br>
-                                        <?php if(!empty($addr['address_line2'])) echo htmlspecialchars($addr['address_line2']) . "<br>"; ?>
+                                        <?php if (!empty($addr['address_line2'])) echo htmlspecialchars($addr['address_line2']) . "<br>"; ?>
                                         <?php echo htmlspecialchars($addr['postcode']) . " " . htmlspecialchars($addr['city']); ?><br>
                                         <?php echo htmlspecialchars($addr['state']) . ", Malaysia"; ?>
                                     </p>
@@ -437,7 +548,9 @@ if (isset($pdo)) {
                                 </div>
                             <?php endforeach; ?>
                         <?php else: ?>
-                            <div class="empty-state" style="grid-column: 1/-1;"><p class="empty-text">You have no saved addresses.</p></div>
+                            <div class="empty-state" style="grid-column: 1/-1;">
+                                <p class="empty-text">You have no saved addresses.</p>
+                            </div>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -460,9 +573,9 @@ if (isset($pdo)) {
                     <form method="POST" enctype="multipart/form-data" id="profileForm" onsubmit="return confirm('Are you sure you want to save these changes?');">
                         <input type="hidden" name="form_type" value="update_profile">
                         <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-                        
+
                         <div class="profile-upload-area">
-                            <img id="previewImg" src="<?php echo !empty($member['image']) ? htmlspecialchars($member['image']).'?v='.time() : '../images/user_placeholder.png'; ?>" class="profile-preview-lg">
+                            <img id="previewImg" src="<?php echo !empty($member['image']) ? htmlspecialchars($member['image']) . '?v=' . time() : '../images/user_placeholder.png'; ?>" class="profile-preview-lg">
                             <div class="upload-btn-wrapper" id="uploadWrapper" style="display:none;">
                                 <label for="fileInput" class="btn-upload-label">Change Photo</label>
                                 <input type="file" name="profile_image" id="fileInput" style="display:none;" onchange="handleFileSelect(this)" accept="image/*">
@@ -495,13 +608,13 @@ if (isset($pdo)) {
         </main>
     </div>
 
-<div id="addrModal" class="modal-overlay">
+    <div id="addrModal" class="modal-overlay">
         <div class="modal-box">
             <div class="modal-header">
                 <h3 id="addrModalTitle">Add New Address</h3>
                 <button class="close-modal" onclick="toggleModal('addrModal')">&times;</button>
             </div>
-            
+
             <form method="POST" class="modal-body" id="addrForm">
                 <input type="hidden" name="form_type" value="save_address">
                 <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
@@ -572,17 +685,17 @@ if (isset($pdo)) {
         </div>
     </div>
 
-<div id="pwdModal" class="modal-overlay">
+    <div id="pwdModal" class="modal-overlay">
         <div class="modal-box">
             <div class="modal-header">
                 <h3>Change Password</h3>
                 <button class="close-modal" onclick="toggleModal('pwdModal')">&times;</button>
             </div>
-            
+
             <form method="POST" action="" id="pwdForm" class="modal-body" onsubmit="return showLoading(this);">
                 <input type="hidden" name="form_type" value="change_password">
                 <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-                
+
                 <div class="form-group">
                     <label>Current Password</label>
                     <div style="position: relative;">
@@ -590,7 +703,7 @@ if (isset($pdo)) {
                         <img src="../images/show.png" class="password-toggle" onclick="toggleVisibility('current_pwd', this)" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 20px; cursor: pointer; opacity: 0.6;">
                     </div>
                 </div>
-                
+
                 <div class="form-group">
                     <label>New Password</label>
                     <div style="position: relative;">
@@ -599,7 +712,7 @@ if (isset($pdo)) {
                     </div>
                     <small id="pwd_msg" style="display:block; margin-top:6px; font-size:0.8rem; color:#666; min-height:18px;"></small>
                 </div>
-                
+
                 <div class="form-group" style="margin-bottom: 24px;">
                     <label>Confirm Password</label>
                     <div style="position: relative;">
@@ -614,21 +727,75 @@ if (isset($pdo)) {
         </div>
     </div>
 
+
+    <div id="orderModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3>Order Details <span id="modal_order_id" style="color:#888; font-weight:400;"></span></h3>
+                <button class="close-modal" onclick="toggleModal('orderModal')">&times;</button>
+            </div>
+
+            <div class="modal-body" style="padding-top: 0;">
+                <div style="display:flex; justify-content:space-between; margin-bottom: 20px; background:#f9fafb; padding:15px; border-radius:8px;">
+                    <div>
+                        <div style="font-size:0.85rem; color:#666;">Order Date</div>
+                        <strong id="modal_order_date" style="color:#333;"></strong>
+                    </div>
+                    <div>
+                        <div style="font-size:0.85rem; color:#666;">Status</div>
+                        <span id="modal_order_status" class="order-status-badge"></span>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:0.85rem; color:#666;">Total Amount</div>
+                        <strong id="modal_order_total" style="color:var(--primary-color); font-size:1.1rem;"></strong>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <h4 style="font-size:0.95rem; margin-bottom:8px; color:#333;">Shipping Address</h4>
+                    <p id="modal_shipping_info" style="font-size:0.9rem; color:#555; line-height:1.5;"></p>
+                </div>
+
+                <div style="max-height: 300px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px;">
+                    <table style="width:100%; border-collapse: collapse;">
+                        <thead style="background:#f4f4f4; position:sticky; top:0;">
+                            <tr>
+                                <th style="padding:10px; text-align:left; font-size:0.85rem; color:#555;">Product</th>
+                                <th style="padding:10px; text-align:center; font-size:0.85rem; color:#555;">Qty</th>
+                                <th style="padding:10px; text-align:right; font-size:0.85rem; color:#555;">Price</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modal_order_items_body">
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style="margin-top: 20px; text-align:right; font-size:0.9rem; color:#555;">
+                    <div style="display:flex; justify-content:flex-end; gap:20px;">
+                        <span>Subtotal: <strong id="modal_subtotal"></strong></span>
+                        <span>Shipping: <strong id="modal_shipping"></strong></span>
+                        <span>Discount: <strong id="modal_discount" style="color:red;"></strong></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <?php include '../include/footer.php'; ?>
 
-<script>
+    <script>
         // --- Tab Logic ---
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.sidebar-link').forEach(el => el.classList.remove('active'));
-            
+
             // Activate content
             const content = document.getElementById(tabId);
-            if(content) content.classList.add('active');
-            
+            if (content) content.classList.add('active');
+
             // Activate sidebar link
             const link = document.getElementById('link-' + tabId);
-            if(link) link.classList.add('active');
+            if (link) link.classList.add('active');
         }
 
         // --- Profile Edit Logic (Fixed Cancel) ---
@@ -654,7 +821,7 @@ if (isset($pdo)) {
             document.querySelectorAll('.editable-field').forEach(input => {
                 input.setAttribute('readonly', 'true');
                 input.style.backgroundColor = ''; // Reverts to CSS default (gray)
-                input.style.borderColor = '';     // Reverts to CSS default
+                input.style.borderColor = ''; // Reverts to CSS default
                 input.style.cursor = 'not-allowed';
             });
 
@@ -662,7 +829,7 @@ if (isset($pdo)) {
             document.getElementById('editProfileBtn').style.display = 'block'; // Show Edit button
             document.getElementById('saveProfileBtnGroup').style.display = 'none'; // Hide Save/Cancel
             document.getElementById('uploadWrapper').style.display = 'none'; // Hide Upload button
-            
+
             // IMPORTANT: We DO NOT call window.location.reload() here.
             // This keeps the user on the current tab instantly.
         }
@@ -684,7 +851,7 @@ if (isset($pdo)) {
                 document.getElementById('modal_postcode').value = data.postcode;
                 document.getElementById('modal_city').value = data.city;
                 document.getElementById('modal_state').value = data.state;
-                
+
                 // Handle Checkbox
                 document.getElementById('modal_is_default').checked = (data.is_default == 1);
             } else {
@@ -693,7 +860,7 @@ if (isset($pdo)) {
                 form.reset();
                 document.getElementById('modal_address_id').value = ""; // Empty ID
             }
-            
+
             modal.style.display = 'flex';
         }
 
@@ -701,9 +868,9 @@ if (isset($pdo)) {
             const modal = document.getElementById(id);
             modal.style.display = (modal.style.display === 'flex') ? 'none' : 'flex';
         }
-        
+
         function toggleAddrModal() {
-             toggleModal('addrModal');
+            toggleModal('addrModal');
         }
 
         // --- General Utilities ---
@@ -713,24 +880,28 @@ if (isset($pdo)) {
             switchTab(initialTab);
 
             // Auto-dismiss alerts
-            setTimeout(() => { 
-                const alert = document.getElementById('alertBox'); 
-                if(alert) alert.style.display = 'none'; 
+            setTimeout(() => {
+                const alert = document.getElementById('alertBox');
+                if (alert) alert.style.display = 'none';
             }, 5000);
         });
 
         function handleFileSelect(input) {
             if (input.files && input.files[0]) {
                 const reader = new FileReader();
-                reader.onload = function(e) { document.getElementById('previewImg').src = e.target.result; }
+                reader.onload = function(e) {
+                    document.getElementById('previewImg').src = e.target.result;
+                }
                 reader.readAsDataURL(input.files[0]);
             }
         }
 
         function confirmLogout() {
-            if(confirm("Are you sure you want to log out?")) { window.location.href = "logout.php"; }
+            if (confirm("Are you sure you want to log out?")) {
+                window.location.href = "logout.php";
+            }
         }
-        
+
         function showLoading(form) {
             const btn = form.querySelector('button[type="submit"]');
             btn.innerHTML = "Saving...";
@@ -741,9 +912,11 @@ if (isset($pdo)) {
         function toggleVisibility(inputId, icon) {
             const input = document.getElementById(inputId);
             if (input.type === "password") {
-                input.type = "text"; icon.src = "../images/hide.png";
+                input.type = "text";
+                icon.src = "../images/hide.png";
             } else {
-                input.type = "password"; icon.src = "../images/show.png";
+                input.type = "password";
+                icon.src = "../images/show.png";
             }
         }
 
@@ -756,7 +929,9 @@ if (isset($pdo)) {
                     $.ajax({
                         url: "get_location.php",
                         type: "GET",
-                        data: { postcode: postcode },
+                        data: {
+                            postcode: postcode
+                        },
                         dataType: "json",
                         success: function(response) {
                             if (response.success) {
@@ -772,7 +947,7 @@ if (isset($pdo)) {
                 }
             });
         });
-        
+
         // --- Password Validation Logic ---
         document.addEventListener('DOMContentLoaded', function() {
             const btn = document.getElementById('btnUpdatePwd');
@@ -781,7 +956,7 @@ if (isset($pdo)) {
             const pwdMsg = document.getElementById('pwd_msg');
             const matchMsg = document.getElementById('match_msg');
 
-            if(newPwd && confirmPwd) {
+            if (newPwd && confirmPwd) {
                 function validate() {
                     const val = newPwd.value;
                     const confirmVal = confirmPwd.value;
@@ -822,6 +997,104 @@ if (isset($pdo)) {
                 confirmPwd.addEventListener('keyup', validate);
             }
         });
+
+        // --- View Order Details (AJAX) ---
+        function viewOrderDetails(orderId) {
+            // Show loading state or clear previous data
+            document.getElementById('modal_order_items_body').innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px;">Loading...</td></tr>';
+
+            // Open Modal
+            toggleModal('orderModal');
+
+            $.ajax({
+                url: 'get_order_details.php',
+                type: 'GET',
+                data: {
+                    order_id: orderId
+                },
+                dataType: 'json',
+                success: function(res) {
+                    if (res.success) {
+                        const order = res.order;
+                        const items = res.items;
+
+                        // 1. Fill Header Info
+                        document.getElementById('modal_order_id').innerText = '#' + order.order_id;
+                        document.getElementById('modal_order_date').innerText = new Date(order.order_date).toLocaleDateString('en-GB', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                        document.getElementById('modal_order_total').innerText = 'RM ' + parseFloat(order.total_amount).toFixed(2);
+
+                        // Status Badge Style
+                        const statusSpan = document.getElementById('modal_order_status');
+                        statusSpan.innerText = order.status.charAt(0).toUpperCase() + order.status.slice(1);
+                        statusSpan.className = 'order-status-badge status-' + order.status.toLowerCase();
+
+                        // 2. Fill Shipping Info
+                        document.getElementById('modal_shipping_info').innerHTML =
+                            `<strong>${order.shipping_name}</strong> (${order.shipping_phone})<br>${order.shipping_address}`;
+
+                        // 3. Fill Items Table
+                        let rows = '';
+                        let subtotal = 0;
+                        items.forEach(item => {
+                            const totalItemPrice = item.quantity * item.unit_price;
+                            subtotal += totalItemPrice;
+                            rows += `
+                                <tr style="border-bottom:1px solid #eee;">
+                                    <td style="padding:10px; display:flex; align-items:center; gap:10px;">
+                                        <img src="${item.image_url}" style="width:40px; height:40px; border-radius:4px; object-fit:cover; border:1px solid #eee;">
+                                        <span style="font-size:0.9rem; color:#333;">${item.name}</span>
+                                    </td>
+                                    <td style="padding:10px; text-align:center; font-size:0.9rem;">x${item.quantity}</td>
+                                    <td style="padding:10px; text-align:right; font-size:0.9rem; font-weight:600;">RM ${parseFloat(item.unit_price).toFixed(2)}</td>
+                                </tr>
+                            `;
+                        });
+                        document.getElementById('modal_order_items_body').innerHTML = rows;
+
+                        // 4. Fill Footer Totals
+                        document.getElementById('modal_subtotal').innerText = 'RM ' + subtotal.toFixed(2);
+                        document.getElementById('modal_shipping').innerText = 'RM ' + parseFloat(order.shipping_fee).toFixed(2);
+                        document.getElementById('modal_discount').innerText = '- RM ' + parseFloat(order.discount_amount).toFixed(2);
+
+                    } else {
+                        alert("Error: " + res.message);
+                        toggleModal('orderModal');
+                    }
+                },
+                error: function() {
+                    alert("System error fetching order details.");
+                    toggleModal('orderModal');
+                }
+            });
+        }
+
+        // --- Order Tab Filtering ---
+        function filterOrders(status, tabElement) {
+            // 1. Visual update for tabs
+            document.querySelectorAll('.order-tab').forEach(t => t.classList.remove('active'));
+            tabElement.classList.add('active');
+
+            // 2. Filter Cards
+            const cards = document.querySelectorAll('.order-card');
+            cards.forEach(card => {
+                if (status === 'all') {
+                    card.classList.remove('hidden');
+                } else {
+                    if (card.dataset.status === status) {
+                        card.classList.remove('hidden');
+                    } else {
+                        card.classList.add('hidden');
+                    }
+                }
+            });
+        }
     </script>
 </body>
+
 </html>
