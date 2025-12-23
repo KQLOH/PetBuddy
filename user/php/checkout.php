@@ -2,42 +2,73 @@
 session_start();
 require "../include/db.php";
 require_once "cart_function.php"; 
-require_once "../include/product_utils.php";
+require_once "../include/product_utils.php"; 
 
-
+// 1. Check Login
 if (!isset($_SESSION['member_id'])) {
     echo "<script>alert('Please login to continue.'); window.location.href='login.php';</script>";
     exit;
 }
 $member_id = $_SESSION['member_id'];
 
-
+// 2. Get User Info (Always fetch this first as fallback)
 $stmt_user = $pdo->prepare("SELECT * FROM members WHERE member_id = ?");
 $stmt_user->execute([$member_id]);
 $user = $stmt_user->fetch(PDO::FETCH_ASSOC);
 
-
-$user_email = $user['email'] ?? ''; 
-$user_first_name = $user['first_name'] ?? '';
-$user_last_name = $user['last_name'] ?? '';
+$user_full_name = $user['full_name'] ?? '';
 $user_phone = $user['phone'] ?? '';
-$user_address = $user['address'] ?? '';
-$user_postcode = $user['postcode'] ?? '';
-$user_city = $user['city'] ?? '';
-$user_state = $user['state'] ?? '';
+$user_email = $user['email'] ?? ''; 
 
+// 3. Fetch Saved Addresses
+$stmtAddr = $pdo->prepare("SELECT * FROM member_addresses WHERE member_id = ? ORDER BY is_default DESC, created_at DESC");
+$stmtAddr->execute([$member_id]);
+$saved_addresses = $stmtAddr->fetchAll(PDO::FETCH_ASSOC);
 
+// 4. Determine Initial Field Values
+$prefill = [
+    'first_name' => '', 'last_name' => '', 'phone' => '', 
+    'addr1' => '', 'addr2' => '', 
+    'postcode' => '', 'city' => '', 'state' => '', 'email' => $user_email
+];
+
+// If we have saved addresses, use the first one (Default)
+if (!empty($saved_addresses)) {
+    $def = $saved_addresses[0];
+    
+    // ✨ FIX: Check if keys exist, otherwise fallback to User Profile Data
+    $r_name = !empty($def['recipient_name']) ? $def['recipient_name'] : $user_full_name;
+    $r_phone = !empty($def['recipient_phone']) ? $def['recipient_phone'] : $user_phone;
+
+    // Split Name
+    $names = explode(" ", $r_name, 2);
+    $prefill['first_name'] = $names[0];
+    $prefill['last_name'] = $names[1] ?? '';
+    
+    $prefill['phone'] = $r_phone;
+    $prefill['addr1'] = $def['address_line1'];
+    $prefill['addr2'] = $def['address_line2'];
+    $prefill['postcode'] = $def['postcode'];
+    $prefill['city'] = $def['city'];
+    $prefill['state'] = $def['state'];
+} 
+// Fallback to Member Profile Data
+else {
+    $names = explode(" ", $user_full_name, 2);
+    $prefill['first_name'] = $names[0];
+    $prefill['last_name'] = $names[1] ?? '';
+    $prefill['phone'] = $user_phone;
+}
+
+// 5. Cart Logic
 $all_cart_items = getCartItems($pdo, $member_id);
 $checkout_items = [];
 $selected_ids_str = "";
-
 
 if (isset($_GET['items']) && $_GET['items'] === 'all') {
     $checkout_items = $all_cart_items;
     $selected_ids = array_column($all_cart_items, 'product_id');
     $selected_ids_str = implode(',', $selected_ids);
-
-
 } elseif (!empty($_GET['selected'])) {
     $selected_ids_str = $_GET['selected'];
     $selected_ids = array_map('intval', explode(',', $selected_ids_str));
@@ -48,20 +79,18 @@ if (isset($_GET['items']) && $_GET['items'] === 'all') {
     }
 }
 
-
 if (empty($checkout_items)) {
     echo "<script>alert('No items selected for checkout.'); window.location.href='cart.php';</script>";
     exit;
 }
 
-
+// 6. Calculate Totals
 $checkout_subtotal = 0;
 foreach ($checkout_items as $item) {
     $line_total = (float)$item['price'] * (int)$item['quantity'];
     $checkout_subtotal += $line_total;
 }
 
-// Free Shipping Logic
 $shipping_fee = ($checkout_subtotal >= 50) ? 0.00 : 15.00;
 
 // Get Vouchers
@@ -79,143 +108,44 @@ $total = $checkout_subtotal + $shipping_fee;
     <meta charset="UTF-8">
     <title>Checkout - PetBuddy</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
     <style>
-        /* === Styles === */
-        :root {
-            --primary-color: #F4A261;
-            --primary-dark: #E89C55;
-            --bg-sidebar: #fff9f2;
-            --border-focus: #F4A261;
-            --accent-bg: #fffbf6;
-            --text-dark: #2F2F2F;
-            --border-color: #e1e1e1;
-        }
+        /* === Styles (Kept existing styles) === */
+        :root { --primary-color: #F4A261; --primary-dark: #E89C55; --bg-sidebar: #fff9f2; --border-focus: #F4A261; --accent-bg: #fffbf6; --text-dark: #2F2F2F; --border-color: #e1e1e1; }
         * { box-sizing: border-box; font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif; }
         body { margin: 0; padding: 0; background: #fff; color: var(--text-dark); display: flex; flex-direction: column; min-height: 100vh; }
-
-        
-        .checkout-layout {
-            display: flex;
-            flex-direction: column-reverse;
-            width: 100%;
-        }
-
-        
-        .main-col {
-            padding: 30px 5%;
-            background: #fff;
-        }
-
-        
-        .sidebar-col {
-            background: #fafafa;
-            padding: 30px 5%;
-            border-bottom: 1px solid #e1e1e1;
-        }
-
-        
-        @media (min-width: 1001px) {
-            body {
-                height: 100vh;
-                overflow: hidden;
-            }
-
-            .checkout-layout {
-                flex-direction: row; 
-                flex: 1;            
-                overflow: hidden;
-                margin: 0 auto;
-                max-width: 1400px;
-            }
-
-            
-            .main-col {
-                flex: 1 1 58%;
-                height: 100%;
-                overflow-y: auto;    
-                padding: 40px 6%;
-                border-right: 1px solid var(--border-color);
-                scrollbar-width: thin; 
-                scrollbar-color: #ccc transparent;
-            }
-
-            
-            .sidebar-col {
-                flex: 1 1 42%;
-                height: 100%;
-                overflow-y: auto;    
-                background: var(--bg-sidebar); 
-                padding: 40px 6%;
-                border-bottom: none;
-                scrollbar-width: thin;
-                scrollbar-color: #ddd transparent;
-            }
-        }
-
-        
-        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; margin-top: 35px; }
-        .section-title { font-size: 19px; font-weight: 500; color: #333; }
-        .section-header:first-of-type { margin-top: 0; }
-
-       
-        .form-group { margin-bottom: 25px; }
-        .form-row { display: flex; gap: 25px; width: 100%; margin-bottom: 25px; }
-        .form-col { flex: 1; min-width: 0; }
-
-       
         .checkout-layout { display: flex; flex-direction: column-reverse; width: 100%; }
         .main-col { padding: 30px 5%; background: #fff; }
         .sidebar-col { background: #fafafa; padding: 30px 5%; border-bottom: 1px solid #e1e1e1; }
-        
         @media (min-width: 1001px) {
             body { height: 100vh; overflow: hidden; }
             .checkout-layout { flex-direction: row; flex: 1; overflow: hidden; margin: 0 auto; max-width: 1400px; }
             .main-col { flex: 1 1 58%; height: 100%; overflow-y: auto; padding: 40px 6%; border-right: 1px solid var(--border-color); scrollbar-width: thin; scrollbar-color: #ccc transparent; }
             .sidebar-col { flex: 1 1 42%; height: 100%; overflow-y: auto; background: var(--bg-sidebar); padding: 40px 6%; border-bottom: none; scrollbar-width: thin; scrollbar-color: #ddd transparent; }
         }
-
-        /* Form Elements */
         .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; margin-top: 35px; }
         .section-title { font-size: 19px; font-weight: 500; color: #333; }
         .section-header:first-of-type { margin-top: 0; }
         .form-group { margin-bottom: 25px; }
         .form-row { display: flex; gap: 25px; width: 100%; margin-bottom: 25px; }
         .form-col { flex: 1; min-width: 0; }
-        input[type="text"], input[type="email"], input[type="tel"], select, input[type="password"] {
-            width: 100%; padding: 13px; border: 1px solid #d9d9d9; border-radius: 5px; font-size: 14px; transition: all 0.2s ease-in-out; color: #333; background: #fff;
-        }
+        input[type="text"], input[type="email"], input[type="tel"], select, input[type="password"] { width: 100%; padding: 13px; border: 1px solid #d9d9d9; border-radius: 5px; font-size: 14px; transition: all 0.2s ease-in-out; color: #333; background: #fff; }
         input:focus, select:focus { border-color: var(--border-focus); outline: none; box-shadow: 0 0 0 1px var(--border-focus); }
         input[readonly] { background-color: #f9f9f9; color: #777; cursor: not-allowed; }
         label { font-size: 14px; color: #555; display:block; margin-bottom: 6px; }
-
-        
         .checkbox-wrapper { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
         .checkbox-wrapper input { width: 18px; height: 18px; accent-color: var(--primary-dark); margin: 0; cursor: pointer; }
         .checkbox-wrapper label { font-size: 14px; color: #555; cursor: pointer; user-select: none; margin-bottom: 0; }
-
-       
         .radio-box-group { border: 1px solid #d9d9d9; border-radius: 5px; overflow: hidden; margin-top: 15px; }
         .radio-box { padding: 18px; display: flex; align-items: center; justify-content: space-between; background: #fff; border-bottom: 1px solid #d9d9d9; cursor: pointer; }
         .radio-box:last-child { border-bottom: none; }
         .radio-label { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #333; }
-
-       
-        .btn-pay {
-            width: 100%; padding: 20px; background: var(--primary-color); color: #fff;
-            border: none; border-radius: 8px; font-size: 18px; font-weight: 700;
-            cursor: pointer; margin-top: 30px; transition: opacity 0.2s, transform 0.2s;
-            box-shadow: 0 4px 10px rgba(255, 183, 116, 0.4);
-        }
+        .btn-pay { width: 100%; padding: 20px; background: var(--primary-color); color: #fff; border: none; border-radius: 8px; font-size: 18px; font-weight: 700; cursor: pointer; margin-top: 30px; transition: opacity 0.2s, transform 0.2s; box-shadow: 0 4px 10px rgba(244, 162, 97, 0.4); }
         .btn-pay:hover { background: var(--primary-dark); transform: translateY(-2px); }
         .return-cart { display: block; text-align: center; margin-top: 20px; color: var(--primary-dark); text-decoration: none; font-size: 14px; font-weight: 500; }
         .return-cart:hover { text-decoration: underline; }
-
-        /* Sidebar Items */
         .summary-item { display: flex; align-items: center; gap: 15px; margin-bottom: 18px; }
         .img-wrap { position: relative; width: 65px; height: 65px; border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; background: #fff; }
         .img-wrap img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
@@ -223,19 +153,20 @@ $total = $checkout_subtotal + $shipping_fee;
         .item-info { flex: 1; }
         .item-name { font-size: 14px; font-weight: 500; color: #333; margin-bottom: 4px; line-height: 1.3; }
         .item-price { font-size: 14px; font-weight: 500; color: #333; }
-
         .discount-row { display: flex; gap: 10px; margin: 25px 0; border-top: 1px solid rgba(0,0,0,0.08); border-bottom: 1px solid rgba(0,0,0,0.08); padding: 25px 0; }
         .discount-input { background: #fff !important; }
         .btn-apply { padding: 0 20px; background: #dcdcdc; color: #fff; border: none; border-radius: 5px; font-weight: 600; cursor: pointer; transition: 0.2s; }
         .btn-apply:hover { background: #c0c0c0; }
-        
         .total-line { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; color: #555; }
         .grand-total { margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(0,0,0,0.08); display: flex; justify-content: space-between; align-items: center; }
         .grand-total .label { font-size: 16px; color: #333; font-weight: 500; }
         .grand-total .amount { font-size: 24px; font-weight: 600; color: #333; }
         .currency { font-size: 12px; color: #737373; margin-right: 5px; font-weight: 400; vertical-align: middle; }
-
         
+        /* Dropdown Style */
+        .address-selector-wrapper { margin-bottom: 20px; background: #FFF9F5; padding: 15px; border: 1px solid var(--primary-color); border-radius: 8px; }
+        .address-selector-wrapper label { font-weight: 600; color: var(--primary-dark); margin-bottom: 8px; }
+        .address-selector-wrapper select { border-color: var(--primary-color); }
         .payment-container { display: flex; flex-direction: column; gap: 12px; }
         .payment-card { background: #fff; border: 2px solid #eee; border-radius: 12px; overflow: hidden; transition: all 0.3s ease; position: relative; }
         .payment-card:hover { border-color: #ddd; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
@@ -252,18 +183,8 @@ $total = $checkout_subtotal + $shipping_fee;
         .payment-card.selected .payment-details { display: block; }
         .helper-text { font-size: 13px; color: #666; background: rgba(0,0,0,0.03); padding: 12px; border-radius: 6px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-      
-        .voucher-trigger-btn {
-            background: none; border: none; color: var(--primary-dark); 
-            font-size: 13px; font-weight: 600; cursor: pointer; 
-            text-decoration: underline; margin-top: 5px; display: inline-block;
-        }
-        
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5); z-index: 2000; display: none;
-            justify-content: center; align-items: center;
-        }
+        .voucher-trigger-btn { background: none; border: none; color: var(--primary-dark); font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: underline; margin-top: 5px; display: inline-block; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; display: none; justify-content: center; align-items: center; }
         .modal-overlay.active { display: flex; animation: fadeIn 0.2s; }
         .voucher-modal { background: #fff; width: 90%; max-width: 450px; border-radius: 12px; padding: 25px; position: relative; max-height: 80vh; overflow-y: auto; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
@@ -278,8 +199,6 @@ $total = $checkout_subtotal + $shipping_fee;
         .v-min { font-size: 11px; color: #999; }
         .v-btn { background: var(--primary-color); color: #fff; border: none; padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
         .v-btn:hover { background: var(--primary-dark); }
-        
-        
         .voucher-item.disabled { opacity: 0.6; background: #f9f9f9; border-color: #eee; cursor: not-allowed; }
         .voucher-item.disabled .v-btn { background: #ccc; cursor: not-allowed; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -301,7 +220,7 @@ $total = $checkout_subtotal + $shipping_fee;
                     <div class="section-title">Contact</div>
                 </div>
                 <div class="form-group">
-                    <input type="email" name="email" value="<?= htmlspecialchars($user_email) ?>" placeholder="Email" readonly>
+                    <input type="email" name="email" value="<?= htmlspecialchars($prefill['email']) ?>" placeholder="Email" readonly>
                 </div>
                 <div class="checkbox-wrapper">
                     <input type="checkbox" id="news" name="marketing_opt_in" checked>
@@ -311,42 +230,72 @@ $total = $checkout_subtotal + $shipping_fee;
                 <div class="section-header">
                     <div class="section-title">Delivery</div>
                 </div>
+                
                 <div class="form-group">
                     <select name="country">
                         <option value="Malaysia">Malaysia</option>
                     </select>
                 </div>
+
+                <?php if (!empty($saved_addresses)): ?>
+                <div class="address-selector-wrapper">
+                    <label><i class="fas fa-address-book"></i> Select from Address Book</label>
+                    <select id="savedAddressSelector" onchange="fillAddress(this.value)">
+                        <?php foreach ($saved_addresses as $addr): 
+                            $isDef = $addr['is_default'] ? '(Default)' : '';
+                            // Make sure to handle potential missing keys gracefully
+                            $safe_addr = array_merge([
+                                'recipient_name' => $user_full_name,
+                                'recipient_phone' => $user_phone,
+                                'address_line1' => '',
+                                'address_line2' => '',
+                                'postcode' => '',
+                                'city' => '',
+                                'state' => ''
+                            ], $addr);
+                            
+                            $dataVal = htmlspecialchars(json_encode($safe_addr), ENT_QUOTES, 'UTF-8');
+                        ?>
+                            <option value="<?= $dataVal ?>" <?= $addr['is_default'] ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($safe_addr['recipient_name']) ?> - <?= htmlspecialchars($safe_addr['city']) ?> <?= $isDef ?>
+                            </option>
+                        <?php endforeach; ?>
+                        <option value="new">+ Use a different address</option>
+                    </select>
+                </div>
+                <?php endif; ?>
+                
                 <div class="form-row">
                     <div class="form-col">
-                        <input type="text" name="first_name" placeholder="First name" value="<?= htmlspecialchars($user_first_name) ?>" required>
+                        <input type="text" name="first_name" id="f_name" placeholder="First name" value="<?= htmlspecialchars($prefill['first_name']) ?>" required>
                     </div>
                     <div class="form-col">
-                        <input type="text" name="last_name" placeholder="Last name" value="<?= htmlspecialchars($user_last_name) ?>" required>
+                        <input type="text" name="last_name" id="l_name" placeholder="Last name" value="<?= htmlspecialchars($prefill['last_name']) ?>" required>
                     </div>
                 </div>
                 <div class="form-group">
-                    <input type="tel" name="phone" placeholder="Phone" value="<?= htmlspecialchars($user_phone) ?>" required>
+                    <input type="tel" name="phone" id="phone" placeholder="Phone" value="<?= htmlspecialchars($prefill['phone']) ?>" required>
                 </div>
                 
                 <div class="form-group" style="margin-bottom: 15px;">
                     <label style="font-size: 14px; color: #555; margin-bottom: 6px; display:block;">Shipping Address</label>
-                    <input type="text" name="address" placeholder="Address Line 1 " value="<?= htmlspecialchars($user_address) ?>" required style="margin-bottom: 10px;">
-                    <input type="text" name="apartment" placeholder="Address Line 2  ">
+                    <input type="text" name="address" id="addr1" placeholder="Address Line 1" value="<?= htmlspecialchars($prefill['addr1']) ?>" required style="margin-bottom: 10px;">
+                    <input type="text" name="apartment" id="addr2" placeholder="Address Line 2 (Optional)" value="<?= htmlspecialchars($prefill['addr2']) ?>">
                 </div>
                 <div class="form-row">
                     <div class="form-col">
-                        <input type="text" name="postcode" id="billing_postcode" placeholder="Postcode" value="<?= htmlspecialchars($user_postcode) ?>" maxlength="5" required>
+                        <input type="text" name="postcode" id="billing_postcode" placeholder="Postcode" value="<?= htmlspecialchars($prefill['postcode']) ?>" maxlength="5" required>
                     </div>
                     <div class="form-col">
-                        <input type="text" name="city" id="billing_city" placeholder="City" value="<?= htmlspecialchars($user_city) ?>" required>
+                        <input type="text" name="city" id="billing_city" placeholder="City" value="<?= htmlspecialchars($prefill['city']) ?>" required>
                     </div>
                     <div class="form-col">
                         <select name="state" id="billing_state" required style="color: #333;">
-                            <option value="" disabled <?= empty($user_state) ? 'selected' : '' ?>>State</option>
+                            <option value="" disabled <?= empty($prefill['state']) ? 'selected' : '' ?>>State</option>
                             <?php 
                                 $states = ["Johor", "Selangor", "Kuala Lumpur", "Penang", "Perak", "Kedah", "Melaka", "Negeri Sembilan", "Pahang", "Terengganu", "Kelantan", "Perlis", "Sabah", "Sarawak", "Labuan", "Putrajaya"];
                                 foreach($states as $st) {
-                                    $selected = ($user_state == $st) ? "selected" : "";
+                                    $selected = ($prefill['state'] == $st) ? "selected" : "";
                                     echo "<option value='$st' $selected>$st</option>";
                                 }
                             ?>
@@ -354,7 +303,10 @@ $total = $checkout_subtotal + $shipping_fee;
                     </div>
                 </div>
                 
-
+                <div class="checkbox-wrapper">
+                    <input type="checkbox" id="save_info" name="save_info">
+                    <label for="save_info">Save this information for next time</label>
+                </div>
 
                 <div class="section-header">
                     <div class="section-title">Shipping method</div>
@@ -542,7 +494,6 @@ $total = $checkout_subtotal + $shipping_fee;
                 <?php foreach ($checkout_items as $item): 
                     $line_total = $item['price'] * $item['quantity'];
                     $price_display = ($item['price'] == 0) ? 'FREE' : 'RM ' . number_format($line_total, 2);
-                    
                     $displayImage = productImageUrl($item['image']);
                 ?>
                 <div class="summary-item">
@@ -580,7 +531,6 @@ $total = $checkout_subtotal + $shipping_fee;
                             <div style="text-align: center; color: #999; padding: 20px;">No vouchers available :(</div>
                         <?php else: ?>
                             <?php foreach ($available_vouchers as $v): 
-                               
                                 $min_spend = (float)$v['min_amount'];
                                 $is_eligible = $checkout_subtotal >= $min_spend;
                             ?>
@@ -649,9 +599,42 @@ $total = $checkout_subtotal + $shipping_fee;
     </div>
 
     <script>
-        
+        // 1. ✨ Address Selector Logic ✨
+        function fillAddress(jsonStr) {
+            if (jsonStr === 'new') {
+                // Clear all fields
+                document.getElementById('f_name').value = '';
+                document.getElementById('l_name').value = '';
+                document.getElementById('phone').value = '';
+                document.getElementById('addr1').value = '';
+                document.getElementById('addr2').value = '';
+                document.getElementById('billing_postcode').value = '';
+                document.getElementById('billing_city').value = '';
+                document.getElementById('billing_state').value = '';
+            } else {
+                // Parse the JSON data from the option value
+                const addr = JSON.parse(jsonStr);
+                
+                // Split Full Name into First/Last
+                const fullName = addr.recipient_name || '';
+                const nameParts = fullName.split(' ');
+                const fName = nameParts[0];
+                const lName = nameParts.slice(1).join(' '); // Join remaining parts as last name
+                
+                // Fill fields
+                document.getElementById('f_name').value = fName;
+                document.getElementById('l_name').value = lName;
+                document.getElementById('phone').value = addr.recipient_phone;
+                document.getElementById('addr1').value = addr.address_line1;
+                document.getElementById('addr2').value = addr.address_line2;
+                document.getElementById('billing_postcode').value = addr.postcode;
+                document.getElementById('billing_city').value = addr.city;
+                document.getElementById('billing_state').value = addr.state;
+            }
+        }
+
+        // 2. Payment Method Logic
         function selectPayment(radio) {
-            
             const cards = document.querySelectorAll('.payment-card');
             cards.forEach(card => card.classList.remove('selected'));
             const parentCard = radio.closest('.payment-card');
@@ -689,13 +672,10 @@ $total = $checkout_subtotal + $shipping_fee;
         function validateNumber(input) { input.value = input.value.replace(/[^0-9]/g, ''); }
         function validateText(input) { input.value = input.value.replace(/[^a-zA-Z\s]/g, ''); }
 
-      
-        function openVoucherModal() {
-            document.getElementById('voucherModalOverlay').classList.add('active');
-        }
+        // 3. Voucher Modal Logic
+        function openVoucherModal() { document.getElementById('voucherModalOverlay').classList.add('active'); }
 
         function closeVoucherModal(e) {
-            
             if (!e || e.target.classList.contains('modal-overlay') || e.target.classList.contains('modal-close')) {
                 document.getElementById('voucherModalOverlay').classList.remove('active');
             }
@@ -707,7 +687,7 @@ $total = $checkout_subtotal + $shipping_fee;
             $(".btn-apply").click();
         }
 
-        // 3. jQuery & AJAX Logic (Voucher + Local Postcode)
+        // 4. jQuery & AJAX Logic (Voucher + Local Postcode)
         $(document).ready(function() {
             
             // A. Voucher Apply
@@ -720,7 +700,7 @@ $total = $checkout_subtotal + $shipping_fee;
                 if(!code) { Swal.fire("Error", "Please enter a code", "error"); return; }
 
                 $.ajax({
-                    url: "apply_voucher.php", 
+                    url: "apply_voucher.php",
                     type: "POST",
                     data: { code: code, subtotal: subtotal },
                     dataType: "json",
@@ -746,7 +726,7 @@ $total = $checkout_subtotal + $shipping_fee;
                 });
             });
 
-            // B. LOCAL Postcode Auto-fill (Same as memberProfile.php)
+            // B. LOCAL Postcode Auto-fill
             $("#billing_postcode").on("keyup change", function() {
                 var postcode = $(this).val();
 
@@ -754,16 +734,13 @@ $total = $checkout_subtotal + $shipping_fee;
                     $("#billing_city").attr("placeholder", "Searching...");
                     
                     $.ajax({
-                        url: "get_location.php", // <--- Using LOCAL file now
+                        url: "get_location.php", // <--- Using LOCAL file
                         type: "GET",
                         data: { postcode: postcode },
                         dataType: "json",
                         success: function(response) {
                             if (response.success) {
-                                // 1. Set City
                                 $("#billing_city").val(response.city);
-
-                                // 2. Set State
                                 var state = response.state;
                                 $("#billing_state option").each(function() {
                                     if ($(this).val() === state || $(this).text() === state) {
