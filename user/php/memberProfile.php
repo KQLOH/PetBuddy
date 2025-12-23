@@ -1,6 +1,7 @@
 <?php
 session_start();
 include '../include/db.php'; 
+require_once '../include/product_utils.php';
 
 // --- Initialize Variables ---
 $message = "";
