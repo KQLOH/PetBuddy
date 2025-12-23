@@ -2,7 +2,7 @@
 // admin/member_edit.php
 session_start();
 
-require __DIR__ . '/../include/db.php';
+require_once '../user/include/db.php';
 
 $error_message = null;
 $success_message = null;
