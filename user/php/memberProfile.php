@@ -10,6 +10,7 @@ $member = [];
 $orders = [];
 $addresses = []; // New variable for address list
 $stats = ['total_orders' => 0, 'total_spent' => 0];
+$voucher_count = 0; // 初始化 Voucher 数量
 
 // --- 1. Security & Session Check ---
 if (!isset($_SESSION['member_id'])) {
@@ -193,10 +194,12 @@ if (isset($pdo)) {
 
     // --- 4. FETCH DATA ---
     try {
+        // 1. Get Member Info
         $stmt = $pdo->prepare("SELECT * FROM members WHERE member_id = ?");
         $stmt->execute([$member_id]);
         $member = $stmt->fetch();
 
+        // 2. Get Orders & Stats
         // Orders Logic (Existing)
         $orderSql = "SELECT o.*, COUNT(oi.order_item_id) as item_count 
                      FROM orders o 
@@ -218,6 +221,15 @@ if (isset($pdo)) {
         foreach ($orders as $o) {
             $stats['total_spent'] += $o['total_amount'];
         }
+
+        $today = date('Y-m-d');
+        // 统计有多少张 Voucher 是今天可以用的 (开始日期 <= 今天 <= 结束日期)
+        $vSql = "SELECT COUNT(*) FROM vouchers WHERE start_date <= ? AND end_date >= ?";
+        $vStmt = $pdo->prepare($vSql);
+        $vStmt->execute([$today, $today]);
+        $voucher_count = $vStmt->fetchColumn();
+        // =========================================
+
     } catch (PDOException $e) {
         $message = "Error loading data.";
         $msg_type = "error";
@@ -310,11 +322,19 @@ if (isset($pdo)) {
                         <div class="stat-icon-box bg-green-light"><img src="../images/wallet.png" style="width:24px;"></div>
                         <div class="stat-info"><p>Total Spent</p><h3>RM <?php echo number_format($stats['total_spent'], 2); ?></h3></div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-icon-box bg-orange-light"><img src="../images/voucher.png" style="width:24px;"></div>
-                        <div class="stat-info"><p>Vouchers</p><h3>0</h3></div>
+                    
+                    <div class="stat-card" onclick="window.location.href='vouchers.php'" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                        <div class="stat-icon-box bg-orange-light">
+                            <img src="../images/voucher.png" style="width:24px;">
+                        </div>
+                        <div class="stat-info">
+                            <p>Available Vouchers</p>
+                            <h3><?php echo $voucher_count ?? 0; ?></h3>
+                            
+                        </div>
                     </div>
-                </div>
+                    </div>
+
                 <div class="card-box">
                     <h3 class="section-title">Recent Activity</h3>
                     <?php if (count($orders) > 0): ?>

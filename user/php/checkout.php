@@ -2,18 +2,20 @@
 session_start();
 require "../include/db.php";
 require_once "cart_function.php"; 
+require_once "../include/product_utils.php";
 
-// 1. Check Login
+
 if (!isset($_SESSION['member_id'])) {
     echo "<script>alert('Please login to continue.'); window.location.href='login.php';</script>";
     exit;
 }
 $member_id = $_SESSION['member_id'];
 
-// 2. Get User Info
+
 $stmt_user = $pdo->prepare("SELECT * FROM members WHERE member_id = ?");
 $stmt_user->execute([$member_id]);
 $user = $stmt_user->fetch(PDO::FETCH_ASSOC);
+
 
 $user_email = $user['email'] ?? ''; 
 $user_first_name = $user['first_name'] ?? '';
@@ -24,15 +26,18 @@ $user_postcode = $user['postcode'] ?? '';
 $user_city = $user['city'] ?? '';
 $user_state = $user['state'] ?? '';
 
-// 3. Get Cart Items
+
 $all_cart_items = getCartItems($pdo, $member_id);
 $checkout_items = [];
 $selected_ids_str = "";
+
 
 if (isset($_GET['items']) && $_GET['items'] === 'all') {
     $checkout_items = $all_cart_items;
     $selected_ids = array_column($all_cart_items, 'product_id');
     $selected_ids_str = implode(',', $selected_ids);
+
+
 } elseif (!empty($_GET['selected'])) {
     $selected_ids_str = $_GET['selected'];
     $selected_ids = array_map('intval', explode(',', $selected_ids_str));
@@ -43,13 +48,13 @@ if (isset($_GET['items']) && $_GET['items'] === 'all') {
     }
 }
 
-// 4. Handle Empty Checkout
+
 if (empty($checkout_items)) {
     echo "<script>alert('No items selected for checkout.'); window.location.href='cart.php';</script>";
     exit;
 }
 
-// 5. Calculate Subtotal
+
 $checkout_subtotal = 0;
 foreach ($checkout_items as $item) {
     $line_total = (float)$item['price'] * (int)$item['quantity'];
@@ -92,6 +97,77 @@ $total = $checkout_subtotal + $shipping_fee;
         }
         * { box-sizing: border-box; font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif; }
         body { margin: 0; padding: 0; background: #fff; color: var(--text-dark); display: flex; flex-direction: column; min-height: 100vh; }
+
+        
+        .checkout-layout {
+            display: flex;
+            flex-direction: column-reverse;
+            width: 100%;
+        }
+
+        
+        .main-col {
+            padding: 30px 5%;
+            background: #fff;
+        }
+
+        
+        .sidebar-col {
+            background: #fafafa;
+            padding: 30px 5%;
+            border-bottom: 1px solid #e1e1e1;
+        }
+
+        
+        @media (min-width: 1001px) {
+            body {
+                height: 100vh;
+                overflow: hidden;
+            }
+
+            .checkout-layout {
+                flex-direction: row; 
+                flex: 1;            
+                overflow: hidden;
+                margin: 0 auto;
+                max-width: 1400px;
+            }
+
+            
+            .main-col {
+                flex: 1 1 58%;
+                height: 100%;
+                overflow-y: auto;    
+                padding: 40px 6%;
+                border-right: 1px solid var(--border-color);
+                scrollbar-width: thin; 
+                scrollbar-color: #ccc transparent;
+            }
+
+            
+            .sidebar-col {
+                flex: 1 1 42%;
+                height: 100%;
+                overflow-y: auto;    
+                background: var(--bg-sidebar); 
+                padding: 40px 6%;
+                border-bottom: none;
+                scrollbar-width: thin;
+                scrollbar-color: #ddd transparent;
+            }
+        }
+
+        
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; margin-top: 35px; }
+        .section-title { font-size: 19px; font-weight: 500; color: #333; }
+        .section-header:first-of-type { margin-top: 0; }
+
+       
+        .form-group { margin-bottom: 25px; }
+        .form-row { display: flex; gap: 25px; width: 100%; margin-bottom: 25px; }
+        .form-col { flex: 1; min-width: 0; }
+
+       
         .checkout-layout { display: flex; flex-direction: column-reverse; width: 100%; }
         .main-col { padding: 30px 5%; background: #fff; }
         .sidebar-col { background: #fafafa; padding: 30px 5%; border-bottom: 1px solid #e1e1e1; }
@@ -116,17 +192,25 @@ $total = $checkout_subtotal + $shipping_fee;
         input:focus, select:focus { border-color: var(--border-focus); outline: none; box-shadow: 0 0 0 1px var(--border-focus); }
         input[readonly] { background-color: #f9f9f9; color: #777; cursor: not-allowed; }
         label { font-size: 14px; color: #555; display:block; margin-bottom: 6px; }
+
         
         .checkbox-wrapper { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
         .checkbox-wrapper input { width: 18px; height: 18px; accent-color: var(--primary-dark); margin: 0; cursor: pointer; }
         .checkbox-wrapper label { font-size: 14px; color: #555; cursor: pointer; user-select: none; margin-bottom: 0; }
 
+       
         .radio-box-group { border: 1px solid #d9d9d9; border-radius: 5px; overflow: hidden; margin-top: 15px; }
         .radio-box { padding: 18px; display: flex; align-items: center; justify-content: space-between; background: #fff; border-bottom: 1px solid #d9d9d9; cursor: pointer; }
         .radio-box:last-child { border-bottom: none; }
         .radio-label { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #333; }
 
-        .btn-pay { width: 100%; padding: 20px; background: var(--primary-color); color: #fff; border: none; border-radius: 8px; font-size: 18px; font-weight: 700; cursor: pointer; margin-top: 30px; transition: opacity 0.2s, transform 0.2s; box-shadow: 0 4px 10px rgba(244, 162, 97, 0.4); }
+       
+        .btn-pay {
+            width: 100%; padding: 20px; background: var(--primary-color); color: #fff;
+            border: none; border-radius: 8px; font-size: 18px; font-weight: 700;
+            cursor: pointer; margin-top: 30px; transition: opacity 0.2s, transform 0.2s;
+            box-shadow: 0 4px 10px rgba(255, 183, 116, 0.4);
+        }
         .btn-pay:hover { background: var(--primary-dark); transform: translateY(-2px); }
         .return-cart { display: block; text-align: center; margin-top: 20px; color: var(--primary-dark); text-decoration: none; font-size: 14px; font-weight: 500; }
         .return-cart:hover { text-decoration: underline; }
@@ -151,7 +235,7 @@ $total = $checkout_subtotal + $shipping_fee;
         .grand-total .amount { font-size: 24px; font-weight: 600; color: #333; }
         .currency { font-size: 12px; color: #737373; margin-right: 5px; font-weight: 400; vertical-align: middle; }
 
-        /* Payment Cards */
+        
         .payment-container { display: flex; flex-direction: column; gap: 12px; }
         .payment-card { background: #fff; border: 2px solid #eee; border-radius: 12px; overflow: hidden; transition: all 0.3s ease; position: relative; }
         .payment-card:hover { border-color: #ddd; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
@@ -168,10 +252,18 @@ $total = $checkout_subtotal + $shipping_fee;
         .payment-card.selected .payment-details { display: block; }
         .helper-text { font-size: 13px; color: #666; background: rgba(0,0,0,0.03); padding: 12px; border-radius: 6px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* Voucher Modal */
-        .voucher-trigger-btn { background: none; border: none; color: var(--primary-dark); font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: underline; margin-top: 5px; display: inline-block; }
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; display: none; justify-content: center; align-items: center; }
+      
+        .voucher-trigger-btn {
+            background: none; border: none; color: var(--primary-dark); 
+            font-size: 13px; font-weight: 600; cursor: pointer; 
+            text-decoration: underline; margin-top: 5px; display: inline-block;
+        }
+        
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 2000; display: none;
+            justify-content: center; align-items: center;
+        }
         .modal-overlay.active { display: flex; animation: fadeIn 0.2s; }
         .voucher-modal { background: #fff; width: 90%; max-width: 450px; border-radius: 12px; padding: 25px; position: relative; max-height: 80vh; overflow-y: auto; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
@@ -186,6 +278,8 @@ $total = $checkout_subtotal + $shipping_fee;
         .v-min { font-size: 11px; color: #999; }
         .v-btn { background: var(--primary-color); color: #fff; border: none; padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
         .v-btn:hover { background: var(--primary-dark); }
+        
+        
         .voucher-item.disabled { opacity: 0.6; background: #f9f9f9; border-color: #eee; cursor: not-allowed; }
         .voucher-item.disabled .v-btn { background: #ccc; cursor: not-allowed; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -260,10 +354,7 @@ $total = $checkout_subtotal + $shipping_fee;
                     </div>
                 </div>
                 
-                <div class="checkbox-wrapper">
-                    <input type="checkbox" id="save_info" name="save_info">
-                    <label for="save_info">Save this information for next time</label>
-                </div>
+
 
                 <div class="section-header">
                     <div class="section-title">Shipping method</div>
@@ -451,10 +542,12 @@ $total = $checkout_subtotal + $shipping_fee;
                 <?php foreach ($checkout_items as $item): 
                     $line_total = $item['price'] * $item['quantity'];
                     $price_display = ($item['price'] == 0) ? 'FREE' : 'RM ' . number_format($line_total, 2);
+                    
+                    $displayImage = productImageUrl($item['image']);
                 ?>
                 <div class="summary-item">
                     <div class="img-wrap">
-                        <img src="<?= htmlspecialchars($item['image']) ?>" alt="img">
+                        <img src="<?= htmlspecialchars($displayImage) ?>" alt="img">
                         <span class="qty-badge"><?= $item['quantity'] ?></span>
                     </div>
                     <div class="item-info">
@@ -487,6 +580,7 @@ $total = $checkout_subtotal + $shipping_fee;
                             <div style="text-align: center; color: #999; padding: 20px;">No vouchers available :(</div>
                         <?php else: ?>
                             <?php foreach ($available_vouchers as $v): 
+                               
                                 $min_spend = (float)$v['min_amount'];
                                 $is_eligible = $checkout_subtotal >= $min_spend;
                             ?>
@@ -555,8 +649,9 @@ $total = $checkout_subtotal + $shipping_fee;
     </div>
 
     <script>
-        // 1. Payment Method Logic
+        
         function selectPayment(radio) {
+            
             const cards = document.querySelectorAll('.payment-card');
             cards.forEach(card => card.classList.remove('selected'));
             const parentCard = radio.closest('.payment-card');
@@ -594,10 +689,13 @@ $total = $checkout_subtotal + $shipping_fee;
         function validateNumber(input) { input.value = input.value.replace(/[^0-9]/g, ''); }
         function validateText(input) { input.value = input.value.replace(/[^a-zA-Z\s]/g, ''); }
 
-        // 2. Voucher Modal Logic
-        function openVoucherModal() { document.getElementById('voucherModalOverlay').classList.add('active'); }
+      
+        function openVoucherModal() {
+            document.getElementById('voucherModalOverlay').classList.add('active');
+        }
 
         function closeVoucherModal(e) {
+            
             if (!e || e.target.classList.contains('modal-overlay') || e.target.classList.contains('modal-close')) {
                 document.getElementById('voucherModalOverlay').classList.remove('active');
             }
@@ -622,7 +720,7 @@ $total = $checkout_subtotal + $shipping_fee;
                 if(!code) { Swal.fire("Error", "Please enter a code", "error"); return; }
 
                 $.ajax({
-                    url: "apply_voucher.php",
+                    url: "apply_voucher.php", 
                     type: "POST",
                     data: { code: code, subtotal: subtotal },
                     dataType: "json",

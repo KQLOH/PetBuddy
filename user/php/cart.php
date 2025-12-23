@@ -3,7 +3,9 @@ session_start();
 require "../include/db.php";
 require_once "cart_function.php";
 
-// 1. 检查登录状态
+require_once "../include/product_utils.php"; 
+
+
 if (!isset($_SESSION['member_id'])) {
     echo "<script>alert('Please login to view your cart.'); window.location.href='home.php';</script>";
     exit;
@@ -24,7 +26,7 @@ $cart_items = getCartItems($pdo, $member_id);
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        /* 页面专属样式 */
+        
         .cart-container { max-width: 1150px; margin: 40px auto; padding: 0 20px; display: flex; gap: 30px; align-items: flex-start; }
         
         .cart-list { flex: 2; background: #fff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); padding: 25px; }
@@ -82,7 +84,7 @@ $cart_items = getCartItems($pdo, $member_id);
         .continue-link { display: block; text-align: center; margin-top: 15px; font-size: 14px; color: #888; text-decoration: none; transition: 0.3s; font-weight: 500; }
         .continue-link:hover { color: var(--primary-dark); text-decoration: underline; }
 
-        /* === ✨ New: Cart Progress Bar CSS === */
+        
         .fs-summary-container {
             margin-bottom: 25px;
             padding-bottom: 20px;
@@ -100,7 +102,7 @@ $cart_items = getCartItems($pdo, $member_id);
         }
         .fs-summary-success { background: #28a745 !important; }
         .fs-text-success { color: #28a745 !important; }
-        /* =================================== */
+       
 
         @media (max-width: 768px) {
             .cart-header-row { display: none; }
@@ -119,7 +121,7 @@ $cart_items = getCartItems($pdo, $member_id);
 <div class="cart-container">
     
     <div class="cart-list">
-        <h2 style="margin-bottom: 25px;">Shopping Cart </h2>
+        <h2 style="margin-bottom: 25px;">Shopping Cart</h2>
 
         <?php if (empty($cart_items)): ?>
             <div class="empty-cart-msg">
@@ -143,6 +145,8 @@ $cart_items = getCartItems($pdo, $member_id);
             <div id="cartPageItems">
                 <?php foreach ($cart_items as $item): 
                     $subtotal = $item['price'] * $item['quantity'];
+                   
+                    $displayImage = productImageUrl($item['image']);
                 ?>
                 <div class="cart-row" data-id="<?= $item['product_id'] ?>" data-price="<?= $item['price'] ?>">
                     
@@ -152,7 +156,7 @@ $cart_items = getCartItems($pdo, $member_id);
                     
                     <div class="col-product">
                         <div class="product-info">
-                            <img src="<?= htmlspecialchars($item['image']) ?>" alt="img">
+                            <img src="<?= htmlspecialchars($displayImage) ?>" alt="img">
                             <div class="product-name"><?= htmlspecialchars($item['name']) ?></div>
                         </div>
                     </div>
@@ -224,7 +228,7 @@ $cart_items = getCartItems($pdo, $member_id);
 <script>
 $(document).ready(function() {
     
-    // === 1. 计算总价 + 更新进度条 ===
+   
     function updatePageTotals() {
         let total = 0;
         let count = 0;
@@ -251,12 +255,12 @@ $(document).ready(function() {
             $("#btnCheckout").removeClass("disabled").prop("disabled", false);
         }
 
-        // === ✨✨✨ 实时更新免邮进度条 ✨✨✨ ===
+        
         updateProgressBar(total);
-        // ==========================================
+        
     }
 
-    // === 新增: 进度条逻辑 ===
+   
     function updateProgressBar(currentTotal) {
         const threshold = 50.00;
         const barFill = $("#fsSummaryFill");
@@ -264,16 +268,16 @@ $(document).ready(function() {
         const shipText = $("#shippingText");
 
         if (currentTotal >= threshold) {
-            // 达标
+           
             barFill.css("width", "100%").addClass("fs-summary-success");
             msgText.html('🎉 You got <strong>Free Shipping!</strong>').addClass("fs-text-success");
             shipText.html('<span style="color:#28a745; font-weight:bold;">Free</span>');
         } else {
-            // 未达标
+            
             let diff = (threshold - currentTotal).toFixed(2);
             let percent = (currentTotal / threshold) * 100;
             if(percent < 0) percent = 0;
-            if(percent > 100) percent = 100; // 防止溢出
+            if(percent > 100) percent = 100; 
 
             barFill.css("width", percent + "%").removeClass("fs-summary-success");
             msgText.html(`Add <span>RM ${diff}</span> more for Free Shipping!`).removeClass("fs-text-success");
@@ -281,14 +285,14 @@ $(document).ready(function() {
             if(currentTotal > 0) {
                 shipText.text("RM 15.00");
             } else {
-                 shipText.text("-"); // 如果没选东西，运费显示杠杠
+                 shipText.text("-"); 
             }
         }
     }
 
     updatePageTotals(); 
 
-    // === 2. 点击整行选择商品 ===
+    
     $(".cart-row").click(function(e) {
         if ($(e.target).is("input[type='checkbox']") || 
             $(e.target).closest("button").length > 0) {
@@ -299,14 +303,14 @@ $(document).ready(function() {
         $checkbox.trigger("change");
     });
 
-    // === 3. 全选/反选 ===
+    
     $("#selectAll").change(function() {
         let isChecked = $(this).is(":checked");
         $(".item-check").prop("checked", isChecked);
         updatePageTotals();
     });
 
-    // === 4. 单个复选框变化 ===
+    
     $(".cart-list").on("change", ".item-check", function() {
         if ($(".item-check:not(:checked)").length > 0) {
             $("#selectAll").prop("checked", false);
@@ -316,7 +320,7 @@ $(document).ready(function() {
         updatePageTotals();
     });
 
-    // === 5. 数量变更 ===
+    
     $(document).off("click", ".page-qty-btn").on("click", ".page-qty-btn", function() {
         let $btn = $(this);
         let $row = $btn.closest(".cart-row");
@@ -342,7 +346,7 @@ $(document).ready(function() {
                     let newSubtotal = (price * newQty).toFixed(2);
                     $row.find(".row-subtotal").text(newSubtotal);
                     
-                    updatePageTotals(); // 这里会自动更新进度条
+                    updatePageTotals(); 
                     
                     if (typeof refreshCartSidebar === "function") refreshCartSidebar();
                 }
@@ -350,7 +354,7 @@ $(document).ready(function() {
         });
     });
 
-    // === 6. 删除商品 ===
+    
     $(document).off("click", ".page-remove-btn").on("click", ".page-remove-btn", function() {
         let $row = $(this).closest(".cart-row");
         let pid = $row.data("id");
@@ -371,7 +375,7 @@ $(document).ready(function() {
                         if (response.trim() === "success") {
                             $row.fadeOut(300, function() { 
                                 $(this).remove(); 
-                                updatePageTotals(); // 删除后自动更新进度条
+                                updatePageTotals(); 
                                 if ($(".cart-row").length === 0) location.reload(); 
                             });
                             if (typeof refreshCartSidebar === "function") refreshCartSidebar();
@@ -382,7 +386,7 @@ $(document).ready(function() {
         });
     });
 
-    // === 7. 跳转结算 (携带选中的ID) ===
+    
     $("#btnCheckout").click(function() {
         let selectedIds = [];
         $(".item-check:checked").each(function() {
