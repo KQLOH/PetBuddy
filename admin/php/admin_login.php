@@ -1,143 +1,117 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+session_start();
 
-// Admin protection
-if (empty($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
-    header('Location: admin.php'); // 你的 login page
+require_once '../../user/include/db.php';
+
+$errors = [];
+$email = '';
+
+if (!empty($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'super_admin'])) {
+    header('Location: dashboard.php');
     exit;
 }
 
-$adminName = $_SESSION['full_name'] ?? 'Admin';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+    $email    = trim($_POST['email'] ?? '');
+    $password = $_POST['password'] ?? '';
+
+    if ($email === '' || $password === '') {
+        $errors[] = 'Please enter both email and password.';
+    } else {
+        try {
+            $stmt = $pdo->prepare("
+                SELECT member_id, full_name, password_hash, role
+                FROM members
+                WHERE email = ?
+                LIMIT 1
+            ");
+            $stmt->execute([$email]);
+            $user = $stmt->fetch();
+
+            if (
+                $user &&
+                in_array($user['role'], ['admin', 'super_admin']) &&
+                password_verify($password, $user['password_hash'])
+            ) {
+                $_SESSION['member_id'] = $user['member_id'];
+                $_SESSION['full_name'] = $user['full_name'];
+                $_SESSION['email']     = $email;
+                $_SESSION['role']      = $user['role'];
+
+                header('Location: dashboard.php');
+                exit;
+            } else {
+                $errors[] = 'Invalid admin email or password.';
+            }
+        } catch (PDOException $e) {
+            $errors[] = 'System error. Please try again later.';
+        }
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <title>PetBuddy Admin</title>
+    <title>PetBuddy Admin Login</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <style>
-        :root {
-            --primary-color: #F4A261;
-            --primary-dark: #E68E3F;
-            --bg-light: #f9f9f9;
-            --text-dark: #333333;
-            --border-color: #e0e0e0;
-        }
-
-        body {
-            margin: 0;
-            background-color: var(--bg-light);
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            color: var(--text-dark);
-        }
-
-        .admin-header {
-            background-color: #ffffff;
-            border-bottom: 1px solid var(--border-color);
-            padding: 10px 18px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .admin-left {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .logo-circle {
-            width: 34px;
-            height: 34px;
-            border-radius: 50%;
-            background-color: var(--primary-color);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            color: #ffffff;
-        }
-
-        .admin-title {
-            font-size: 18px;
-            font-weight: 700;
-        }
-
-        .admin-nav {
-            display: flex;
-            gap: 14px;
-            margin-left: 20px;
-        }
-
-        .admin-nav a {
-            font-size: 14px;
-            text-decoration: none;
-            color: var(--text-dark);
-            padding: 6px 10px;
-            border-radius: 999px;
-        }
-
-        .admin-nav a:hover {
-            background-color: rgba(244, 162, 97, 0.15);
-            color: var(--primary-dark);
-        }
-
-        .admin-right {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .admin-badge {
-            font-size: 12px;
-            padding: 4px 10px;
-            border-radius: 999px;
-            background-color: rgba(244, 162, 97, 0.12);
-            color: var(--primary-dark);
-        }
-
-        .logout-btn {
-            text-decoration: none;
-            font-size: 13px;
-            padding: 6px 12px;
-            border-radius: 999px;
-            background-color: var(--primary-color);
-            color: #ffffff;
-        }
-
-        .logout-btn:hover {
-            background-color: var(--primary-dark);
-        }
-
-        .admin-content {
-            padding: 20px;
-        }
-    </style>
+    <link rel="stylesheet" href="../css/admin_login.css">
 </head>
+
 <body>
 
-<header class="admin-header">
-    <div class="admin-left">
-        <div class="logo-circle">🐾</div>
-        <div class="admin-title">PetBuddy Admin</div>
+    <div class="admin-wrapper">
+        <div class="admin-card">
 
-        <nav class="admin-nav">
-            <a href="dashboard.php">Dashboard</a>
-            <a href="products.php">Products</a>
-            <a href="orders.php">Orders</a>
-            <a href="members.php">Members</a>
-        </nav>
-    </div>
+            <div class="admin-logo">
+                <div class="logo-circle">🐾</div>
+                <div class="admin-logo-text">PetBuddy Admin</div>
+            </div>
 
-    <div class="admin-right">
-        <div class="admin-badge">
-            <?php echo htmlspecialchars($adminName); ?>
+            <div class="badge-admin">Admin Panel Login</div>
+            <p class="admin-subtitle">
+                Please login with your administrator account to manage the backend.
+            </p>
+
+            <?php if (!empty($errors)): ?>
+                <div class="errors">
+                    <ul>
+                        <?php foreach ($errors as $err): ?>
+                            <li><?= htmlspecialchars($err) ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+            <?php endif; ?>
+
+            <form method="post">
+                <div class="form-group">
+                    <label>Admin Email</label>
+                    <input
+                        type="email"
+                        name="email"
+                        value="<?= htmlspecialchars($email) ?>"
+                        required>
+                </div>
+
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" name="password" required>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    Login
+                </button>
+            </form>
+
+            <div class="back-to-site">
+                ← <a href="../../home.php">Back to PetBuddy Shop</a>
+            </div>
+
         </div>
-        <a href="logout.php" class="logout-btn">Logout</a>
     </div>
-</header>
 
-<div class="admin-content">
+</body>
+
+</html>
