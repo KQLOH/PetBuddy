@@ -42,7 +42,7 @@ foreach ($cart_items as $item) {
     $subtotal += floatval($item['price']) * intval($item['quantity']);
 }
 
-// 后端重新计算运费
+// 🔥 运费逻辑：超过 50 免邮，否则 15
 if ($subtotal >= 50) {
     $shipping_fee = 0.00;
 } else {
@@ -84,7 +84,7 @@ $postcode = $_POST['postcode'] ?? '';
 $country  = $_POST['country'] ?? 'Malaysia';
 
 $shipping_name = trim("$first_name $last_name");
-$full_address_string = "$addr1, $addr2, $postcode $city, $state, $country"; 
+// 注意：$full_address_string 不再直接存入 orders 表，而是存入 member_addresses 表
 
 // --- 5. 支付方式 ---
 $payment_base_method = $_POST['payment_method'] ?? 'Unknown';
@@ -112,26 +112,27 @@ try {
         $order_status = 'paid';
     }
 
-    // B. 插入 Orders
-    $sql_order = "INSERT INTO orders (member_id, total_amount, discount_amount, shipping_fee, status, shipping_name, shipping_address, shipping_phone, voucher_id, order_date) 
-                  VALUES (:mid, :total, :discount, :ship, :status, :name, :addr, :phone, :vid, NOW())";
+    // =========================================================
+    // B. ✨✨✨ 插入 Orders (根据新表结构修改) ✨✨✨
+    // =========================================================
+    // 移除了 shipping_fee, shipping_name, shipping_address 等字段
+    $sql_order = "INSERT INTO orders (member_id, total_amount, status, discount_amount, voucher_id, order_date) 
+                  VALUES (:mid, :total, :status, :discount, :vid, NOW())";
     
     $stmt = $pdo->prepare($sql_order);
     $stmt->execute([
         ':mid'      => $member_id,
         ':total'    => $total_amount,
-        ':discount' => $discount_amount,
-        ':ship'     => $shipping_fee, 
         ':status'   => $order_status,
-        ':name'     => $shipping_name,
-        ':addr'     => $full_address_string,
-        ':phone'    => $phone,
+        ':discount' => $discount_amount,
         ':vid'      => $voucher_id 
     ]);
 
     $order_id = $pdo->lastInsertId();
 
-    // C. 插入 Member Addresses
+    // =========================================================
+    // C. 插入 Member Addresses (生成 address_id)
+    // =========================================================
     $sql_addr = "INSERT INTO member_addresses (member_id, recipient_name, recipient_phone, address_line1, address_line2, city, state, postcode, country, is_default) 
                  VALUES (:mid, :rname, :rphone, :addr1, :addr2, :city, :state, :post, :country, 0)";
     $stmt_addr = $pdo->prepare($sql_addr);
@@ -143,21 +144,26 @@ try {
     
     $address_id = $pdo->lastInsertId(); 
 
-    // D. 插入 Shipping
+    // =========================================================
+    // D. 插入 Shipping (运费存在这里)
+    // =========================================================
     $sql_ship = "INSERT INTO shipping (order_id, address_id, shipping_fee, shipping_method, shipping_status) 
                  VALUES (:oid, :aid, :fee, :method, 'pending')";
     $stmt_ship = $pdo->prepare($sql_ship);
     $stmt_ship->execute([
-        ':oid' => $order_id, ':aid' => $address_id, ':fee' => $shipping_fee, ':method' => 'Standard Delivery'
+        ':oid' => $order_id, 
+        ':aid' => $address_id, 
+        ':fee' => $shipping_fee, // 0.00 或 15.00
+        ':method' => 'Standard Delivery'
     ]);
 
     // =========================================================
-    // E. ✨✨✨ 修复部分：插入 Order Items 并 扣减库存 ✨✨✨
+    // E. 插入 Order Items 并 扣减库存
     // =========================================================
     $sql_item = "INSERT INTO order_items (order_id, product_id, quantity, unit_price) VALUES (:oid, :pid, :qty, :price)";
     $stmt_item = $pdo->prepare($sql_item);
 
-    // 🔥 修复：使用了两个不同的参数名 :qty 和 :qty_check，避免 HY093 错误
+    // 扣减库存 SQL (使用 :qty_check 修复 HY093 错误)
     $sql_deduct = "UPDATE products SET stock_qty = stock_qty - :qty WHERE product_id = :pid AND stock_qty >= :qty_check";
     $stmt_deduct = $pdo->prepare($sql_deduct);
 
@@ -170,16 +176,15 @@ try {
             ':price' => $item['price']
         ]);
 
-        // 2. 扣减库存 (传参时，qty 和 qty_check 都传入数量)
+        // 2. 扣减库存
         $stmt_deduct->execute([
             ':qty'       => $item['quantity'],
-            ':qty_check' => $item['quantity'], // 👈 关键修复
+            ':qty_check' => $item['quantity'], 
             ':pid'       => $item['product_id']
         ]);
         
-        // 3. 检查
+        // 3. 检查库存是否足够
         if ($stmt_deduct->rowCount() == 0) {
-            // 如果影响行数为0，说明库存不足
             throw new Exception("Product ID " . $item['product_id'] . " (" . $item['name'] . ") is out of stock.");
         }
     }
@@ -221,7 +226,6 @@ try {
 
 } catch (Exception $e) {
     $pdo->rollBack();
-    // 简单的错误展示，实际项目建议优化错误页面
     echo "<div style='padding:50px; text-align:center; font-family:sans-serif;'>";
     echo "<h1 style='color:red;'>Order Failed</h1>";
     echo "<p>Error: " . htmlspecialchars($e->getMessage()) . "</p>";
