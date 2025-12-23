@@ -29,7 +29,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $_SESSION['role'] = $user['role'];
                 $_SESSION['user_image'] = $user['image'] ?: '../images/default-avatar.png';
 
-                header("Location: index.php");
+                header("Location: home.php");
                 exit;
             } else {
                 $error = "Invalid email or password.";
@@ -235,7 +235,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <a href="forgot_password.php" class="footer-link warning-link">
                         Forgot Password?
                     </a>
-                    <a href="index.php" class="footer-link muted-link">
+                    <a href="home.php" class="footer-link muted-link">
                         <span class="icon-arrow">←</span> Back to Home
                     </a>
                 </div>
