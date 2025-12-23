@@ -3,7 +3,7 @@
 session_start();
 
 // Ensure the path to db.php is correct
-require __DIR__ . '/../include/db.php'; 
+require_once '../user/include/db.php'; 
 
 // --- SECURITY CHECK: Only allow admin access ---
 if (empty($_SESSION['role']) || $_SESSION['role'] !== 'admin') {

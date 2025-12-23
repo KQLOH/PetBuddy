@@ -3,7 +3,7 @@
 session_start();
 
 // 确保 db.php 的路径正确
-require __DIR__ . '/../include/db.php'; 
+require_once '../user/include/db.php'; 
 
 // --- 安全检查：只允许 admin 访问 ---
 if (empty($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
