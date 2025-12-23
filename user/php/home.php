@@ -241,6 +241,19 @@ $heroSlides = loadHeroSlides($pdo, 5);
             height: 100%;
             object-fit: cover;
         }
+
+        /* === Add to Cart Button (same as product_listing.php) === */
+        .btn-add { 
+            background: linear-gradient(135deg, #2F2F2F, #1a1a1a); 
+            color: white; border: none; border-radius: 8px; 
+            cursor: pointer; font-size: 13px; font-weight: 600; 
+            padding: 10px; transition: all 0.3s;
+            display: flex; align-items: center; justify-content: center; gap: 5px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .btn-add:hover { background: linear-gradient(135deg, #000, #2F2F2F); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.25); }
+        .btn-add:active { transform: translateY(0); }
+        .btn-add:disabled { opacity: 0.7; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -389,9 +402,8 @@ $heroSlides = loadHeroSlides($pdo, 5);
                                 </a>
                                 <div class="hp-product-price">
                                     <span class="hp-price"><?php echo htmlspecialchars(formatPrice((float)$product['price']), ENT_QUOTES, 'UTF-8'); ?></span>
-                                    <button class="hp-add-to-cart-btn" data-product-id="<?php echo (int)$product['product_id']; ?>" data-product-name="<?php echo htmlspecialchars($product['name'], ENT_QUOTES, 'UTF-8'); ?>">
-                                        <span class="cart-icon"><img src="../images/add-to-cart.png" alt="Add to Cart" style="width: 18px; height: 18px; vertical-align: middle;"></span>
-                                        <span class="cart-text">Add to Cart</span>
+                                    <button class="btn-add" onclick="addToCart(<?= $product['product_id'] ?>)">
+                                        <i class="fas fa-shopping-cart"></i> Add
                                     </button>
                                 </div>
                             </div>
@@ -661,37 +673,64 @@ $heroSlides = loadHeroSlides($pdo, 5);
             });
 
            
-            const addToCartButtons = document.querySelectorAll('.hp-add-to-cart-btn');
-            addToCartButtons.forEach(button => {
-                button.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    const productId = this.getAttribute('data-product-id');
-                    const productName = this.getAttribute('data-product-name');
-                    const originalHTML = this.innerHTML;
-                    
-                    
-                    this.classList.add('added');
-                    this.innerHTML = '<span class="cart-icon"><img src="../images/correct.png" alt="Correct" style="width: 18px; height: 18px; vertical-align: middle;"></span><span class="cart-text">Added!</span>';
-                    this.style.pointerEvents = 'none';
-                    
-                   
-                    if(typeof showCartNotification === 'function') {
-                        showCartNotification(productName);
-                    }
-                    
+            // === Add to Cart Function (same as product_listing.php) ===
+            window.addToCart = function(pid) {
+                let $btn = $("button[onclick='addToCart("+pid+")']");
+                $btn.prop('disabled', true).css('opacity', '0.7');
 
-                    console.log('Added to cart:', productId, productName);
-                    
+                $.ajax({
+                    url: "add_to_cart.php",
+                    type: "POST",
+                    data: { product_id: pid, quantity: 1 },
+                    success: function(response) {
+                        let res = response.trim();
+                        $btn.prop('disabled', false).css('opacity', '1');
 
-                    setTimeout(() => {
-                        this.classList.remove('added');
-                        this.innerHTML = originalHTML;
-                        this.style.pointerEvents = 'auto';
-                    }, 2000);
+                        if (res === "login_required") {
+                            Swal.fire({
+                                title: 'Login Required', text: 'Please login first.', icon: 'info',
+                                showCancelButton: true, confirmButtonText: 'Login', confirmButtonColor: '#2F2F2F'
+                            }).then((r) => { if(r.isConfirmed) window.location.href='login.php'; });
+                        } 
+                        else if (res === "added" || res === "quantity increased") {
+                        
+                            const Toast = Swal.mixin({
+                                toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true
+                            });
+                            Toast.fire({ icon: 'success', title: 'Added to Cart!' });
+
+                            
+                            refreshCartSidebar(); 
+
+
+                            setTimeout(() => {
+                                if(typeof openCart === 'function') openCart(); 
+                            }, 300);
+                        } 
+                        else {
+                            Swal.fire('Error', 'Failed to add item.', 'error');
+                        }
+                    },
+                    error: function() { $btn.prop('disabled', false).css('opacity', '1'); }
                 });
-            });
+            };
+
+            // === Refresh Cart Sidebar Function ===
+            window.refreshCartSidebar = function() {
+                $.ajax({
+                    url: 'fetch_cart.php', 
+                    type: 'GET',
+                    success: function(htmlResponse) {
+                        $('#cartBody').html(htmlResponse); 
+                        let newTotal = $('#ajax-new-total').val(); 
+                        if (newTotal) {
+                            $('#cartSidebarTotal').text(newTotal); 
+                            if(typeof updateFreeShipping === 'function') updateFreeShipping();
+                            if(parseFloat(newTotal) > 0) $('#cartFooter').show();
+                        }
+                    }
+                });
+            };
 
  
             const newsletterForm = document.getElementById('newsletter-form');
