@@ -1,50 +1,71 @@
 <?php
 /**
- * Header Component (Moved Progress Bar to Footer)
- * - Progress Bar is now inside the Cart Footer
- * - Real-time updates via JS
+ * Header Component with Sub-Categories
  */
 
+// 1. Session Check (Safe Start)
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// 1. Database Connection
+// 2. Database Connection
 require_once 'db.php'; 
 
-// 2. Cart Functions (Path Check)
+// 3. Cart Functions (Path Check)
 if (file_exists(__DIR__ . "/../php/cart_function.php")) {
     require_once __DIR__ . "/../php/cart_function.php";
 } elseif (file_exists("cart_function.php")) {
     require_once "cart_function.php";
 } else {
-    // Fallback function to prevent crash
     if (!function_exists('getCartItems')) { function getCartItems($p, $m) { return []; } }
 }
 
-// 3. User State Initialization
-$loggedIn = isset($_SESSION['member_id']);
-$member_id = $loggedIn ? $_SESSION['member_id'] : null;
-$userAvatar = 'images/default-avatar.png'; // Default avatar
-$total_price = 0; // Init cart total
-
-// 4. Fetch User Avatar
-if ($loggedIn) {
-    $stmt = $pdo->prepare("SELECT image FROM members WHERE member_id=?");
-    $stmt->execute([$member_id]);
-    $row = $stmt->fetch();
-    
-    if ($row && !empty($row['image'])) {
-        $userAvatar = $row['image'];
-    }
+// 4. Include Product Utils (Safe)
+if (file_exists(__DIR__ . "/product_utils.php")) {
+    require_once __DIR__ . "/product_utils.php";
 }
 
-// 5. Fetch Categories
+// 5. User State Initialization
+$loggedIn = isset($_SESSION['member_id']);
+$member_id = $loggedIn ? $_SESSION['member_id'] : null;
+$userAvatar = '../images/default-avatar.png'; // 注意路径，Header通常被php文件夹内的文件引用
+$total_price = 0; 
+
+// 6. Fetch User Avatar
+if ($loggedIn) {
+    try {
+        $stmt = $pdo->prepare("SELECT image FROM members WHERE member_id=?");
+        $stmt->execute([$member_id]);
+        $row = $stmt->fetch();
+        if ($row && !empty($row['image'])) {
+            // 这里使用了 product_utils 里的函数，或者直接用路径
+            // 假设头像存的是相对路径
+            $userAvatar = $row['image']; 
+        }
+    } catch (PDOException $e) { /* Ignore */ }
+}
+
+// 7. ✨✨✨ Fetch Categories & Sub-Categories (新逻辑) ✨✨✨
 $categories = [];
+$grouped_subs = []; 
+
 try {
+    // A. 获取主分类
     $stmt_cat = $pdo->prepare("SELECT * FROM product_categories ORDER BY category_id ASC");
     $stmt_cat->execute();
     $categories = $stmt_cat->fetchAll(PDO::FETCH_ASSOC);
+
+    // B. 获取所有子分类
+    $stmt_sub = $pdo->prepare("SELECT * FROM sub_categories ORDER BY category_id ASC, name ASC");
+    $stmt_sub->execute();
+    $all_subs = $stmt_sub->fetchAll(PDO::FETCH_ASSOC);
+
+    // C. 整理子分类
+    foreach ($all_subs as $sub) {
+        $parent_id = $sub['category_id'];
+        $grouped_subs[$parent_id][] = $sub;
+    }
+
 } catch (PDOException $e) {
     error_log("Category fetch error: " . $e->getMessage());
 }
@@ -100,13 +121,13 @@ try {
             display: flex; justify-content: space-between; align-items: center;
         }
         
-        .logo { display: flex; align-items: center; gap: 10px; font-size: 22px; font-weight: 700; color: var(--text-dark); }
+        .logo { display: flex; align-items: center; gap: 10px; font-size: 22px; font-weight: 700; color: var(--text-dark); text-decoration: none; }
         .logo-circle { width: 30px; height: 30px; background: var(--primary-color); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
         
         .nav-links { display: flex; gap: 25px; }
-        .nav-links a { font-size: 17px; font-weight: 500; color: var(--text-dark); text-decoration: none; transition: 0.2s; }
-        .nav-links a:hover, .nav-links a.active { color: var(--primary-dark); }
-        .nav-links a.active { font-weight: 600; color: var(--primary-color) !important; }
+        .nav-links a.nav-link { font-size: 17px; font-weight: 500; color: var(--text-dark); text-decoration: none; transition: 0.2s; }
+        .nav-links a.nav-link:hover, .nav-links a.nav-link.active { color: var(--primary-dark); }
+        .nav-links a.nav-link.active { font-weight: 600; color: var(--primary-color) !important; }
 
         .nav-icon-btn {
             width: 42px; height: 42px; border-radius: 50%; border: none; background: transparent;
@@ -177,27 +198,22 @@ try {
         /* === 7. Cart Sidebar Specifics === */
         .cart-sidebar { width: 420px; right: -450px; }
         .cart-body { flex: 1; overflow-y: auto; padding: 20px 30px; scroll-behavior: smooth; }
-        
-        /* Scrollbar */
         .cart-body::-webkit-scrollbar { width: 6px; }
         .cart-body::-webkit-scrollbar-track { background: #f1f1f1; }
         .cart-body::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
 
-        /* Cart Items */
         .cart-item { display: flex; gap: 15px; margin-bottom: 20px; border-bottom: 1px solid #f5f5f5; padding-bottom: 15px; }
         .cart-item img { width: 70px; height: 70px; object-fit: cover; border-radius: 8px; background: #f9f9f9; border: 1px solid #eee; }
         .cart-item-info { flex: 1; display: flex; flex-direction: column; justify-content: center; }
         .cart-item-title { font-size: 15px; font-weight: 600; color: var(--text-dark); margin-bottom: 5px; line-height: 1.4; }
         .cart-item-price { color: var(--primary-dark); font-weight: 700; font-size: 14px; }
         
-        /* Quantity Controls */
         .qty-control-wrapper { display: flex; align-items: center; margin-top: 8px; background: #f5f5f5; border-radius: 4px; width: fit-content; }
         .qty-btn { border: none; background: transparent; padding: 2px 8px; cursor: pointer; font-size: 16px; color: #555; }
         .qty-display { font-size: 13px; font-weight: 600; padding: 0 5px; min-width: 20px; text-align: center; }
         .remove-btn { background: none; border: none; color: #999; cursor: pointer; padding: 5px; font-size: 14px; align-self: flex-start; margin-top: 5px; }
         .remove-btn:hover { color: #ff4d4d; }
 
-        /* Cart Footer */
         .cart-footer { padding: 25px 30px; border-top: 1px solid #eee; background: #fff; flex-shrink: 0; z-index: 10; }
         .cart-total { display: flex; justify-content: space-between; font-size: 18px; font-weight: 700; margin-bottom: 20px; color: var(--text-dark); }
         .btn-checkout { display: block; width: 100%; background: var(--primary-color); color: white; text-align: center; padding: 14px; border-radius: 8px; text-decoration: none; font-weight: 600; transition: 0.2s; box-shadow: 0 4px 10px rgba(255, 183, 116, 0.3); }
@@ -212,18 +228,21 @@ try {
 
         @media (max-width: 500px) { .sidebar-panel { width: 100%; right: -100%; } }
 
-        /* === 9. Categories Dropdown Styles === */
+        /* === ✨✨✨ 9. Categories Dropdown & Sub-Menu (Updated) ✨✨✨ === */
         .nav-dropdown-wrapper {
-            position: relative; display: flex; align-items: center; height: 100%;
+            position: relative; display: flex; align-items: center; height: 100%; cursor: pointer;
         }
         .nav-dropdown-wrapper > a {
-            display: flex; align-items: center; gap: 4px; cursor: pointer;
+            display: flex; align-items: center; gap: 4px; text-decoration: none; color: var(--text-dark); font-size: 17px; font-weight: 500;
         }
+        .nav-dropdown-wrapper:hover > a { color: var(--primary-dark); }
+
+        /* 主下拉菜单 */
         .dropdown-menu {
             display: none; position: absolute; top: 100%; left: 50%;
             transform: translateX(-50%); background: #fff;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-radius: 8px;
-            min-width: 200px; padding: 10px 0; z-index: 1100;
+            min-width: 200px; padding: 5px 0; z-index: 1100;
             border: 1px solid #eee; margin-top: 10px;
         }
         .nav-dropdown-wrapper:hover .dropdown-menu {
@@ -233,35 +252,61 @@ try {
             content: ""; position: absolute; top: -15px; left: 0;
             width: 100%; height: 20px; background: transparent;
         }
-        .dropdown-menu a {
-            display: block; padding: 12px 20px; color: var(--text-dark);
-            text-decoration: none; font-size: 15px; transition: 0.2s; white-space: nowrap;
-        }
-        .dropdown-menu a:hover {
-            background-color: #FFF5EC; color: var(--primary-dark); padding-left: 25px;
+
+        /* 每一个分类项（容器） */
+        .dropdown-item-group {
+            position: relative; /* 为了定位子菜单 */
         }
 
-        /* === 10. Free Shipping Bar Styles (Updated) === */
+        /* 分类链接样式 */
+        .dropdown-item-group > a, .dropdown-menu > a {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 20px; color: var(--text-dark);
+            text-decoration: none; font-size: 15px; transition: 0.2s; white-space: nowrap;
+        }
+        .dropdown-item-group > a:hover, .dropdown-menu > a:hover {
+            background-color: #FFF5EC; color: var(--primary-dark);
+        }
+
+        /* 二级子菜单 (Sub-menu) */
+        .submenu {
+            display: none; 
+            position: absolute; 
+            left: 100%; /* 显示在右侧 */
+            top: 0; 
+            min-width: 200px; 
+            background: #fff;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 5px 0;
+            z-index: 1101;
+        }
+        
+        /* 鼠标悬停显示子菜单 */
+        .dropdown-item-group:hover .submenu {
+            display: block;
+            animation: fadeIn 0.2s ease-in-out;
+        }
+
+        .submenu a {
+            display: block; padding: 10px 15px; color: #555; text-decoration: none; font-size: 14px;
+        }
+        .submenu a:hover {
+            background-color: #f9f9f9; color: var(--primary-color); padding-left: 20px; transition: 0.2s;
+        }
+
+        .arrow-right { font-size: 10px; color: #ccc; }
+
+        /* === 10. Free Shipping Bar Styles === */
         .fs-container {
-            padding: 0 0 15px 0; /* 减少padding，因为放在Footer里了 */
-            background: transparent;
-            border-bottom: 1px solid #eee; /* 在进度条和Subtotal之间加条线 */
-            margin-bottom: 15px;
-            text-align: center;
+            padding: 0 0 15px 0; background: transparent;
+            border-bottom: 1px solid #eee; margin-bottom: 15px; text-align: center;
         }
-        .fs-text {
-            font-size: 14px; margin-bottom: 8px; font-weight: 500; color: var(--text-dark);
-        }
-        .fs-text span {
-            font-weight: 700; color: var(--primary-dark);
-        }
-        .fs-bar-bg {
-            width: 100%; height: 8px; background: #eee; border-radius: 10px; overflow: hidden;
-        }
-        .fs-bar-fill {
-            height: 100%; width: 0%; background: var(--primary-color);
-            border-radius: 10px; transition: width 0.5s ease, background-color 0.3s ease;
-        }
+        .fs-text { font-size: 14px; margin-bottom: 8px; font-weight: 500; color: var(--text-dark); }
+        .fs-text span { font-weight: 700; color: var(--primary-dark); }
+        .fs-bar-bg { width: 100%; height: 8px; background: #eee; border-radius: 10px; overflow: hidden; }
+        .fs-bar-fill { height: 100%; width: 0%; background: var(--primary-color); border-radius: 10px; transition: width 0.5s ease, background-color 0.3s ease; }
         .fs-success-text { color: #28a745 !important; }
         .fs-success-bar { background: #28a745 !important; }
 
@@ -277,13 +322,13 @@ try {
 
 <nav class="navbar">
     <div class="navbar-inner">
-        <div class="logo">
+        <a href="home.php" class="logo">
             <div class="logo-circle">🐾</div>
             <span>PetBuddy</span>
-        </div>
+        </a>
 
         <div class="nav-links">
-            <a href="home.php" class="<?= basename($_SERVER['PHP_SELF'])==='index.php' || basename($_SERVER['PHP_SELF'])==='home.php' ?'active':'' ?>">Home</a>
+            <a href="home.php" class="nav-link <?= basename($_SERVER['PHP_SELF'])==='home.php'?'active':'' ?>">Home</a>
 
             <div class="nav-dropdown-wrapper">
                 <a href="product_listing.php" class="<?= basename($_SERVER['PHP_SELF'])==='product_listing.php' && !isset($_GET['category']) ?'active':'' ?>">
@@ -292,20 +337,40 @@ try {
                 <div class="dropdown-menu">
                     <a href="product_listing.php">View All Products</a>
                     <hr style="border:0; border-top:1px solid #eee; margin:5px 0;">
+                    
                     <?php if (!empty($categories)): ?>
                         <?php foreach ($categories as $cat): ?>
-                            <a href="product_listing.php?category=<?= $cat['category_id'] ?>">
-                                <?= htmlspecialchars($cat['name']) ?>
-                            </a>
+                            <?php 
+                                $cat_id = $cat['category_id'];
+                                // 检查当前分类下有没有子分类
+                                $has_subs = isset($grouped_subs[$cat_id]) && count($grouped_subs[$cat_id]) > 0;
+                            ?>
+                            
+                            <div class="dropdown-item-group">
+                                <a href="product_listing.php?category=<?= $cat_id ?>">
+                                    <?= htmlspecialchars($cat['name']) ?>
+                                    <?php if($has_subs): ?> <span class="arrow-right">▶</span> <?php endif; ?>
+                                </a>
+
+                                <?php if ($has_subs): ?>
+                                    <div class="submenu">
+                                        <?php foreach ($grouped_subs[$cat_id] as $sub): ?>
+                                            <a href="product_listing.php?category=<?= $cat_id ?>&sub_category=<?= $sub['sub_category_id'] ?>">
+                                                <?= htmlspecialchars($sub['name']) ?>
+                                            </a>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+
                         <?php endforeach; ?>
                     <?php else: ?>
                         <a href="#">No Categories Found</a>
                     <?php endif; ?>
                 </div>
             </div>
-
-            <a href="about.php" class="<?= basename($_SERVER['PHP_SELF'])==='about.php'?'active':'' ?>">About</a>
-            <a href="contact.php" class="<?= basename($_SERVER['PHP_SELF'])==='contact.php'?'active':'' ?>">Contact</a>
+            <a href="about.php" class="nav-link <?= basename($_SERVER['PHP_SELF'])==='about.php'?'active':'' ?>">About</a>
+            <a href="contact.php" class="nav-link <?= basename($_SERVER['PHP_SELF'])==='contact.php'?'active':'' ?>">Contact</a>
         </div>
 
         <div style="display:flex; gap:10px; align-items:center;">
@@ -315,7 +380,7 @@ try {
 
             <div class="user-avatar-dropdown" style="position:relative;">
                <button class="nav-icon-btn" onclick="toggleUserDropdown()">
-                <?php if($loggedIn): ?>
+                <?php if($loggedIn && !empty($userAvatar)): ?>
                     <img src="<?= $userAvatar ?>" style="width:26px;height:26px;border-radius:50%;cursor:pointer;object-fit:cover;">
                 <?php else: ?>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -328,6 +393,7 @@ try {
                 <div id="userDropdown" class="user-menu-dropdown">
                     <?php if($loggedIn): ?>
                         <a href="memberProfile.php">Profile</a>
+                        <a href="wishlist.php">Wishlist</a>
                         <a href="logout.php">Logout</a>
                     <?php else: ?>
                         <a href="login.php">Login</a>
@@ -367,7 +433,7 @@ try {
     <div class="cart-body" id="cartBody">
         <?php if (!$loggedIn): ?>
             <div style="text-align: center; margin-top: 60px; color: #888;">
-                <p>Please <a href="login.php" class="primary-link">Login</a> to view cart.</p>
+                <p>Please <a href="login.php" class="primary-link" style="color:var(--primary-color);">Login</a> to view cart.</p>
             </div>
         <?php else: ?>
             <?php
@@ -391,16 +457,7 @@ try {
 
     <div class="cart-footer" id="cartFooter" style="<?= ($loggedIn && isset($total_price) && $total_price > 0) ? '' : 'display:none;' ?>">
         
-        <?php if ($loggedIn): ?>
-        <div class="fs-container">
-            <p class="fs-text" id="fsMessage">
-                Add <span>RM 50.00</span> more for <br><strong>Free Shipping!</strong> 🚚
-            </p>
-            <div class="fs-bar-bg">
-                <div class="fs-bar-fill" id="fsProgress"></div>
-            </div>
-        </div>
-        <?php endif; ?>
+
         <div class="cart-total">
             <span>Subtotal:</span>
             <span style="color: var(--primary-dark);">RM <span id="cartSidebarTotal"><?= number_format($total_price, 2) ?></span></span>
@@ -463,18 +520,16 @@ try {
         if (overlay) overlay.classList.remove("active");
     }
 
-    // --- 4. 增强版免邮逻辑 (Handle Empty Cart) ---
+    // --- 4. Free Shipping Logic ---
     function updateFreeShipping() {
         const totalEl = document.getElementById('cartSidebarTotal');
         const footer = document.getElementById('cartFooter');
         
-        // 获取进度条元素
         const barFill = document.getElementById('fsProgress');
         const msgText = document.getElementById('fsMessage');
         
         if (!barFill || !msgText) return;
 
-        // === 关键修改：检查购物车是否为空/结算栏是否被隐藏 ===
         let isHidden = false;
         if (footer) {
             const style = window.getComputedStyle(footer);
@@ -489,17 +544,14 @@ try {
             if(isNaN(currentTotal)) currentTotal = 0;
         }
 
-        // === 设置门槛 ===
         const threshold = 50.00; 
 
         if (currentTotal >= threshold) {
-            // === 达标 ===
             barFill.style.width = '100%';
             barFill.classList.add('fs-success-bar');
             msgText.innerHTML = '🎉 Congratulations! You got <strong>Free Shipping!</strong>';
             msgText.classList.add('fs-success-text');
         } else if (currentTotal > 0) {
-            // === 进行中 ===
             let diff = (threshold - currentTotal).toFixed(2);
             let percentage = (currentTotal / threshold) * 100;
             if(percentage > 100) percentage = 100;
@@ -509,7 +561,6 @@ try {
             msgText.classList.remove('fs-success-text');
             msgText.innerHTML = `Add <span>RM ${diff}</span> more for <br><strong>Free Shipping!</strong> 🚚`;
         } else {
-            // === 购物车为空 (0元) ===
             barFill.style.width = '0%';
             barFill.classList.remove('fs-success-bar');
             msgText.classList.remove('fs-success-text');
@@ -517,18 +568,16 @@ try {
         }
     }
 
-    // --- 5. 双重监视器 (Double Watcher) ---
+    // --- 5. Double Watcher ---
     document.addEventListener("DOMContentLoaded", function() {
-        updateFreeShipping(); // 初始运行
+        updateFreeShipping(); 
 
-        // 监视对象 1: 价格数字变化
         const priceNode = document.getElementById('cartSidebarTotal');
         if (priceNode) {
             const priceObserver = new MutationObserver(() => updateFreeShipping());
             priceObserver.observe(priceNode, { childList: true, characterData: true, subtree: true });
         }
 
-        // 监视对象 2: 结算栏显示/隐藏变化 (style属性变化)
         const footerNode = document.getElementById('cartFooter');
         if (footerNode) {
             const footerObserver = new MutationObserver(() => updateFreeShipping());
