@@ -14,7 +14,7 @@ if (empty($code)) {
 
 
 $stmt = $pdo->prepare("SELECT * FROM vouchers WHERE code = :code");
-$stmt->execute(['code' => $code]);
+$stmt->execute(['  code' => $code]);
 $voucher = $stmt->fetch(PDO::FETCH_ASSOC);
 
 
