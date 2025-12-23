@@ -3,7 +3,6 @@ session_start();
 include '../include/db.php';
 require_once "../include/product_utils.php";
 
-// --- Initialize Variables ---
 $message = "";
 $msg_type = "";
 $active_tab = 'dashboard';
@@ -14,7 +13,6 @@ $stats = ['total_orders' => 0, 'total_spent' => 0];
 $voucher_count = 0;
 $my_vouchers = [];
 
-// --- 1. Security & Session Check ---
 if (!isset($_SESSION['member_id'])) {
     header("Location: login.php");
     exit;
@@ -25,7 +23,6 @@ if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-// --- 2. Check for Flash Messages ---
 if (isset($_SESSION['flash_msg'])) {
     $message = $_SESSION['flash_msg'];
     $msg_type = $_SESSION['flash_type'];
@@ -46,7 +43,6 @@ if (isset($pdo)) {
 
         $redirect_needed = false;
 
-        // --- A. Change Password ---
         if (isset($_POST['form_type']) && $_POST['form_type'] === 'change_password') {
             $active_tab = 'profile';
             $current_pwd = $_POST['current_password'] ?? '';
@@ -83,10 +79,7 @@ if (isset($pdo)) {
                 $message = "Incorrect current password.";
                 $msg_type = "error";
             }
-        }
-
-        // --- B. Update Profile ---
-        else if (isset($_POST['form_type']) && $_POST['form_type'] === 'update_profile') {
+        } else if (isset($_POST['form_type']) && $_POST['form_type'] === 'update_profile') {
             $active_tab = 'profile';
             $full_name = trim($_POST['full_name'] ?? '');
             $phone = trim($_POST['phone'] ?? '');
@@ -135,10 +128,7 @@ if (isset($pdo)) {
                     $msg_type = "error";
                 }
             }
-        }
-
-        // --- C. Save Address ---
-        else if (isset($_POST['form_type']) && $_POST['form_type'] === 'save_address') {
+        } else if (isset($_POST['form_type']) && $_POST['form_type'] === 'save_address') {
             $addr_id = $_POST['address_id'] ?? '';
             $r_name = trim($_POST['recipient_name']);
             $r_phone = trim($_POST['recipient_phone']);
@@ -179,10 +169,7 @@ if (isset($pdo)) {
                 $message = "Error saving address.";
                 $msg_type = "error";
             }
-        }
-
-        // --- D. Set Default Address ---
-        else if (isset($_POST['action']) && $_POST['action'] === 'set_default') {
+        } else if (isset($_POST['action']) && $_POST['action'] === 'set_default') {
             $addr_id = $_POST['address_id'];
             $pdo->beginTransaction();
             $pdo->prepare("UPDATE member_addresses SET is_default = 0 WHERE member_id = ?")->execute([$member_id]);
@@ -192,10 +179,7 @@ if (isset($pdo)) {
             $_SESSION['flash_type'] = "success";
             $_SESSION['flash_tab'] = "addresses";
             $redirect_needed = true;
-        }
-
-        // --- E. Delete Address ---
-        else if (isset($_POST['action']) && $_POST['action'] === 'delete_address') {
+        } else if (isset($_POST['action']) && $_POST['action'] === 'delete_address') {
             $addr_id = $_POST['address_id'];
             try {
                 $stmt = $pdo->prepare("DELETE FROM member_addresses WHERE address_id = ? AND member_id = ?");
@@ -214,10 +198,7 @@ if (isset($pdo)) {
                 $msg_type = "error";
                 $active_tab = "addresses";
             }
-        }
-
-        // --- F. Order Actions ---
-        else if (isset($_POST['action']) && in_array($_POST['action'], ['cancel_order', 'complete_order', 'request_return'])) {
+        } else if (isset($_POST['action']) && in_array($_POST['action'], ['cancel_order', 'complete_order', 'request_return'])) {
             $order_id = $_POST['order_id'];
             $new_status = '';
             $allow_update = false;
@@ -263,13 +244,11 @@ if (isset($pdo)) {
         }
     }
 
-    // --- 4. FETCH DATA ---
     try {
         $stmt = $pdo->prepare("SELECT * FROM members WHERE member_id = ?");
         $stmt->execute([$member_id]);
         $member = $stmt->fetch();
 
-        // Orders
         $orderSql = "SELECT o.*, 
                      COUNT(oi.order_item_id) as item_count,
                      (SELECT p.image FROM order_items oi2 JOIN products p ON oi2.product_id = p.product_id WHERE oi2.order_id = o.order_id LIMIT 1) as first_img,
@@ -290,7 +269,6 @@ if (isset($pdo)) {
             }
         }
 
-        // Vouchers
         $today = date('Y-m-d');
         $vSql = "SELECT * FROM vouchers WHERE start_date <= ? AND end_date >= ? ORDER BY end_date ASC";
         $vStmt = $pdo->prepare($vSql);
@@ -298,7 +276,6 @@ if (isset($pdo)) {
         $my_vouchers = $vStmt->fetchAll(PDO::FETCH_ASSOC);
         $voucher_count = count($my_vouchers);
 
-        // Addresses
         $addrSql = "SELECT * FROM member_addresses WHERE member_id = ? ORDER BY is_default DESC, created_at DESC";
         $stmtAddr = $pdo->prepare($addrSql);
         $stmtAddr->execute([$member_id]);
@@ -771,7 +748,6 @@ if (isset($pdo)) {
             if (link) link.classList.add('active');
         }
 
-        // Profile Edit Logic (Fixed Cancel)
         function enableProfileEdit() {
             document.querySelectorAll('.editable-field').forEach(input => {
                 input.removeAttribute('readonly');
@@ -797,7 +773,6 @@ if (isset($pdo)) {
             document.getElementById('uploadWrapper').style.display = 'none';
         }
 
-        // Address Modal Logic (Add vs Edit)
         function openAddrModal(mode, data = null) {
             const modal = document.getElementById('addrModal');
             const title = document.getElementById('addrModalTitle');
@@ -846,7 +821,6 @@ if (isset($pdo)) {
             }
         }
 
-        // 4. Custom SweetAlert Logout Function
         function confirmLogout() {
             Swal.fire({
                 title: 'Logout?',
@@ -863,7 +837,6 @@ if (isset($pdo)) {
             });
         }
 
-        // 5. Generic Form Confirm Function (Replaces native 'confirm')
         function confirmSubmit(event, message) {
             event.preventDefault();
             const form = event.target;
@@ -901,7 +874,6 @@ if (isset($pdo)) {
             }
         }
 
-        // Postcode Auto-fill
         $(document).ready(function() {
             $("#modal_postcode").on("keyup change", function() {
                 var postcode = $(this).val();
@@ -929,7 +901,6 @@ if (isset($pdo)) {
             });
         });
 
-        // Password Validation Logic
         document.addEventListener('DOMContentLoaded', function() {
             const btn = document.getElementById('btnUpdatePwd');
             const newPwd = document.getElementById('new_pwd');
@@ -979,7 +950,6 @@ if (isset($pdo)) {
             }
         });
 
-        // View Order Details (AJAX)
         function viewOrderDetails(orderId) {
             document.getElementById('modal_order_items_body').innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px;">Loading...</td></tr>';
             toggleModal('orderModal');
@@ -1047,7 +1017,6 @@ if (isset($pdo)) {
             });
         }
 
-        // Order Tab Filtering
         function filterOrders(status, tabElement) {
             document.querySelectorAll('.order-tab').forEach(t => t.classList.remove('active'));
             tabElement.classList.add('active');
