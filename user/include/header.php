@@ -29,7 +29,8 @@ if (file_exists(__DIR__ . "/product_utils.php")) {
 $loggedIn = isset($_SESSION['member_id']);
 $member_id = $loggedIn ? $_SESSION['member_id'] : null;
 $userAvatar = '../images/default-avatar.png'; // 注意路径，Header通常被php文件夹内的文件引用
-$total_price = 0; 
+$total_price = 0;
+$cart_item_count = 0;
 
 // 6. Fetch User Avatar
 if ($loggedIn) {
@@ -138,6 +139,29 @@ try {
         
         svg { stroke: #444; width: 26px; height: 26px; }
         .custom-icon { width: 26px; height: 26px; object-fit: contain; }
+
+        /* === Cart Badge (Notification) === */
+        .cart-badge {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: #ff4d4d;
+            color: white;
+            border-radius: 10px;
+            min-width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 0 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+        .cart-badge.hidden {
+            display: none;
+        }
 
         /* === 4. Search Bar Dropdown === */
         .search-container {
@@ -402,11 +426,16 @@ try {
                 </div>
             </div>
 
-            <button class="nav-icon-btn" onclick="openCart()">
+            <button class="nav-icon-btn" onclick="openCart()" id="cartIconBtn">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M6 2l1 5h10l1-5z"/>
                     <path d="M3 7h18l-2 13H5L3 7z"/>
                 </svg>
+                <?php if ($loggedIn && $cart_item_count > 0): ?>
+                    <span class="cart-badge" id="cartBadge"><?= $cart_item_count > 99 ? '99+' : $cart_item_count ?></span>
+                <?php else: ?>
+                    <span class="cart-badge hidden" id="cartBadge">0</span>
+                <?php endif; ?>
             </button>
         </div>
     </div>
@@ -439,6 +468,10 @@ try {
             <?php
             if (isset($pdo)) {
                 $cart_items = getCartItems($pdo, $member_id);
+                
+                foreach ($cart_items as $item) {
+                    $cart_item_count += (int)($item['quantity'] ?? 0);
+                }
                 
                 $ui_path_1 = __DIR__ . '/../php/cart_ui.php'; 
                 $ui_path_2 = 'cart_ui.php';
@@ -568,20 +601,83 @@ try {
         }
     }
 
-    // --- 5. Double Watcher ---
+    // --- 5. Update Cart Badge (Notification) ---
+    function updateCartBadge() {
+        const badge = document.getElementById('cartBadge');
+        if (!badge) return;
+        
+        let count = 0;
+        
+
+        const countEl = document.getElementById('ajax-cart-count');
+        if (countEl) {
+            count = parseInt(countEl.value) || 0;
+        }
+        
+   
+        if (count === 0) {
+            const cartBody = document.getElementById('cartBody');
+            if (cartBody) {
+  
+                const qtyDisplays = cartBody.querySelectorAll('.qty-display');
+                qtyDisplays.forEach(qtyEl => {
+                    const qty = parseInt(qtyEl.textContent) || 0;
+                    count += qty;
+                });
+            }
+        }
+    
+        if (count > 0) {
+            badge.textContent = count > 99 ? '99+' : count;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+
+    // --- 6. Double Watcher ---
     document.addEventListener("DOMContentLoaded", function() {
         updateFreeShipping(); 
+        updateCartBadge(); 
 
         const priceNode = document.getElementById('cartSidebarTotal');
         if (priceNode) {
-            const priceObserver = new MutationObserver(() => updateFreeShipping());
+            const priceObserver = new MutationObserver(() => {
+                updateFreeShipping();
+                updateCartBadge(); 
+            });
             priceObserver.observe(priceNode, { childList: true, characterData: true, subtree: true });
         }
 
         const footerNode = document.getElementById('cartFooter');
         if (footerNode) {
-            const footerObserver = new MutationObserver(() => updateFreeShipping());
+            const footerObserver = new MutationObserver(() => {
+                updateFreeShipping();
+                updateCartBadge(); 
+            });
             footerObserver.observe(footerNode, { attributes: true, attributeFilter: ['style', 'class'] });
+        }
+        
+
+        const cartBody = document.getElementById('cartBody');
+        if (cartBody) {
+            const cartObserver = new MutationObserver(() => {
+                setTimeout(updateCartBadge, 100);
+            });
+            cartObserver.observe(cartBody, { 
+                childList: true, 
+                subtree: true, 
+                characterData: true 
+            });
+        }
+        
+        const countInput = document.getElementById('ajax-cart-count');
+        if (countInput) {
+            const countObserver = new MutationObserver(() => updateCartBadge());
+            countObserver.observe(countInput, { 
+                attributes: true, 
+                attributeFilter: ['value'] 
+            });
         }
     });
 </script>
