@@ -1,15 +1,10 @@
 <?php
-// 临时开启错误报告，方便调试
-// ini_set('display_errors', 1);
-// error_reporting(E_ALL);
 
-require_once '../include/db.php'; // 引入 $pdo 对象
+
+require_once '../include/db.php'; 
 require_once '../include/product_utils.php';
 
-/**
- * Load categories with representative images
- * @param PDO $pdo 数据库连接对象
- */
+
 function loadCategoriesWithImages(PDO $pdo): array {
     $categories = [];
     $sql = "SELECT c.category_id, c.name, c.description,
@@ -27,19 +22,16 @@ function loadCategoriesWithImages(PDO $pdo): array {
         $stmt = $pdo->query($sql);
         $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
-        // 忽略错误，返回空数组
+        
     }
     return $categories;
 }
 
-/**
- * Load top rated products based on reviews
- * @param PDO $pdo 数据库连接对象
- */
+
 function loadTopRatedProducts(PDO $pdo, int $limit = 4): array {
     $products = [];
     
-    // 尝试查找评论表
+   
     $tableNames = ['product_reviews', 'reviews', 'product_ratings'];
     $foundTable = null;
     $ratingField = 'rating';
@@ -90,10 +82,7 @@ function loadTopRatedProducts(PDO $pdo, int $limit = 4): array {
     return $products;
 }
 
-/**
- * Load latest reviews
- * @param PDO $pdo 数据库连接对象
- */
+
 function loadLatestReviews(PDO $pdo, int $limit = 3): array {
     $reviews = [];
     $tableNames = ['product_reviews', 'reviews', 'product_ratings'];
@@ -140,10 +129,7 @@ function loadLatestReviews(PDO $pdo, int $limit = 3): array {
     return $reviews;
 }
 
-/**
- * Load hero slider products from database
- * @param PDO $pdo 数据库连接对象
- */
+
 function loadHeroSlides(PDO $pdo, int $limit = 5): array {
     $slides = [];
     $sql = "SELECT p.product_id, p.name, p.description, p.image, p.price,
@@ -175,7 +161,7 @@ function loadHeroSlides(PDO $pdo, int $limit = 5): array {
     } catch (PDOException $e) {
     }
     
-    // Fallback if empty
+    
     if (empty($slides)) {
         $slides[] = [
             'product_id' => 0,
@@ -190,7 +176,7 @@ function loadHeroSlides(PDO $pdo, int $limit = 5): array {
     return $slides;
 }
 
-// Fetch data
+
 $categories = loadCategoriesWithImages($pdo);
 $topProducts = loadTopRatedProducts($pdo, 4);
 
@@ -223,54 +209,33 @@ $heroSlides = loadHeroSlides($pdo, 5);
     <link rel="stylesheet" href="../css/product_page.css">
     
     <style>
-        /* Slider 容器：隐藏溢出内容 */
+      
         .hp-hero {
             position: relative;
             overflow: hidden;
             width: 100%;
         }
 
-        /* 轨道：必须是 flex 布局 */
+        
         .hp-slides {
             display: flex;
             height: 100%;
             transition: transform 0.5s ease-in-out;
-            /* 宽度会在 JS 里动态计算 */
+            
         }
 
-        /* 单个 Slide */
+        
         .hp-slide {
-            flex-shrink: 0; /* 防止被挤压 */
-            width: 100%;    /* JS 会覆盖这个，但默认给 100% */
+            flex-shrink: 0;
+            width: 100%;    
             height: 100%;
             position: relative;
         }
 
-        /* 左右按钮样式 */
-        .prev-btn, .next-btn {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            background-color: rgba(0, 0, 0, 0.3);
-            color: white;
-            border: none;
-            padding: 15px;
-            cursor: pointer;
-            font-size: 18px;
-            z-index: 10;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background 0.3s;
-        }
-        .prev-btn:hover, .next-btn:hover { background-color: rgba(0, 0, 0, 0.7); }
-        .prev-btn { left: 20px; }
-        .next-btn { right: 20px; }
+
+
         
-        /* 确保图片覆盖 */
+        
         .hp-slide-img {
             width: 100%;
             height: 100%;
@@ -306,8 +271,7 @@ $heroSlides = loadHeroSlides($pdo, 5);
             <?php endforeach; ?>
         </div>
         
-        <button class="prev-btn">&#10094;</button>
-        <button class="next-btn">&#10095;</button>
+
         <div class="hp-slider-indicators">
             <?php foreach ($heroSlides as $index => $slide): ?>
                 <div class="hp-indicator <?php echo $index === 0 ? 'active' : ''; ?>" data-slide="<?php echo $index; ?>"></div>
@@ -525,7 +489,7 @@ $heroSlides = loadHeroSlides($pdo, 5);
 <?php include '../include/chat_widget.php'; ?>
 
     <script>
-        // 修复版 Homepage Slider Class (Dynamic Width)
+       
         class HomepageSlider {
             constructor() {
                 this.slidesContainer = document.querySelector('.hp-slides');
@@ -543,29 +507,28 @@ $heroSlides = loadHeroSlides($pdo, 5);
             }
             
             init() {
-                // 如果只有1张或没有图，不启动轮播，隐藏按钮
+                
                 if (this.totalSlides <= 1) {
                     if (this.prevBtn) this.prevBtn.style.display = 'none';
                     if (this.nextBtn) this.nextBtn.style.display = 'none';
                     return; 
                 }
 
-                // ✨✨✨ 核心修复：动态计算宽度 ✨✨✨
-                // 容器宽度 = Slide 数量 * 100%
+
                 if (this.slidesContainer) {
                     this.slidesContainer.style.width = `${this.totalSlides * 100}%`;
                 }
                 
-                // 每个 Slide 宽度 = 100 / 数量 %
+                
                 this.slides.forEach(slide => {
                     slide.style.width = `${100 / this.totalSlides}%`;
                 });
-                // ===================================
+              
 
                 this.startAutoplay();
                 this.bindEvents();
                 
-                // 鼠标悬停时暂停
+                
                 const hero = document.querySelector('.hp-hero');
                 if (hero) {
                     hero.addEventListener('mouseenter', () => clearInterval(this.slideInterval));
@@ -594,7 +557,7 @@ $heroSlides = loadHeroSlides($pdo, 5);
                     });
                 });
                 
-                // Touch swipe support
+               
                 let touchStartX = 0;
                 if (this.slidesContainer) {
                     this.slidesContainer.addEventListener('touchstart', (e) => {
@@ -635,14 +598,13 @@ $heroSlides = loadHeroSlides($pdo, 5);
                 this.isAnimating = true;
                 
                 if (this.slidesContainer) {
-                    // ✨✨✨ 移动逻辑修复 ✨✨✨
-                    // 计算每个Slide占容器的百分比 (例如 5张图 = 20%)
+
                     const movePercentage = 100 / this.totalSlides;
-                    // 移动距离 = 当前索引 * 单个Slide占比
+
                     this.slidesContainer.style.transform = `translateX(-${this.currentSlide * movePercentage}%)`;
                 }
                 
-                // Update indicators
+
                 this.indicators.forEach((indicator, index) => {
                     if (index === this.currentSlide) {
                         indicator.classList.add('active');
@@ -669,12 +631,12 @@ $heroSlides = loadHeroSlides($pdo, 5);
             }
         }
 
-        // Page initialization
+
         document.addEventListener('DOMContentLoaded', function() {
-            // Initialize slider
+
             new HomepageSlider();
 
-            // Simple scroll animation effect
+
             const observerOptions = {
                 threshold: 0.1,
                 rootMargin: '0px 0px -50px 0px'
@@ -689,7 +651,7 @@ $heroSlides = loadHeroSlides($pdo, 5);
                 });
             }, observerOptions);
 
-            // Add animation to elements
+            
             const animatedElements = document.querySelectorAll('.hp-product-card, .hp-testimonial-card, .hp-badge');
             animatedElements.forEach(el => {
                 el.style.opacity = 0;
@@ -698,7 +660,7 @@ $heroSlides = loadHeroSlides($pdo, 5);
                 observer.observe(el);
             });
 
-            // Add to Cart button functionality
+           
             const addToCartButtons = document.querySelectorAll('.hp-add-to-cart-btn');
             addToCartButtons.forEach(button => {
                 button.addEventListener('click', function(e) {
@@ -709,21 +671,20 @@ $heroSlides = loadHeroSlides($pdo, 5);
                     const productName = this.getAttribute('data-product-name');
                     const originalHTML = this.innerHTML;
                     
-                    // Visual feedback
+                    
                     this.classList.add('added');
                     this.innerHTML = '<span class="cart-icon"><img src="../images/correct.png" alt="Correct" style="width: 18px; height: 18px; vertical-align: middle;"></span><span class="cart-text">Added!</span>';
                     this.style.pointerEvents = 'none';
                     
-                    // Show cart notification
+                   
                     if(typeof showCartNotification === 'function') {
                         showCartNotification(productName);
                     }
                     
-                    // AJAX Add to Cart (Assuming you have this logic)
-                    // addToCart(productId);
+
                     console.log('Added to cart:', productId, productName);
                     
-                    // Reset after 2 seconds
+
                     setTimeout(() => {
                         this.classList.remove('added');
                         this.innerHTML = originalHTML;
@@ -732,7 +693,7 @@ $heroSlides = loadHeroSlides($pdo, 5);
                 });
             });
 
-            // Newsletter form
+ 
             const newsletterForm = document.getElementById('newsletter-form');
             const newsletterEmail = document.getElementById('newsletter-email');
             if (newsletterForm && newsletterEmail) {

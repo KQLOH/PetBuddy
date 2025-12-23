@@ -8,6 +8,7 @@ $active_tab = 'dashboard'; // Default tab
 $member = [];
 $orders = [];
 $stats = ['total_orders' => 0, 'total_spent' => 0];
+$voucher_count = 0; // 初始化 Voucher 数量
 
 if (!isset($_SESSION['member_id'])) {
     header("Location: login.php");
@@ -112,10 +113,12 @@ if (isset($pdo)) {
 
     // --- FETCH DATA ---
     try {
+        // 1. Get Member Info
         $stmt = $pdo->prepare("SELECT * FROM members WHERE member_id = ?");
         $stmt->execute([$member_id]);
         $member = $stmt->fetch();
 
+        // 2. Get Orders & Stats
         $orderSql = "SELECT o.*, COUNT(oi.order_item_id) as item_count 
                      FROM orders o 
                      LEFT JOIN order_items oi ON o.order_id = oi.order_id
@@ -131,6 +134,16 @@ if (isset($pdo)) {
         foreach ($orders as $o) {
             $stats['total_spent'] += $o['total_amount'];
         }
+
+        // 3. === ✨ 新增: 查询 Voucher 数量 ✨ ===
+        $today = date('Y-m-d');
+        // 统计有多少张 Voucher 是今天可以用的 (开始日期 <= 今天 <= 结束日期)
+        $vSql = "SELECT COUNT(*) FROM vouchers WHERE start_date <= ? AND end_date >= ?";
+        $vStmt = $pdo->prepare($vSql);
+        $vStmt->execute([$today, $today]);
+        $voucher_count = $vStmt->fetchColumn();
+        // =========================================
+
     } catch (PDOException $e) {
         $message = "Error loading data.";
         $msg_type = "error";
@@ -144,7 +157,6 @@ if (isset($pdo)) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Account - PetBuddy</title>
-    <!-- Only Local CSS -->
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="../css/memberProfileStyle.css">
 </head>
@@ -154,10 +166,8 @@ if (isset($pdo)) {
 
     <div class="dashboard-container">
         
-        <!-- LEFT: SIDEBAR -->
         <aside>
             <div class="card-box">
-                <!-- User Info -->
                 <div class="user-brief">
                     <?php if (!empty($member['image']) && file_exists($member['image'])): ?>
                         <img src="<?php echo htmlspecialchars($member['image']); ?>" class="user-avatar">
@@ -172,7 +182,6 @@ if (isset($pdo)) {
                     </div>
                 </div>
 
-                <!-- Navigation -->
                 <nav class="sidebar-nav">
                     <div id="link-dashboard" class="sidebar-link active" onclick="switchTab('dashboard')">
                         <img src="../images/dashboard.png" alt="Dashboard"> Dashboard
@@ -190,7 +199,6 @@ if (isset($pdo)) {
             </div>
         </aside>
 
-        <!-- RIGHT: CONTENT -->
         <main>
             <div class="breadcrumb">
                 <a href="home.php">Home</a> / <span>My Account</span>
@@ -202,9 +210,7 @@ if (isset($pdo)) {
                 </div>
             <?php endif; ?>
 
-            <!-- 1. DASHBOARD TAB -->
             <div id="dashboard" class="tab-content">
-                <!-- Stats Grid -->
                 <div class="stat-grid">
                     <div class="stat-card">
                         <div class="stat-icon-box bg-blue-light">
@@ -224,18 +230,19 @@ if (isset($pdo)) {
                             <h3>RM <?php echo number_format($stats['total_spent'], 2); ?></h3>
                         </div>
                     </div>
-                    <div class="stat-card">
+                    
+                    <div class="stat-card" onclick="window.location.href='vouchers.php'" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
                         <div class="stat-icon-box bg-orange-light">
                             <img src="../images/voucher.png" style="width:24px;">
                         </div>
                         <div class="stat-info">
-                            <p>Vouchers</p>
-                            <h3>0</h3>
+                            <p>Available Vouchers</p>
+                            <h3><?php echo $voucher_count ?? 0; ?></h3>
+                            
                         </div>
                     </div>
-                </div>
+                    </div>
 
-                <!-- Recent Activity -->
                 <div class="card-box">
                     <h3 class="section-title">Recent Activity</h3>
                     
@@ -264,7 +271,6 @@ if (isset($pdo)) {
                 </div>
             </div>
 
-            <!-- 2. ORDERS TAB -->
             <div id="orders" class="tab-content">
                 <div class="card-box" style="min-height: 400px;">
                     <h3 class="section-title">Order History</h3>
@@ -310,7 +316,6 @@ if (isset($pdo)) {
                 </div>
             </div>
 
-            <!-- 3. SETTINGS TAB -->
             <div id="profile" class="tab-content">
                 <div class="card-box">
                     <div class="section-header">
@@ -323,7 +328,6 @@ if (isset($pdo)) {
                     <form method="POST" enctype="multipart/form-data">
                         <input type="hidden" name="form_type" value="update_profile">
                         
-                        <!-- Profile Upload -->
                         <div class="profile-upload-area">
                             <?php if (!empty($member['image']) && file_exists($member['image'])): ?>
                                 <img id="previewImg" src="<?php echo htmlspecialchars($member['image']); ?>" class="profile-preview-lg">
@@ -341,7 +345,6 @@ if (isset($pdo)) {
                             </div>
                         </div>
 
-                        <!-- Form Grid -->
                         <div class="form-grid">
                             <div>
                                 <label class="form-label">Full Name</label>
@@ -372,7 +375,6 @@ if (isset($pdo)) {
         </main>
     </div>
 
-    <!-- Change Password Modal with Show/Hide Icons -->
     <div id="pwdModal" class="modal-overlay">
         <div class="modal-box">
             <div class="modal-header">

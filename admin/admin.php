@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         if ($email === $fixed_admin_email && $password === $fixed_admin_password) {
             
-            $_SESSION['member_id'] = 1;
+            
             $_SESSION['full_name'] = "Admin KWC";
             $_SESSION['email'] = $email;
             $_SESSION['role'] = "admin";

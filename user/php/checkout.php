@@ -2,20 +2,21 @@
 session_start();
 require "../include/db.php";
 require_once "cart_function.php"; 
+require_once "../include/product_utils.php";
 
-// 1. 检查登录
+
 if (!isset($_SESSION['member_id'])) {
     echo "<script>alert('Please login to continue.'); window.location.href='login.php';</script>";
     exit;
 }
 $member_id = $_SESSION['member_id'];
 
-// 2. 获取用户详细信息 (用于预填充表单)
+
 $stmt_user = $pdo->prepare("SELECT * FROM members WHERE member_id = ?");
 $stmt_user->execute([$member_id]);
 $user = $stmt_user->fetch(PDO::FETCH_ASSOC);
 
-// 用户全名组合
+
 $user_email = $user['email'] ?? ''; 
 $user_first_name = $user['first_name'] ?? '';
 $user_last_name = $user['last_name'] ?? '';
@@ -25,18 +26,18 @@ $user_postcode = $user['postcode'] ?? '';
 $user_city = $user['city'] ?? '';
 $user_state = $user['state'] ?? '';
 
-// 3. 确定结账商品逻辑 (只获取选中的)
+
 $all_cart_items = getCartItems($pdo, $member_id);
 $checkout_items = [];
 $selected_ids_str = "";
 
-// 场景 A: 结账所有
+
 if (isset($_GET['items']) && $_GET['items'] === 'all') {
     $checkout_items = $all_cart_items;
     $selected_ids = array_column($all_cart_items, 'product_id');
     $selected_ids_str = implode(',', $selected_ids);
 
-// 场景 B: 结账选中项
+
 } elseif (!empty($_GET['selected'])) {
     $selected_ids_str = $_GET['selected'];
     $selected_ids = array_map('intval', explode(',', $selected_ids_str));
@@ -48,34 +49,34 @@ if (isset($_GET['items']) && $_GET['items'] === 'all') {
     }
 }
 
-// 4. 空购物车处理
+
 if (empty($checkout_items)) {
     echo "<script>alert('No items selected for checkout.'); window.location.href='cart.php';</script>";
     exit;
 }
 
-// 5. 计算 Subtotal
+
 $checkout_subtotal = 0;
 foreach ($checkout_items as $item) {
     $line_total = (float)$item['price'] * (int)$item['quantity'];
     $checkout_subtotal += $line_total;
 }
 
-// === ✨ 功能 1: 免邮费逻辑 (满50免邮) ✨ ===
+
 if ($checkout_subtotal >= 50) {
     $shipping_fee = 0.00;
 } else {
     $shipping_fee = 15.00;
 }
 
-// === ✨ 功能 2: 获取可用 Vouchers (用于弹窗) ✨ ===
+
 $today = date('Y-m-d');
-// 查询条件: 开始日期 <= 今天 <= 结束日期
+
 $stmt_v = $pdo->prepare("SELECT * FROM vouchers WHERE start_date <= ? AND end_date >= ? ORDER BY min_amount ASC");
 $stmt_v->execute([$today, $today]);
 $available_vouchers = $stmt_v->fetchAll(PDO::FETCH_ASSOC);
 
-// 6. 计算总额
+
 $total = $checkout_subtotal + $shipping_fee;
 ?>
 
@@ -91,73 +92,73 @@ $total = $checkout_subtotal + $shipping_fee;
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        /* === 统一配色变量 (PetBuddy Theme) === */
+        
         :root {
-            --primary-color: #FFB774;       /* 主橙色 */
-            --primary-dark: #E89C55;        /* 深橙色 */
-            --bg-sidebar: #fff9f2;          /* 侧边栏淡橙色背景 */
-            --border-focus: #FFB774;        /* 输入框选中颜色 */
-            --accent-bg: #fffbf6;           /* 选中的单选框背景 */
+            --primary-color: #FFB774;       
+            --primary-dark: #E89C55;        
+            --bg-sidebar: #fff9f2;          
+            --border-focus: #FFB774;        
+            --accent-bg: #fffbf6;           
             --text-dark: #2F2F2F;
             --border-color: #e1e1e1;
         }
 
-        /* 全局重置 */
+        
         * { box-sizing: border-box; font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif; }
         
         body { margin: 0; padding: 0; background: #fff; color: var(--text-dark); display: flex; flex-direction: column; min-height: 100vh; }
 
-        /* === 布局：左右分栏 === */
+        
         .checkout-layout {
             display: flex;
-            flex-direction: column-reverse; /* 手机端默认：摘要在下，表单在上 */
+            flex-direction: column-reverse;
             width: 100%;
         }
 
-        /* 左侧：表单区域 */
+        
         .main-col {
             padding: 30px 5%;
             background: #fff;
         }
 
-        /* 右侧：订单摘要 */
+        
         .sidebar-col {
             background: #fafafa;
             padding: 30px 5%;
             border-bottom: 1px solid #e1e1e1;
         }
 
-        /* ✨✨✨ 电脑端专属样式 (分屏滚动) ✨✨✨ */
+        
         @media (min-width: 1001px) {
             body {
                 height: 100vh;
-                overflow: hidden; /* 锁定 Body */
+                overflow: hidden;
             }
 
             .checkout-layout {
-                flex-direction: row; /* 左右排布 */
-                flex: 1;            /* 占满剩余空间 */
+                flex-direction: row; 
+                flex: 1;            
                 overflow: hidden;
                 margin: 0 auto;
                 max-width: 1400px;
             }
 
-            /* 左侧 (Main)：允许独立滚动 */
+            
             .main-col {
                 flex: 1 1 58%;
                 height: 100%;
-                overflow-y: auto;    /* 开启滚动 */
+                overflow-y: auto;    
                 padding: 40px 6%;
                 border-right: 1px solid var(--border-color);
                 scrollbar-width: thin; 
                 scrollbar-color: #ccc transparent;
             }
 
-            /* 右侧 (Sidebar)：智能滚动 */
+            
             .sidebar-col {
                 flex: 1 1 42%;
                 height: 100%;
-                overflow-y: auto;    /* 内容多时允许滚动 */
+                overflow-y: auto;    
                 background: var(--bg-sidebar); 
                 padding: 40px 6%;
                 border-bottom: none;
@@ -166,17 +167,17 @@ $total = $checkout_subtotal + $shipping_fee;
             }
         }
 
-        /* === 区域标题 === */
+        
         .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; margin-top: 35px; }
         .section-title { font-size: 19px; font-weight: 500; color: #333; }
         .section-header:first-of-type { margin-top: 0; }
 
-        /* === 输入框间距优化 (宽松版) === */
+       
         .form-group { margin-bottom: 25px; }
         .form-row { display: flex; gap: 25px; width: 100%; margin-bottom: 25px; }
         .form-col { flex: 1; min-width: 0; }
 
-        /* 输入框样式 */
+       
         input[type="text"], input[type="email"], input[type="tel"], select, input[type="password"] {
             width: 100%; padding: 13px; border: 1px solid #d9d9d9; border-radius: 5px;
             font-size: 14px; transition: all 0.2s ease-in-out; color: #333; background: #fff;
@@ -187,18 +188,18 @@ $total = $checkout_subtotal + $shipping_fee;
         input[readonly] { background-color: #f9f9f9; color: #777; cursor: not-allowed; }
         label { font-size: 14px; color: #555; display:block; margin-bottom: 6px; }
 
-        /* 复选框样式 */
+        
         .checkbox-wrapper { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
         .checkbox-wrapper input { width: 18px; height: 18px; accent-color: var(--primary-dark); margin: 0; cursor: pointer; }
         .checkbox-wrapper label { font-size: 14px; color: #555; cursor: pointer; user-select: none; margin-bottom: 0; }
 
-        /* 运费框 */
+       
         .radio-box-group { border: 1px solid #d9d9d9; border-radius: 5px; overflow: hidden; margin-top: 15px; }
         .radio-box { padding: 18px; display: flex; align-items: center; justify-content: space-between; background: #fff; border-bottom: 1px solid #d9d9d9; cursor: pointer; }
         .radio-box:last-child { border-bottom: none; }
         .radio-label { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #333; }
 
-        /* 支付按钮 */
+       
         .btn-pay {
             width: 100%; padding: 20px; background: var(--primary-color); color: #fff;
             border: none; border-radius: 8px; font-size: 18px; font-weight: 700;
@@ -210,7 +211,7 @@ $total = $checkout_subtotal + $shipping_fee;
         .return-cart { display: block; text-align: center; margin-top: 20px; color: var(--primary-dark); text-decoration: none; font-size: 14px; font-weight: 500; }
         .return-cart:hover { text-decoration: underline; }
 
-        /* === 侧边栏摘要样式 === */
+       
         .summary-item { display: flex; align-items: center; gap: 15px; margin-bottom: 18px; }
         .img-wrap { position: relative; width: 65px; height: 65px; border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; background: #fff; }
         .img-wrap img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
@@ -234,7 +235,7 @@ $total = $checkout_subtotal + $shipping_fee;
         .grand-total .amount { font-size: 24px; font-weight: 600; color: #333; }
         .currency { font-size: 12px; color: #737373; margin-right: 5px; font-weight: 400; vertical-align: middle; }
 
-        /* === 高级支付卡片设计 === */
+        
         .payment-container { display: flex; flex-direction: column; gap: 12px; }
         .payment-card { background: #fff; border: 2px solid #eee; border-radius: 12px; overflow: hidden; transition: all 0.3s ease; position: relative; }
         .payment-card:hover { border-color: #ddd; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
@@ -258,7 +259,7 @@ $total = $checkout_subtotal + $shipping_fee;
         
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* === ✨ Voucher Modal Styles ✨ === */
+        
         .voucher-trigger-btn {
             background: none; border: none; color: var(--primary-dark); 
             font-size: 13px; font-weight: 600; cursor: pointer; 
@@ -303,7 +304,7 @@ $total = $checkout_subtotal + $shipping_fee;
         }
         .v-btn:hover { background: var(--primary-dark); }
         
-        /* 禁用状态 */
+        
         .voucher-item.disabled { opacity: 0.6; background: #f9f9f9; border-color: #eee; cursor: not-allowed; }
         .voucher-item.disabled .v-btn { background: #ccc; cursor: not-allowed; }
         
@@ -379,10 +380,7 @@ $total = $checkout_subtotal + $shipping_fee;
                     </div>
                 </div>
                 
-                <div class="checkbox-wrapper">
-                    <input type="checkbox" id="save_info" name="save_info">
-                    <label for="save_info">Save this information for next time</label>
-                </div>
+
 
                 <div class="section-header">
                     <div class="section-title">Shipping method</div>
@@ -570,10 +568,12 @@ $total = $checkout_subtotal + $shipping_fee;
                 <?php foreach ($checkout_items as $item): 
                     $line_total = $item['price'] * $item['quantity'];
                     $price_display = ($item['price'] == 0) ? 'FREE' : 'RM ' . number_format($line_total, 2);
+                    
+                    $displayImage = productImageUrl($item['image']);
                 ?>
                 <div class="summary-item">
                     <div class="img-wrap">
-                        <img src="<?= htmlspecialchars($item['image']) ?>" alt="img">
+                        <img src="<?= htmlspecialchars($displayImage) ?>" alt="img">
                         <span class="qty-badge"><?= $item['quantity'] ?></span>
                     </div>
                     <div class="item-info">
@@ -606,7 +606,7 @@ $total = $checkout_subtotal + $shipping_fee;
                             <div style="text-align: center; color: #999; padding: 20px;">No vouchers available :(</div>
                         <?php else: ?>
                             <?php foreach ($available_vouchers as $v): 
-                                // 检查是否满足最低消费
+                               
                                 $min_spend = (float)$v['min_amount'];
                                 $is_eligible = $checkout_subtotal >= $min_spend;
                             ?>
@@ -675,22 +675,22 @@ $total = $checkout_subtotal + $shipping_fee;
     </div>
 
     <script>
-        // 1. 支付方式切换逻辑 (自动处理必填项)
+        
         function selectPayment(radio) {
-            // A. 视觉切换
+            
             const cards = document.querySelectorAll('.payment-card');
             cards.forEach(card => card.classList.remove('selected'));
             const parentCard = radio.closest('.payment-card');
             parentCard.classList.add('selected');
 
-            // B. 必填项逻辑
+            
             const method = radio.value;
             
-            // 先清空所有支付相关的 required
+           
             const allInputs = document.querySelectorAll('[name^="card_"], [name^="fpx_"], [name^="tng_"], #card_auth');
             allInputs.forEach(input => input.removeAttribute('required'));
 
-            // 根据选项重新添加 required
+            
             if (method === 'Credit Card') {
                 setRequired('card_bank');
                 setRequired('card_name');
@@ -719,30 +719,30 @@ $total = $checkout_subtotal + $shipping_fee;
         function validateNumber(input) { input.value = input.value.replace(/[^0-9]/g, ''); }
         function validateText(input) { input.value = input.value.replace(/[^a-zA-Z\s]/g, ''); }
 
-        // === ✨ 新增: Voucher Modal JS ✨ ===
+      
         function openVoucherModal() {
             document.getElementById('voucherModalOverlay').classList.add('active');
         }
 
         function closeVoucherModal(e) {
-            // 如果点击的是背景(overlay) 或者 专门的关闭按钮
+            
             if (!e || e.target.classList.contains('modal-overlay') || e.target.classList.contains('modal-close')) {
                 document.getElementById('voucherModalOverlay').classList.remove('active');
             }
         }
 
         function applySelectedVoucher(code) {
-            // 1. 把 Code 填入输入框
+            
             $(".discount-input").val(code);
             
-            // 2. 关闭弹窗
+            
             document.getElementById('voucherModalOverlay').classList.remove('active');
             
-            // 3. 自动触发原本的 "Apply" 按钮点击事件
+          
             $(".btn-apply").click();
         }
 
-        // 2. 优惠券 AJAX 逻辑
+       
         $(document).ready(function() {
             $(".btn-apply").click(function(e) {
                 e.preventDefault();
@@ -758,7 +758,7 @@ $total = $checkout_subtotal + $shipping_fee;
                 }
 
                 $.ajax({
-                    url: "apply_voucher.php", // 确保你有这个文件
+                    url: "apply_voucher.php", 
                     type: "POST",
                     data: { code: code, subtotal: subtotal },
                     dataType: "json",
@@ -797,7 +797,7 @@ $total = $checkout_subtotal + $shipping_fee;
             });
         });
 
-        // === 3. 自动填充 Postcode -> City & State ===
+       
             $(document).ready(function() {
                 
                 $("#billing_postcode").on("keyup change", function() {
