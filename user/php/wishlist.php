@@ -1,11 +1,9 @@
 <?php
-// ✨ 1. Session Start 放在第一行
 session_start();
 
 require "../include/db.php";
 require_once "../include/product_utils.php";
 
-// 强制登录检查
 if (!isset($_SESSION['member_id'])) {
     echo "<script>alert('Please login to view wishlist.'); window.location.href='login.php';</script>";
     exit;
@@ -13,7 +11,6 @@ if (!isset($_SESSION['member_id'])) {
 
 $member_id = $_SESSION['member_id'];
 
-// 获取收藏列表 (按添加时间倒序)
 $sql = "SELECT p.product_id, p.name, p.price, p.image, p.stock_qty, w.created_at as saved_date 
         FROM wishlist w 
         JOIN products p ON w.product_id = p.product_id 
@@ -38,7 +35,6 @@ $wishlist_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
-        /* === 页面布局 === */
         .wishlist-container {
             max-width: 1300px;
             margin: 40px auto;
@@ -52,7 +48,6 @@ $wishlist_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* 头部样式 */
         .page-header {
             display: flex;
             align-items: center;
@@ -79,14 +74,12 @@ $wishlist_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
             box-shadow: 0 2px 8px rgba(255, 183, 116, 0.3);
         }
 
-        /* === 网格布局 (一行5个) === */
         .wishlist-grid {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
             gap: 20px;
         }
 
-        /* === 卡片样式 === */
         .w-card {
             background: #fff; border-radius: 16px; overflow: hidden;
             box-shadow: 0 2px 15px rgba(0, 0, 0, 0.06); position: relative;
@@ -99,7 +92,6 @@ $wishlist_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
             box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12); border-color: #FFB774;
         }
 
-        /* 图片区域 */
         .w-img-box {
             width: 100%; height: 200px; overflow: hidden; position: relative;
             background: linear-gradient(135deg, #f8f8f8, #fff); display: block;
@@ -117,7 +109,6 @@ $wishlist_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         .w-card:hover .w-img-box img { transform: scale(1.08); }
 
-        /* ✨✨✨ 移除按钮 (右上角) ✨✨✨ */
         .w-remove-btn {
             position: absolute; top: 10px; right: 10px;
             background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(4px);
@@ -133,13 +124,12 @@ $wishlist_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
             box-shadow: 0 6px 20px rgba(255, 77, 77, 0.4);
         }
 
-        /* 信息区域 */
         .w-info { padding: 20px; flex: 1; display: flex; flex-direction: column; }
 
         .w-title {
             font-size: 15px; font-weight: 600; color: #2F2F2F; margin-bottom: 10px;
             line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical; overflow: hidden; min-height: 42px;
+            line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 42px;
         }
 
         .w-price-row {
@@ -153,10 +143,8 @@ $wishlist_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         .w-date { font-size: 11px; color: #999; display: flex; align-items: center; gap: 4px; }
 
-        /* 按钮组 */
         .w-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
-        /* View 按钮 */
         .btn-view {
             text-align: center; border: 2px solid #eee; padding: 10px;
             border-radius: 10px; text-decoration: none; color: #555;
@@ -167,7 +155,6 @@ $wishlist_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
             border-color: #FFB774; color: #FFB774; background: #fff9f4; transform: translateY(-2px);
         }
 
-        /* Add 按钮 */
         .btn-add {
             background: linear-gradient(135deg, #2F2F2F, #1a1a1a);
             color: white; border: none; border-radius: 10px;
@@ -183,7 +170,6 @@ $wishlist_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
         }
         .btn-add:active { transform: translateY(0); }
 
-        /* 空状态 */
         .empty-wish { text-align: center; padding: 80px 20px; color: #999; background: #fafafa; border-radius: 20px; }
         .empty-wish-icon { font-size: 80px; opacity: 0.3; margin-bottom: 20px; animation: float 3s ease-in-out infinite; }
         .empty-wish a {
@@ -196,7 +182,6 @@ $wishlist_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 
-        /* 响应式 */
         @media (max-width: 1200px) { .wishlist-grid { grid-template-columns: repeat(4, 1fr); } }
         @media (max-width: 992px) { .wishlist-grid { grid-template-columns: repeat(3, 1fr); } }
         @media (max-width: 768px) {
@@ -276,7 +261,6 @@ $wishlist_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <?php include '../include/chat_widget.php'; ?>
 
     <script>
-        // === 1. 实时加入购物车 ===
         function addToCart(pid) {
             let $btn = $("button[onclick='addToCart(" + pid + ")']");
             $btn.prop('disabled', true).css('opacity', '0.7');
@@ -300,7 +284,7 @@ $wishlist_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         });
                         Toast.fire({ icon: 'success', title: 'Added to Cart!' });
 
-                        refreshCartSidebar(); // 刷新购物车
+                        refreshCartSidebar();
                         setTimeout(() => { if (typeof openCart === 'function') openCart(); }, 300); // 弹窗
                     } else {
                         Swal.fire('Error', 'Could not add item.', 'error');
@@ -310,7 +294,6 @@ $wishlist_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
             });
         }
 
-        // === 2. 刷新侧边栏 ===
         function refreshCartSidebar() {
             $.ajax({
                 url: 'fetch_cart.php',
@@ -327,7 +310,6 @@ $wishlist_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
             });
         }
 
-        // === ✨✨✨ 3. 删除功能 (Remove Wish) ✨✨✨ ===
         function removeWish(pid) {
             Swal.fire({
                 title: 'Remove item?',
@@ -347,14 +329,11 @@ $wishlist_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         dataType: 'json',
                         success: function(res) {
                             if(res.status === 'removed') {
-                                // 动画移除
                                 $("#wish-row-" + pid).fadeOut(300, function(){ 
                                     $(this).remove(); 
                                     
-                                    // 更新顶部数量
                                     let count = $(".w-card:visible").length;
                                     
-                                    // 如果删空了，刷新页面显示 empty state
                                     if(count === 0) {
                                         location.reload(); 
                                     } else {
@@ -362,7 +341,6 @@ $wishlist_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     }
                                 });
                                 
-                                // 成功提示
                                 const Toast = Swal.mixin({
                                     toast: true, position: 'top-end', showConfirmButton: false, timer: 1500
                                 });

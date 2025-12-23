@@ -8,7 +8,6 @@ $registration_success_message = '';
 // login.php
 if (isset($_GET['registration_success']) && $_GET['registration_success'] === 'true') {
     $registration_success_message = 'Account created successfully! You can now login';
-
 }
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
@@ -28,9 +27,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $_SESSION['member_id'] = $user['member_id'];
                 $_SESSION['full_name'] = $user['full_name'];
                 $_SESSION['role'] = $user['role'];
-                $_SESSION['user_image'] = $user['image'] ?: 'images/default-avatar.png';
+                $_SESSION['user_image'] = $user['image'] ?: '../images/default-avatar.png';
 
-                header("Location: home.php");
+                header("Location: index.php");
                 exit;
             } else {
                 $error = "Invalid email or password.";
@@ -123,6 +122,52 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             border-radius: 0.5rem;
             font-weight: 500;
         }
+
+        .form-footer-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid #eee;
+        }
+
+        .footer-link {
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .warning-link {
+            color: #e67e22;
+        }
+
+        .warning-link:hover {
+            color: #d35400;
+            text-decoration: underline;
+        }
+
+        .muted-link {
+            color: #6c757d;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .muted-link:hover {
+            color: #343a40;
+        }
+
+        .icon-arrow {
+            font-size: 1.1em;
+            line-height: 1;
+            transition: transform 0.2s;
+        }
+
+        .muted-link:hover .icon-arrow {
+            transform: translateX(-3px);
+        }
     </style>
 </head>
 <?php include '../include/header.php'; ?>
@@ -185,8 +230,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <div class="mt-6 text-center link-muted">
                     Don't have an account? <a href="register.php" class="link-primary">Sign up here</a>
                 </div>
-                <div class="mt-2 text-center">
-                    <a href="home.php" class="link-muted">Back to Home</a>
+
+                <div class="form-footer-actions">
+                    <a href="forgot_password.php" class="footer-link warning-link">
+                        Forgot Password?
+                    </a>
+                    <a href="index.php" class="footer-link muted-link">
+                        <span class="icon-arrow">←</span> Back to Home
+                    </a>
                 </div>
             </div>
         </div>
