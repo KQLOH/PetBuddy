@@ -1,13 +1,14 @@
 <?php
 session_start();
-include '../include/db.php';
+// Adjust this path to match your folder structure exactly
+// Assuming file is in: user/php/chat_api.php
+// And db is in:       user/include/db.php
+require_once '../include/db.php'; 
 
-// Set Timezone to Malaysia/Singapore (Adjust if needed)
 date_default_timezone_set('Asia/Kuala_Lumpur');
+header('Content-Type: application/json');
 
-// Ensure user is logged in
 if (!isset($_SESSION['member_id'])) {
-    http_response_code(403);
     echo json_encode(['error' => 'Unauthorized']);
     exit;
 }
@@ -15,71 +16,63 @@ if (!isset($_SESSION['member_id'])) {
 $member_id = $_SESSION['member_id'];
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
-if (isset($pdo)) {
-    
-    // --- FETCH MESSAGES ---
-    if ($action === 'fetch') {
-        try {
-            $stmt = $pdo->prepare("SELECT * FROM chat_messages WHERE member_id = ? ORDER BY created_at ASC");
-            $stmt->execute([$member_id]);
-            $messages = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            foreach ($messages as &$msg) {
-                $msg['time'] = date('h:i A', strtotime($msg['created_at']));
-                // Add date if it's not today
-                if (date('Y-m-d', strtotime($msg['created_at'])) !== date('Y-m-d')) {
-                    $msg['time'] = date('d M h:i A', strtotime($msg['created_at']));
-                }
-            }
-            
-            echo json_encode($messages);
-        } catch (PDOException $e) {
-            echo json_encode(['error' => $e->getMessage()]);
-        }
-    }
-
-    // --- SEND MESSAGE ---
-    elseif ($action === 'send' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-        $message = trim($_POST['message'] ?? '');
+if ($action === 'fetch') {
+    try {
+        $stmt = $pdo->prepare("SELECT * FROM chat_messages WHERE member_id = ? ORDER BY created_at ASC");
+        $stmt->execute([$member_id]);
+        $messages = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        if (!empty($message)) {
-            try {
-                // 1. Save User's Message
-                $stmt = $pdo->prepare("INSERT INTO chat_messages (member_id, sender, message) VALUES (?, 'member', ?)");
-                $stmt->execute([$member_id, $message]);
-                
-                // 2. CHECK OFFICE HOURS & AUTO-REPLY
-                // If it is NOT office hours, send an automated "Away" message
-                if (!isOfficeHours()) {
-                    $autoReply = "Thank you for your message. We are currently closed. Our office hours are Mon-Fri, 9:00 AM to 6:00 PM. We will get back to you as soon as we open!";
-                    
-                    // Check if we already sent an auto-reply recently (last 5 mins) to avoid spamming
-                    // This is optional, but good practice. For now, we just send it.
-                    $stmtReply = $pdo->prepare("INSERT INTO chat_messages (member_id, sender, message, is_read) VALUES (?, 'admin', ?, 1)");
-                    $stmtReply->execute([$member_id, $autoReply]);
-                }
-                
-                echo json_encode(['status' => 'success']);
-            } catch (PDOException $e) {
-                echo json_encode(['error' => $e->getMessage()]);
+        foreach ($messages as &$msg) {
+            // Format time nicely
+            $msg['time'] = date('h:i A', strtotime($msg['created_at']));
+            if (date('Y-m-d', strtotime($msg['created_at'])) !== date('Y-m-d')) {
+                $msg['time'] = date('d M h:i A', strtotime($msg['created_at']));
             }
         }
+        echo json_encode($messages);
+    } catch (PDOException $e) {
+        echo json_encode(['error' => $e->getMessage()]);
     }
 }
 
-// --- HELPER: CHECK OFFICE HOURS ---
-function isOfficeHours() {
-    // Current Day (1 = Mon, 7 = Sun)
-    $currentDay = date('N');
-    // Current Hour (0 - 23)
-    $currentHour = date('G');
+elseif ($action === 'send') {
+    $message = trim($_POST['message'] ?? '');
+    if (!empty($message)) {
+        try {
+            // 1. Insert Member Message
+            $stmt = $pdo->prepare("INSERT INTO chat_messages (member_id, sender, message) VALUES (?, 'member', ?)");
+            $stmt->execute([$member_id, $message]);
+            
+            // 2. Auto-Reply Logic (Office Hours)
+            $currentDay = date('N'); // 1=Mon, 7=Sun
+            $currentHour = date('G'); // 0-23
+            $isOfficeHours = ($currentDay >= 1 && $currentDay <= 5 && $currentHour >= 9 && $currentHour < 18);
 
-    // Logic: Monday(1) to Friday(5) AND 9am to 18pm (6pm)
-    if ($currentDay >= 1 && $currentDay <= 5) {
-        if ($currentHour >= 9 && $currentHour < 18) {
-            return true; // It is office hours
+            if (!$isOfficeHours) {
+                // Check if we sent an auto-reply in the last 5 minutes to prevent spam
+                $stmtCheck = $pdo->prepare("SELECT created_at FROM chat_messages WHERE member_id = ? AND sender = 'admin' ORDER BY created_at DESC LIMIT 1");
+                $stmtCheck->execute([$member_id]);
+                $lastReply = $stmtCheck->fetchColumn();
+
+                $shouldReply = true;
+                if ($lastReply) {
+                    $minutes = (time() - strtotime($lastReply)) / 60;
+                    if ($minutes < 5) $shouldReply = false;
+                }
+
+                if ($shouldReply) {
+                    $autoMsg = "Thanks for contacting us. We are currently closed (Mon-Fri 9am-6pm). We will reply when we are back!";
+                    $stmtReply = $pdo->prepare("INSERT INTO chat_messages (member_id, sender, message, is_read) VALUES (?, 'admin', ?, 1)");
+                    $stmtReply->execute([$member_id, $autoMsg]);
+                }
+            }
+
+            echo json_encode(['status' => 'success']);
+        } catch (PDOException $e) {
+            echo json_encode(['error' => $e->getMessage()]);
         }
+    } else {
+        echo json_encode(['error' => 'Empty message']);
     }
-    return false; // It is closed
 }
 ?>
