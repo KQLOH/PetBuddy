@@ -34,7 +34,7 @@ function isActive(string $file, string $currentPage): string
         <li><a href="products_list.php" class="<?= isActive('products_list.php', $currentPage); ?>">Products</a></li>
         <li><a href="categories_list.php" class="<?= isActive('categories_list.php', $currentPage); ?>">Categories</a></li>
         <li><a href="orders_list.php" class="<?= isActive('orders_list.php', $currentPage); ?>">Orders</a></li>
-        <li><a href="members_list.php" class="<?= isActive('members_list.php', $currentPage); ?>">Members</a></li>
+        <li><a href="member_list.php" class="<?= isActive('member_list.php', $currentPage); ?>">Members</a></li>
         <li><a href="reviews_list.php" class="<?= isActive('reviews_list.php', $currentPage); ?>">Reviews</a></li>
         <li><a href="chat.php" class="<?= isActive('chat.php', $currentPage); ?>">Chat</a></li>
     </ul>
