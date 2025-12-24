@@ -510,6 +510,14 @@ if (isset($pdo)) {
                                         <button type="button" class="btn-order-action btn-view" onclick="viewOrderDetails(<?php echo $order['order_id']; ?>)">
                                             View Details
                                         </button>
+                                        
+                                        <button type="button" class="btn-order-action btn-view" onclick="sendReceiptEmail(<?php echo $order['order_id']; ?>, this)">
+                                            <img src="../images/mail.png" alt="Email" style="width: 16px; height: 16px; margin-right: 6px; vertical-align: middle;"> E-Receipt (Email)
+                                        </button>
+                                        
+                                        <a href="download_receipt.php?order_id=<?php echo $order['order_id']; ?>" class="btn-order-action btn-view">
+                                            <img src="../images/pdf.png" alt="PDF" style="width: 16px; height: 16px; margin-right: 6px; vertical-align: middle;"> E-Receipt (PDF)
+                                        </a>
                                     </div>
                                 </div>
                             <?php endforeach; ?>
@@ -1195,6 +1203,55 @@ if (isset($pdo)) {
             });
 
         });
+
+        function sendReceiptEmail(orderId, btnElement) {
+            const btn = btnElement;
+            const originalText = btn.innerHTML;
+            
+            // Disable button and show loading
+            btn.disabled = true;
+            btn.innerHTML = '<img src="../images/mail.png" alt="Email" style="width: 16px; height: 16px; margin-right: 6px; vertical-align: middle; opacity: 0.6;"> Sending...';
+            
+            $.ajax({
+                url: 'send_receipt.php',
+                type: 'POST',
+                data: { order_id: orderId },
+                dataType: 'json',
+                success: function(response) {
+                    if (response.success) {
+                        btn.innerHTML = '<img src="../images/mail.png" alt="Email" style="width: 16px; height: 16px; margin-right: 6px; vertical-align: middle;"> Sent!';
+                        btn.style.background = '#4CAF50';
+                        setTimeout(function() {
+                            btn.innerHTML = originalText;
+                            btn.style.background = '#FFB774';
+                            btn.disabled = false;
+                        }, 2000);
+                        if (typeof showCustomAlert === 'function') {
+                            showCustomAlert('success', 'Success', response.message, true);
+                        } else {
+                            alert('✓ ' + response.message);
+                        }
+                    } else {
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                        if (typeof showCustomAlert === 'function') {
+                            showCustomAlert('error', 'Error', response.message);
+                        } else {
+                            alert('✗ ' + response.message);
+                        }
+                    }
+                },
+                error: function() {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    if (typeof showCustomAlert === 'function') {
+                        showCustomAlert('error', 'Error', 'Failed to send receipt. Please try again.');
+                    } else {
+                        alert('✗ Error sending receipt. Please try again.');
+                    }
+                }
+            });
+        }
     </script>
 </body>
 

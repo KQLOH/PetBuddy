@@ -73,8 +73,7 @@ if (!empty($voucher_code)) {
 $total_amount = max(0, $subtotal + $shipping_fee - $discount_amount);
 
 // --- 4. 获取地址信息 ---
-$first_name = $_POST['first_name'] ?? '';
-$last_name  = $_POST['last_name'] ?? '';
+$full_name = trim($_POST['full_name'] ?? '');
 $phone      = $_POST['phone'] ?? '';
 $addr1 = $_POST['address'] ?? '';
 $addr2 = $_POST['apartment'] ?? '';
@@ -83,7 +82,7 @@ $state    = $_POST['state'] ?? '';
 $postcode = $_POST['postcode'] ?? '';
 $country  = $_POST['country'] ?? 'Malaysia';
 
-$shipping_name = trim("$first_name $last_name");
+$shipping_name = $full_name;
 // 注意：$full_address_string 不再直接存入 orders 表，而是存入 member_addresses 表
 
 // --- 5. 支付方式 ---
@@ -244,11 +243,10 @@ try {
 
     if (isset($_POST['save_info'])) {
         // 1. Update Member Profile (Using 'full_name' to match your DB)
-        // Note: We use $_POST['first_name'] as the full name source based on your checkout form
         $sql_update_user = "UPDATE members SET full_name = :fname, phone = :phone WHERE member_id = :mid";
         $stmt_user = $pdo->prepare($sql_update_user);
         $stmt_user->execute([
-            ':fname' => $_POST['first_name'],
+            ':fname' => $_POST['full_name'],
             ':phone' => $_POST['phone'],
             ':mid'   => $member_id
         ]);
