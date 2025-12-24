@@ -349,7 +349,7 @@ if (isset($pdo)) {
         <aside>
             <div class="card-box">
                 <div class="user-brief">
-                    <?php
+                    <?php 
                     $image_path = !empty($member['image']) ? '../' . $member['image'] : '';
                     $image_exists = !empty($image_path) && file_exists($image_path);
                     if ($image_exists): ?>
