@@ -17,8 +17,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 // --- 2. 处理订单商品数据 ---
 $all_cart_items = getCartItems($pdo, $member_id);
-$selected_str = $_POST['selected_products'] ?? ''; 
-$cart_items = []; 
+$selected_str = $_POST['selected_products'] ?? '';
+$cart_items = [];
 
 if (!empty($selected_str)) {
     $selected_ids = explode(',', $selected_str);
@@ -49,8 +49,8 @@ if ($subtotal >= 50) {
     $shipping_fee = 15.00;
 }
 
-$discount_amount = 0.00; 
-$voucher_id = null; 
+$discount_amount = 0.00;
+$voucher_id = null;
 
 // 验证优惠券
 $voucher_code = $_POST['voucher_code'] ?? '';
@@ -76,8 +76,8 @@ $total_amount = max(0, $subtotal + $shipping_fee - $discount_amount);
 $first_name = $_POST['first_name'] ?? '';
 $last_name  = $_POST['last_name'] ?? '';
 $phone      = $_POST['phone'] ?? '';
-$addr1 = $_POST['address'] ?? '';        
-$addr2 = $_POST['address_line_2'] ?? ''; 
+$addr1 = $_POST['address'] ?? '';
+$addr2 = $_POST['apartment'] ?? '';
 $city     = $_POST['city'] ?? '';
 $state    = $_POST['state'] ?? '';
 $postcode = $_POST['postcode'] ?? '';
@@ -98,7 +98,7 @@ if ($payment_base_method === 'FPX') {
     $card_last4 = substr($_POST['card_number'] ?? '0000', -4);
     $payment_method_record = "Credit Card (Ends $card_last4)";
 } else {
-    $payment_method_record = $payment_base_method; 
+    $payment_method_record = $payment_base_method;
 }
 
 // --- 6. 数据库事务 ---
@@ -107,7 +107,7 @@ try {
 
     // A. 订单状态判断
     if ($payment_base_method === 'Cash') {
-        $order_status = 'pending'; 
+        $order_status = 'pending';
     } else {
         $order_status = 'paid';
     }
@@ -118,31 +118,69 @@ try {
     // 移除了 shipping_fee, shipping_name, shipping_address 等字段
     $sql_order = "INSERT INTO orders (member_id, total_amount, status, discount_amount, voucher_id, order_date) 
                   VALUES (:mid, :total, :status, :discount, :vid, NOW())";
-    
+
     $stmt = $pdo->prepare($sql_order);
     $stmt->execute([
         ':mid'      => $member_id,
         ':total'    => $total_amount,
         ':status'   => $order_status,
         ':discount' => $discount_amount,
-        ':vid'      => $voucher_id 
+        ':vid'      => $voucher_id
     ]);
 
     $order_id = $pdo->lastInsertId();
 
     // =========================================================
-    // C. 插入 Member Addresses (生成 address_id)
+    // C. 智能处理地址 (防止重复添加)
     // =========================================================
-    $sql_addr = "INSERT INTO member_addresses (member_id, recipient_name, recipient_phone, address_line1, address_line2, city, state, postcode, country, is_default) 
-                 VALUES (:mid, :rname, :rphone, :addr1, :addr2, :city, :state, :post, :country, 0)";
-    $stmt_addr = $pdo->prepare($sql_addr);
-    $stmt_addr->execute([
-        ':mid' => $member_id, ':rname' => $shipping_name, ':rphone' => $phone,
-        ':addr1' => $addr1, ':addr2' => $addr2, ':city' => $city, ':state' => $state,
-        ':post' => $postcode, ':country' => $country
+
+    // 1. 先查询该用户是否已有完全相同的地址
+    $stmtCheck = $pdo->prepare("SELECT address_id FROM member_addresses 
+        WHERE member_id = :mid 
+        AND recipient_name = :rname 
+        AND recipient_phone = :rphone 
+        AND address_line1 = :addr1 
+        AND address_line2 = :addr2 
+        AND city = :city 
+        AND state = :state 
+        AND postcode = :post 
+        LIMIT 1");
+
+    $stmtCheck->execute([
+        ':mid'    => $member_id,
+        ':rname'  => $shipping_name,
+        ':rphone' => $phone,
+        ':addr1'  => $addr1,
+        ':addr2'  => $addr2,
+        ':city'   => $city,
+        ':state'  => $state,
+        ':post'   => $postcode
     ]);
-    
-    $address_id = $pdo->lastInsertId(); 
+
+    $existing_id = $stmtCheck->fetchColumn();
+
+    if ($existing_id) {
+        // 💡 情况 A: 地址已存在 -> 直接复用旧 ID，不插入新行
+        $address_id = $existing_id;
+    } else {
+        // 💡 情况 B: 是全新地址 -> 必须插入才能发货 (生成 FK ID)
+        $sql_addr = "INSERT INTO member_addresses (member_id, recipient_name, recipient_phone, address_line1, address_line2, city, state, postcode, country, is_default) 
+                     VALUES (:mid, :rname, :rphone, :addr1, :addr2, :city, :state, :post, :country, 0)";
+        $stmt_addr = $pdo->prepare($sql_addr);
+        $stmt_addr->execute([
+            ':mid' => $member_id,
+            ':rname' => $shipping_name,
+            ':rphone' => $phone,
+            ':addr1' => $addr1,
+            ':addr2' => $addr2,
+            ':city' => $city,
+            ':state' => $state,
+            ':post' => $postcode,
+            ':country' => $country
+        ]);
+
+        $address_id = $pdo->lastInsertId();
+    }
 
     // =========================================================
     // D. 插入 Shipping (运费存在这里)
@@ -151,8 +189,8 @@ try {
                  VALUES (:oid, :aid, :fee, :method, 'pending')";
     $stmt_ship = $pdo->prepare($sql_ship);
     $stmt_ship->execute([
-        ':oid' => $order_id, 
-        ':aid' => $address_id, 
+        ':oid' => $order_id,
+        ':aid' => $address_id,
         ':fee' => $shipping_fee, // 0.00 或 15.00
         ':method' => 'Standard Delivery'
     ]);
@@ -179,10 +217,10 @@ try {
         // 2. 扣减库存
         $stmt_deduct->execute([
             ':qty'       => $item['quantity'],
-            ':qty_check' => $item['quantity'], 
+            ':qty_check' => $item['quantity'],
             ':pid'       => $item['product_id']
         ]);
-        
+
         // 3. 检查库存是否足够
         if ($stmt_deduct->rowCount() == 0) {
             throw new Exception("Product ID " . $item['product_id'] . " (" . $item['name'] . ") is out of stock.");
@@ -195,17 +233,31 @@ try {
                     VALUES (:oid, :amt, :method, :ref, NOW())";
     $stmt_payment = $pdo->prepare($sql_payment);
     $stmt_payment->execute([
-        ':oid'    => $order_id, ':amt'    => $total_amount,
-        ':method' => $payment_method_record, ':ref'    => $payment_ref
+        ':oid'    => $order_id,
+        ':amt'    => $total_amount,
+        ':method' => $payment_method_record,
+        ':ref'    => $payment_ref
     ]);
 
     // G. 更新用户资料
+    // Inside place_order.php
+
     if (isset($_POST['save_info'])) {
-        $sql_update_user = "UPDATE members SET first_name = :fname, last_name = :lname, phone = :phone WHERE member_id = :mid";
+        // 1. Update Member Profile (Using 'full_name' to match your DB)
+        // Note: We use $_POST['first_name'] as the full name source based on your checkout form
+        $sql_update_user = "UPDATE members SET full_name = :fname, phone = :phone WHERE member_id = :mid";
         $stmt_user = $pdo->prepare($sql_update_user);
-        $stmt_user->execute([':fname' => $first_name, ':lname' => $last_name, ':phone' => $phone, ':mid' => $member_id]);
-        
+        $stmt_user->execute([
+            ':fname' => $_POST['first_name'],
+            ':phone' => $_POST['phone'],
+            ':mid'   => $member_id
+        ]);
+
+        // 2. Set this address as Default
+        // First, reset all addresses to non-default
         $pdo->prepare("UPDATE member_addresses SET is_default = 0 WHERE member_id = ?")->execute([$member_id]);
+
+        // Then, set the CURRENT address ID (generated above) as default
         $pdo->prepare("UPDATE member_addresses SET is_default = 1 WHERE address_id = ?")->execute([$address_id]);
     }
 
@@ -223,7 +275,6 @@ try {
 
     header("Location: payment_success.php?order_id=" . $order_id);
     exit;
-
 } catch (Exception $e) {
     $pdo->rollBack();
     echo "<div style='padding:50px; text-align:center; font-family:sans-serif;'>";
@@ -233,4 +284,3 @@ try {
     echo "</div>";
     exit;
 }
-?>
