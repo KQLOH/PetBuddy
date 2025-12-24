@@ -1,7 +1,7 @@
 <?php
 $lifetime = 0; 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['remember_me'])) {
-    $lifetime = 30 * 24 * 60 * 60; 
+    $lifetime = 30 * 24 * 60 * 60; // 30天
 }
 
 session_set_cookie_params($lifetime, '/');
@@ -12,9 +12,12 @@ include '../include/db.php';
 $error = '';
 $registration_success_message = '';
 
-if (isset($_GET['registration_success']) && $_GET['registration_success'] === 'true') {
+// ✨✨✨ 修复逻辑开始 ✨✨✨
+// 只有当不是 POST 请求（即不是正在提交登录表单）时，才检测注册成功参数
+if ($_SERVER["REQUEST_METHOD"] != "POST" && isset($_GET['registration_success']) && $_GET['registration_success'] === 'true') {
     $registration_success_message = 'Account created successfully! You can now login';
 }
+// ✨✨✨ 修复逻辑结束 ✨✨✨
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $email = trim($_POST['email']);
@@ -195,7 +198,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
                 <h2 class="card-title">Member Login</h2>
 
-
                 <?php if ($error): ?>
                     <div class="alert-error" role="alert">
                         <p><?php echo htmlspecialchars($error); ?></p>
@@ -226,10 +228,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         Sign In
                     </button>
 
-                                    <div class="mb-4" style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px;">
-                    <input type="checkbox" name="remember_me" id="remember_me" style="cursor: pointer;">
-                    <label for="remember_me" style="font-size: 0.9rem; color: #666; cursor: pointer;">Remember Me</label>
-                </div>
+                    <div class="mb-4" style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px;">
+                        <input type="checkbox" name="remember_me" id="remember_me" style="cursor: pointer;">
+                        <label for="remember_me" style="font-size: 0.9rem; color: #666; cursor: pointer;">Remember Me</label>
+                    </div>
                 </form>
 
                 <div class="mt-6 text-center link-muted">
