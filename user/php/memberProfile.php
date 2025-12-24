@@ -98,7 +98,7 @@ if (isset($pdo)) {
                 $upload_error = false;
 
                 if (isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] == 0) {
-                    $target_dir = "uploads/";
+                    $target_dir = "../uploads/";
                     if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
                     $file_ext = strtolower(pathinfo($_FILES["profile_image"]["name"], PATHINFO_EXTENSION));
 
@@ -109,7 +109,7 @@ if (isset($pdo)) {
                             $new_filename = "mem_" . $member_id . "_" . time() . "." . $file_ext;
                             $target_file = $target_dir . $new_filename;
                             if (move_uploaded_file($_FILES["profile_image"]["tmp_name"], $target_file)) {
-                                $image_path = $target_file;
+                                $image_path = "uploads/" . $new_filename;
                             } else {
                                 $upload_error = true;
                                 $message = "Failed to move uploaded file.";
