@@ -509,7 +509,7 @@ if (isset($pdo)) {
 
                                         <?php if ($order['status'] == 'completed'): ?>
                                             <button type="button" class="btn-order-action btn-view" onclick="openReviewModal(<?php echo $order['order_id']; ?>)">
-                                                <img src="../images/star.png" style="width:14px; margin-right:5px;"> Review
+                                                <img src="../images/review.png" style="width:14px; margin-right:5px;"> Review
                                             </button>
                                         <?php endif; ?>
 
