@@ -3,55 +3,51 @@ session_start();
 require '../include/db.php';
 
 $register_error = "";
-$register_success = "";
+$step = isset($_SESSION['email_verified']) && $_SESSION['email_verified'] ? 2 : 1; // Step 1: Email + OTP, Step 2: Complete Registration
+$verified_email = $_SESSION['verified_email'] ?? '';
 
-$gender = $_POST['gender'] ?? '';
-$first_name = $_POST['first_name'] ?? '';
-$last_name = $_POST['last_name'] ?? '';
-$email = $_POST['email'] ?? '';
-$phone = $_POST['phone'] ?? '';
-$dob_day = $_POST['dob_day'] ?? '';
-$dob_month = $_POST['dob_month'] ?? '';
-$dob_year = $_POST['dob_year'] ?? '';
+// Handle Cancel Registration
+if (isset($_GET['cancel']) && $_GET['cancel'] === 'true') {
+    unset($_SESSION['email_verified']);
+    unset($_SESSION['verified_email']);
+    header("Location: register.php");
+    exit;
+}
 
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-
-    // 1. Capture and Sanitize Inputs
+// Step 2: Complete Registration (after OTP verification)
+if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $gender = $_POST['gender'] ?? '';
+    $first_name = trim($_POST['first_name'] ?? '');
+    $last_name = trim($_POST['last_name'] ?? '');
+    $phone = trim($_POST['phone'] ?? '');
     $password = $_POST['password'] ?? '';
     $confirm_password = $_POST['confirm_password'] ?? '';
-
-    // Sanitize non-password fields
-    $first_name = trim($first_name);
-    $last_name = trim($last_name);
-    $email = trim($email);
-    $phone = trim($phone);
-
+    $dob_day = $_POST['dob_day'] ?? '';
+    $dob_month = $_POST['dob_month'] ?? '';
+    $dob_year = $_POST['dob_year'] ?? '';
+    
     $full_name = $first_name . ' ' . $last_name;
-
-    // Determine Gender for DB insertion
+    
+    // Determine Gender
     $db_gender = null;
     $submitted_gender_lower = strtolower($gender);
-
     if ($submitted_gender_lower === 'male' || $submitted_gender_lower === 'female') {
         $db_gender = $submitted_gender_lower;
     }
-
-    // Format DOB: YYYY-MM-DD
+    
+    // Format DOB
     $dob = null;
     if ($dob_day && $dob_month && $dob_year) {
         $dob_date_string = "$dob_year-$dob_month-$dob_day";
-        // Simple check for valid date format
         if (checkdate((int)$dob_month, (int)$dob_day, (int)$dob_year)) {
             $dob = $dob_date_string;
         }
     }
-
-    // 2. Server-Side Validation (Minimal check before DB query/insertion)
+    
+    // Validation
     $server_side_valid = true;
-
-    // Check required fields (basic PHP side check)
-    if (empty($gender) || empty($first_name) || empty($last_name) || empty($email) || empty($password) || empty($phone)) {
+    
+    if (empty($gender) || empty($first_name) || empty($last_name) || empty($password) || empty($phone)) {
         $register_error = "Please fill in all required fields.";
         $server_side_valid = false;
     } elseif ($password !== $confirm_password) {
@@ -60,37 +56,89 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (strlen($password) < 8) {
         $register_error = "Password must be at least 8 characters long.";
         $server_side_valid = false;
-    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $register_error = "Invalid email format.";
+    } elseif (!preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/', $password)) {
+        $register_error = "Password must be at least 8 characters long, contain mixed letter cases, 1 digit, and 1 special character.";
         $server_side_valid = false;
     } elseif (!$dob) {
         $register_error = "Please select a valid Date of Birth.";
         $server_side_valid = false;
     }
-    // Additional server-side check for password complexity (as requested):
-    // Requires: mixed case, 1 digit, 1 special character
-    elseif (!preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/', $password)) {
-        $register_error = "Password must be at least 8 characters long, contain mixed letter cases, 1 digit, and 1 special character.";
-        $server_side_valid = false;
+    
+    // Handle Profile Image Upload
+    $image_path = null;
+    if ($server_side_valid && isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] == 0) {
+        $target_dir = "../uploads/";
+        if (!is_dir($target_dir)) {
+            mkdir($target_dir, 0777, true);
+        }
+        
+        $file_ext = strtolower(pathinfo($_FILES["profile_image"]["name"], PATHINFO_EXTENSION));
+        $allowed_exts = ['jpg', 'jpeg', 'png', 'gif'];
+        
+        // Validate file type
+        $check = getimagesize($_FILES["profile_image"]["tmp_name"]);
+        if ($check !== false && in_array($file_ext, $allowed_exts)) {
+            // Validate file size (max 5MB)
+            if ($_FILES["profile_image"]["size"] <= 5000000) {
+                // Create unique filename using email hash and timestamp
+                $email_hash = substr(md5($verified_email), 0, 8);
+                $new_filename = "mem_reg_" . $email_hash . "_" . time() . "." . $file_ext;
+                $target_file = $target_dir . $new_filename;
+                
+                if (move_uploaded_file($_FILES["profile_image"]["tmp_name"], $target_file)) {
+                    $image_path = "uploads/" . $new_filename;
+                } else {
+                    $register_error = "Failed to upload profile image. Please try again.";
+                    $server_side_valid = false;
+                }
+            } else {
+                $register_error = "Image file is too large. Maximum size is 5MB.";
+                $server_side_valid = false;
+            }
+        } else {
+            $register_error = "Invalid image file. Please upload JPG, JPEG, PNG, or GIF files only.";
+            $server_side_valid = false;
+        }
     }
-
-    if ($server_side_valid) {
-        // 3. Check for existing email
+    
+    if ($server_side_valid && !empty($verified_email)) {
         try {
+            // Check if email already registered (double check)
             $stmt = $pdo->prepare("SELECT email FROM members WHERE email = ?");
-            $stmt->execute([$email]);
+            $stmt->execute([$verified_email]);
             if ($stmt->rowCount() > 0) {
                 $register_error = "Email is already registered.";
             } else {
-                // 4. Register User
+                // Register User
                 $password_hash = password_hash($password, PASSWORD_DEFAULT);
-
-                // Updated statement to include gender and dob
-                $sql = "INSERT INTO members (email, password_hash, full_name, phone, gender, dob) VALUES (?, ?, ?, ?, ?, ?)";
+                
+                // Insert user and get the new member_id
+                $sql = "INSERT INTO members (email, password_hash, full_name, phone, gender, dob, image) VALUES (?, ?, ?, ?, ?, ?, ?)";
                 $stmt = $pdo->prepare($sql);
-
-                // Use $db_gender for insertion
-                if ($stmt->execute([$email, $password_hash, $full_name, $phone, $db_gender, $dob])) {
+                
+                if ($stmt->execute([$verified_email, $password_hash, $full_name, $phone, $db_gender, $dob, $image_path])) {
+                    // If image was uploaded, rename it with the new member_id
+                    if ($image_path) {
+                        $new_member_id = $pdo->lastInsertId();
+                        $old_path = "../" . $image_path;
+                        
+                        if (file_exists($old_path)) {
+                            $file_ext = pathinfo($old_path, PATHINFO_EXTENSION);
+                            $new_image_path = "uploads/mem_" . $new_member_id . "_" . time() . "." . $file_ext;
+                            $new_full_path = "../" . $new_image_path;
+                            
+                            if (rename($old_path, $new_full_path)) {
+                                // Update database with new path
+                                $update_stmt = $pdo->prepare("UPDATE members SET image = ? WHERE member_id = ?");
+                                $update_stmt->execute([$new_image_path, $new_member_id]);
+                            }
+                        }
+                    }
+                    
+                    // Clear session
+                    unset($_SESSION['email_verified']);
+                    unset($_SESSION['verified_email']);
+                    
                     header("Location: login.php?registration_success=true");
                     exit;
                 } else {
@@ -106,131 +154,209 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <title>PetBuddy Online Pet Shop | Register</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../css/style.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
-        :root {
-            --primary-color: #F4A261;
-            --primary-dark: #E68E3F;
-            --bg-light: #f9f9f9;
-            --text-dark: #333333;
-            --border-color: #e0e0e0;
-            --danger-color: #e53935;
-            --secondary-color: #2EC4B6;
-            --text-gray: #666666;
-            --white: #ffffff;
-            --danger-bg: #fee2e2;
-            --danger-text: #b91c1c;
-            --success-bg: #d1fae5;
-            --success-border: #10b981;
-            --success-text: #065f46;
+        .header-logo {
+            height: 1.8rem;
+            width: auto;
+            margin-right: 0.5rem;
+            vertical-align: bottom;
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
+        .input-group .input-icon {
+            width: auto;
+            height: 1.25rem;
+            position: absolute;
+            top: 50%;
+            left: 1rem;
+            transform: translateY(-50%);
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        .form-input {
+            padding-left: 3rem !important;
+        }
+
+        .password-toggle {
+            position: absolute;
+            top: 50%;
+            right: 1rem;
+            transform: translateY(-50%);
+            width: 1.25rem;
+            height: auto;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+
+        .password-toggle:hover {
+            opacity: 1;
         }
 
         body {
             min-height: 100vh;
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: linear-gradient(135deg, #fff7ec, #ffffff);
-            color: var(--text-dark);
             display: flex;
             flex-direction: column;
+            margin: 0;
         }
 
-        .page-wrapper {
+        .page-content-wrapper {
+            flex-grow: 1;
             display: flex;
             justify-content: center;
-            padding: 2rem 1rem;
-            flex-grow: 1;
-        }
-
-        .w-full {
+            align-items: center;
+            padding: 50px 0;
             width: 100%;
         }
 
-        .max-w-md {
-            max-width: 450px;
+        .max-w-lg {
+            max-width: 800px;
             width: 100%;
         }
 
-        .text-center {
-            text-align: center;
-        }
-
-        .mt-4 {
-            margin-top: 1rem;
-        }
-
-        .mb-6 {
+        .alert-success {
+            background-color: rgba(244, 162, 97, 0.12);
+            color: var(--primary-dark);
+            padding: 1rem;
             margin-bottom: 1.5rem;
-        }
-
-        .card {
-            background-color: var(--white);
-            border-radius: 1rem;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            border: 1px solid var(--border-color);
-        }
-
-        .card-body {
-            padding: 2rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
         }
 
         .alert-error {
-            background-color: var(--danger-bg);
-            border-left: 4px solid #ef4444;
-            color: var(--danger-text);
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
             padding: 1rem;
-            border-radius: 0.25rem;
-            font-size: 0.875rem;
             margin-bottom: 1.5rem;
-        }
-
-        /* --- ADDED STYLE FOR SUCCESS MESSAGE --- */
-        .alert-success {
-            background-color: var(--success-bg);
-            border-left: 4px solid var(--success-border);
-            color: var(--success-text);
-            padding: 1rem;
-            border-radius: 0.25rem;
-            font-size: 0.875rem;
-            margin-bottom: 1.5rem;
-        }
-
-        /* --- ADDED STYLE FOR WELCOME MESSAGE BOX --- */
-        .welcome-info-box {
-            background-color: var(--bg-light);
             border-radius: 0.5rem;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
+            font-weight: 500;
         }
 
-        .welcome-info-box p {
+        .form-footer-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid #eee;
+        }
+
+        .footer-link {
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .warning-link {
+            color: #e67e22;
+        }
+
+        .warning-link:hover {
+            color: #d35400;
+            text-decoration: underline;
+        }
+
+        .muted-link {
+            color: #6c757d;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .muted-link:hover {
+            color: #343a40;
+        }
+
+        .icon-arrow {
+            font-size: 1.1em;
+            line-height: 1;
+            transition: transform 0.2s;
+        }
+
+        .muted-link:hover .icon-arrow {
+            transform: translateX(-3px);
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 2rem;
+        }
+
+        .step {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-weight: 600;
-            color: var(--text-dark);
-            margin-bottom: 10px;
+            background: #e5e7eb;
+            color: #6b7280;
         }
 
-        .welcome-info-box ul {
-            list-style: disc;
-            margin-left: 20px;
-            color: #555;
-            font-size: 14px;
+        .step.active {
+            background: var(--primary-color);
+            color: white;
         }
 
-        /* --- ADDED STYLE FOR OR DIVIDER --- */
-        .divider-or {
-            margin: 1.5rem 0;
-            color: #999;
+        .step.completed {
+            background: #10b981;
+            color: white;
+        }
+
+        .step-line {
+            width: 40px;
+            height: 2px;
+            background: #e5e7eb;
+            margin-top: 14px;
+        }
+
+        .step-line.completed {
+            background: #10b981;
+        }
+
+        /* Step 1: Email + OTP */
+        .step-1-container {
+            display: <?php echo $step === 1 ? 'block' : 'none'; ?>;
+        }
+
+        .step-2-container {
+            display: <?php echo $step === 2 ? 'block' : 'none'; ?>;
+        }
+
+        .otp-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .otp-input {
+            flex: 1;
+            height: 60px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: 600;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            transition: 0.2s;
+        }
+
+        .otp-input:focus {
+            border-color: var(--primary-color);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(244, 162, 97, 0.2);
         }
 
         .btn-primary {
@@ -252,17 +378,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             transform: translateY(-2px);
         }
 
-        .link-muted {
-            color: #9ca3af;
-            font-size: 0.875rem;
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            margin-top: 10px;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+
+        .btn-cancel {
+            display: block;
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #dc2626;
+            border-radius: 0.5rem;
+            background-color: transparent;
+            color: #dc2626;
+            font-weight: 600;
+            font-size: 1rem;
             text-decoration: none;
-            transition: color 0.2s;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
         }
 
-        .link-muted:hover {
-            color: var(--text-dark);
+        .btn-cancel:hover {
+            background-color: #dc2626;
+            color: white;
         }
 
+        .resend-otp {
+            text-align: center;
+            margin-top: 15px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .resend-otp a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .resend-otp a:hover {
+            text-decoration: underline;
+        }
+
+        .countdown {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        /* Include existing styles for Step 2 form elements */
         .form-label {
             display: block;
             font-size: 0.875rem;
@@ -281,63 +454,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             accent-color: var(--primary-color);
         }
 
-        .form-group-float {
-            position: relative;
-            margin-bottom: 20px;
-        }
-
-        .form-input-float {
-            width: 100%;
-            height: 52px;
-            padding: 18px 12px 6px;
-            font-size: 16px;
-            border: 1px solid #ccc;
-            transition: 0.2s;
-            background: none;
-            box-sizing: border-box;
-            border-radius: 0.5rem;
-        }
-
-        .form-input-float:focus {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(244, 162, 97, 0.3);
-            outline: none;
-        }
-
-        .form-group-float label {
-            position: absolute;
-            top: 16px;
-            left: 12px;
-            color: #7a7a7a;
-            font-size: 16px;
-            pointer-events: none;
-            transition: 0.2s ease;
-        }
-
-        .form-input-float:focus+label,
-        .form-input-float:not(:placeholder-shown)+label:not(.ck-selected) {
-            top: 4px;
-            font-size: 12px;
-            color: var(--primary-dark);
-            font-weight: 600;
-        }
-
         .mobile-row {
             display: flex;
+            gap: 10px;
         }
 
         .mobile-left {
-            flex: 0 0 55px;
+            flex: 0 0 80px;
         }
 
-        .mobile-row .mobile-left {
-            position: relative;
-            left: -4px;
-        }
-
-        .mobile-left .form-input-float {
-            padding: 0;
+        .mobile-left .form-input {
             text-align: center;
+            padding-left: 1rem !important;
         }
 
         .mobile-right {
@@ -356,7 +484,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             display: block;
         }
 
-        /* --- ADDED STYLE FOR PASSWORD HINT LIST --- */
         .password-hint ul {
             margin-left: 20px;
             color: #555;
@@ -366,12 +493,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .dob-row {
             display: flex;
             gap: 10px;
-            margin-bottom: 20px;
+            margin-bottom: 1rem;
         }
 
         .ck-select {
             flex: 1;
-            height: 52px;
+            height: 48px;
             border: 1px solid #d1d5db;
             border-radius: 0.5rem;
             padding: 0 12px;
@@ -381,10 +508,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             user-select: none;
             background: #fff;
             box-sizing: border-box;
-            font-size: 16px;
+            font-size: 1rem;
             color: #7a7a7a;
             position: relative;
-
         }
 
         .ck-select:hover {
@@ -402,18 +528,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         .ck-selected {
-            color: var(--text-dark);
-        }
-
-        .ck-select[data-placeholder="Day"] .ck-selected,
-        .ck-select[data-placeholder="Month"] .ck-selected,
-        .ck-select[data-placeholder="Year"] .ck-selected {
-            color: #7a7a7a;
+            color: #1f2937;
         }
 
         .ck-options {
             position: absolute;
-            top: 52px;
+            top: 48px;
             left: 0;
             right: 0;
             background: #fff;
@@ -423,35 +543,120 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             display: none;
             z-index: 100;
             border-radius: 0.5rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
         .ck-option {
             padding: 10px 12px;
-            color: var(--text-dark);
-            font-size: 16px;
+            color: #1f2937;
+            font-size: 1rem;
             cursor: pointer;
         }
 
         .ck-option:hover {
-            background: var(--bg-light);
+            background: #f9f9f9;
         }
 
-        /* --- VALIDATION STYLES --- */
         .error-message {
             font-size: 0.75rem;
-            color: var(--danger-color);
-            margin-top: -10px;
-            margin-bottom: 20px;
+            color: #e53935;
+            margin-top: 0.25rem;
+            margin-bottom: 1rem;
             min-height: 15px;
         }
 
         .error-border {
-            border-color: var(--danger-color) !important;
+            border-color: #e53935 !important;
         }
 
-        .error-label {
-            color: var(--danger-color) !important;
+        .verified-email-display {
+            background: #d1fae5;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            text-align: center;
+            color: #065f46;
+            font-weight: 600;
+        }
+
+        /* Profile Image Upload Styles */
+        .profile-image-upload {
+            text-align: center;
+        }
+
+        .profile-image-preview {
+            width: 150px;
+            height: 150px;
+            margin: 0 auto 15px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 3px solid #e5e7eb;
+            background: #f9fafb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            transition: border-color 0.3s ease;
+        }
+
+        .profile-image-preview:hover {
+            border-color: var(--primary-color);
+        }
+
+        .profile-image-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .profile-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #9ca3af;
+            font-size: 14px;
+        }
+
+        .profile-placeholder i {
+            font-size: 48px;
+            margin-bottom: 8px;
+            color: #d1d5db;
+        }
+
+        .btn-upload-image,
+        .btn-remove-image {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-block;
+            margin: 0 5px;
+        }
+
+        .btn-upload-image:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+
+        .btn-remove-image {
+            background: #dc2626;
+        }
+
+        .btn-remove-image:hover {
+            background: #b91c1c;
+            transform: translateY(-2px);
+        }
+
+        .image-upload-hint {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 8px;
         }
     </style>
 </head>
@@ -459,178 +664,428 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
     <?php include '../include/header.php'; ?>
 
-    <div class="page-wrapper">
-        <div class="max-w-md w-full">
-            <div class="card">
+    <div class="page-content-wrapper">
+        <div class="card max-w-lg">
+            <div class="card-header">
+                <h1>
+                    <img src="../images/pawprint.png" alt="Logo" class="header-logo">
+                    PetBuddy
+                </h1>
+                <p><?php echo $step === 1 ? 'Create your account!' : 'Complete your registration!'; ?></p>
+            </div>
 
-                <div class="card-body">
+            <div class="card-body">
+                <!-- Step Indicator -->
+                <div class="step-indicator">
+                    <div class="step <?php echo $step >= 1 ? 'active' : ''; ?> <?php echo $step > 1 ? 'completed' : ''; ?>">1</div>
+                    <div class="step-line <?php echo $step > 1 ? 'completed' : ''; ?>"></div>
+                    <div class="step <?php echo $step >= 2 ? 'active' : ''; ?>">2</div>
+                </div>
 
-                    <?php if ($register_error): ?>
-                        <div class="alert-error" role="alert"><?= htmlspecialchars($register_error) ?></div>
-                    <?php endif; ?>
+                <?php if ($register_error): ?>
+                    <div class="alert-error" role="alert"><?= htmlspecialchars($register_error) ?></div>
+                <?php endif; ?>
 
-                    <?php if ($register_success): ?>
-                        <div class="alert-success" role="alert"><?= htmlspecialchars($register_success) ?></div>
-                    <?php endif; ?>
-
-                    <div class="welcome-info-box">
-                        <p>Join us now!! Members get:</p>
-                        <ul>
-                            <li>Welcome Offer</li>
-                            <li>Birthday Privilege</li>
-                            <li>Exclusive Invites & News</li>
-                            <li>Fast, easy checkout</li>
-                        </ul>
-                    </div>
-
-                    <div class="text-center divider-or">
-                        <span>——————————</span>
-                    </div>
-
-                    <form method="POST" action="" id="registration-form" novalidate>
-
-                        <label class="form-label">Gender*</label>
-                        <div class="salutation-group" id="gender-group">
-                            <label class="salutation-option">
-                                <input type="radio" name="gender" value="male" required <?php if ($gender === 'male') echo 'checked'; ?>> Male
-                            </label>
-                            <label class="salutation-option">
-                                <input type="radio" name="gender" value="female" required <?php if ($gender === 'female') echo 'checked'; ?>> Female
-                            </label>
-                            <label class="salutation-option">
-                                <input type="radio" name="gender" value="prefer not to say" required <?php if ($gender === 'prefer not to say') echo 'checked'; ?>> Prefer not to say
-                            </label>
-                        </div>
-                        <div class="error-message" id="gender-error"></div>
-
-                        <div class="form-group-float">
-                            <input type="text" class="form-input-float" name="first_name" required placeholder=" " value="<?= htmlspecialchars($first_name) ?>">
-                            <label>First Name*</label>
-                        </div>
-                        <div class="error-message" id="first_name-error"></div>
-
-                        <div class="form-group-float">
-                            <input type="text" class="form-input-float" name="last_name" required placeholder=" " value="<?= htmlspecialchars($last_name) ?>">
-                            <label>Last Name*</label>
-                        </div>
-                        <div class="error-message" id="last_name-error"></div>
-
-                        <div class="form-group-float">
-                            <input type="email" class="form-input-float" name="email" required placeholder=" " value="<?= htmlspecialchars($email) ?>">
-                            <label>Email*</label>
+                <!-- Step 1: Email + OTP Verification -->
+                <div class="step-1-container">
+                    <h2 class="card-title">Email Verification</h2>
+                    
+                    <div class="mb-4">
+                        <label class="form-label" for="email-input">Email Address</label>
+                        <div class="input-group">
+                            <img src="../images/mail.png" alt="Email" class="input-icon">
+                            <input type="email" class="form-input" id="email-input" placeholder="you@example.com" required>
                         </div>
                         <div class="error-message" id="email-error"></div>
-
-                        <label class="form-label">Mobile Number*</label>
-                        <div class="mobile-row">  
-                            <div class="form-group-float mobile-left">
-                                <input type="text" class="form-input-float" value="+60" readonly>
-                            </div>
-                            <div class="form-group-float mobile-right">
-                                <input type="text" class="form-input-float" name="phone" required placeholder=" " value="<?= htmlspecialchars($phone) ?>">
-                                <label>Mobile Number*</label>
-                            </div>
-                        </div>
-                        <div class="error-message" id="phone-error"></div>
-
-                        <div class="form-group-float password-group">
-                            <input type="password" class="form-input-float" name="password" id="password" required placeholder=" ">
-                            <label>Password*</label>
-                            <div class="password-hint">
-                                <ul>
-                                    <li>Min. of 8 characters</li>
-                                    <li>Mixed letter cases</li>
-                                    <li>1 digit</li>
-                                    <li>1 special character</li>
-                                </ul>
-                            </div>
-                        </div>
-                        <div class="error-message" id="password-error"></div>
-
-                        <div class="form-group-float">
-                            <input type="password" class="form-input-float" name="confirm_password" id="confirm_password" required placeholder=" ">
-                            <label>Confirm Password*</label>
-                        </div>
-                        <div class="error-message" id="confirm_password-error"></div>
-
-                        <label class="form-label">Date of Birth*</label>
-                        <div class="dob-row" id="dob-row">
-
-                            <div class="ck-select" data-placeholder="Day">
-                                <div class="ck-selected">Day</div>
-                                <input type="hidden" name="dob_day" class="ck-hidden-input" required value="<?= htmlspecialchars($dob_day) ?>">
-                                <div class="ck-options" id="ck-day-options">
-                                </div>
-                            </div>
-
-                            <div class="ck-select" data-placeholder="Month">
-                                <div class="ck-selected">Month</div>
-                                <input type="hidden" name="dob_month" class="ck-hidden-input" required value="<?= htmlspecialchars($dob_month) ?>">
-                                <div class="ck-options">
-                                    <div class="ck-option" data-value="01">January</div>
-                                    <div class="ck-option" data-value="02">February</div>
-                                    <div class="ck-option" data-value="03">March</div>
-                                    <div class="ck-option" data-value="04">April</div>
-                                    <div class="ck-option" data-value="05">May</div>
-                                    <div class="ck-option" data-value="06">June</div>
-                                    <div class="ck-option" data-value="07">July</div>
-                                    <div class="ck-option" data-value="08">August</div>
-                                    <div class="ck-option" data-value="09">September</div>
-                                    <div class="ck-option" data-value="10">October</div>
-                                    <div class="ck-option" data-value="11">November</div>
-                                    <div class="ck-option" data-value="12">December</div>
-                                </div>
-                            </div>
-
-                            <div class="ck-select" data-placeholder="Year">
-                                <div class="ck-selected">Year</div>
-                                <input type="hidden" name="dob_year" class="ck-hidden-input" required value="<?= htmlspecialchars($dob_year) ?>">
-                                <div class="ck-options" id="ck-year-options">
-                                </div>
-                            </div>
-
-                        </div>
-                        <div class="error-message" id="dob-error"></div>
-
-                        <button type="submit" class="btn-primary btn-hover">Create Account</button>
-                    </form>
-
-                    <div class="mt-4 text-center">
-                        <a href="login.php" class="link-muted">Already have an account? Login here.</a>
                     </div>
 
+                    <button type="button" class="btn-primary" id="send-otp-btn" onclick="sendOTP()">Send Verification Code</button>
+
+                        <div id="otp-section" style="display: none; margin-top: 30px;">
+                            <p style="text-align: center; margin-bottom: 15px; color: #666;">
+                                Enter the 6-digit code sent to <strong id="otp-email-display"></strong>
+                            </p>
+                            
+                            <div class="otp-input-group">
+                                <input type="text" class="otp-input" id="otp1" maxlength="1" pattern="[0-9]">
+                                <input type="text" class="otp-input" id="otp2" maxlength="1" pattern="[0-9]">
+                                <input type="text" class="otp-input" id="otp3" maxlength="1" pattern="[0-9]">
+                                <input type="text" class="otp-input" id="otp4" maxlength="1" pattern="[0-9]">
+                                <input type="text" class="otp-input" id="otp5" maxlength="1" pattern="[0-9]">
+                                <input type="text" class="otp-input" id="otp6" maxlength="1" pattern="[0-9]">
+                            </div>
+
+                            <button type="button" class="btn-primary" id="verify-otp-btn" onclick="verifyOTP()">Verify Code</button>
+                            
+                            <div class="resend-otp">
+                                <span>Didn't receive the code? </span>
+                                <a href="#" id="resend-link" onclick="sendOTP(); return false;">Resend</a>
+                                <span id="countdown-text" style="display: none;"> (<span class="countdown" id="countdown">180</span>s)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Complete Registration -->
+                    <div class="step-2-container">
+                        <h2 class="card-title">Complete Registration</h2>
+                        
+                        <div class="verified-email-display">
+                            Verified: <?php echo htmlspecialchars($verified_email); ?>
+                        </div>
+
+                        <form method="POST" action="" id="registration-form" enctype="multipart/form-data" novalidate>
+                            <!-- Profile Image Upload -->
+                            <div class="mb-4">
+                                <label class="form-label">Profile Picture (Optional)</label>
+                                <div class="profile-image-upload">
+                                    <div class="profile-image-preview" id="profile-image-preview">
+                                        <img id="profile-preview-img" src="" alt="Profile preview" style="display: none;">
+                                        <div class="profile-placeholder" id="profile-placeholder">
+                                            <i class="fas fa-user"></i>
+                                            <span>No image selected</span>
+                                        </div>
+                                    </div>
+                                    <input type="file" name="profile_image" id="profile_image" accept="image/*" style="display: none;">
+                                    <button type="button" class="btn-upload-image" onclick="document.getElementById('profile_image').click();">
+                                        <i class="fas fa-camera"></i> Choose Photo
+                                    </button>
+                                    <button type="button" class="btn-remove-image" id="btn-remove-image" style="display: none;" onclick="removeProfileImage();">
+                                        <i class="fas fa-times"></i> Remove
+                                    </button>
+                                    <div class="image-upload-hint">
+                                        JPG, PNG or GIF. Max size 5MB.
+                                    </div>
+                                    <div class="error-message" id="profile-image-error"></div>
+                                </div>
+                            </div>
+
+                            <label class="form-label">Gender</label>
+                            <div class="salutation-group" id="gender-group">
+                                <label class="salutation-option">
+                                    <input type="radio" name="gender" value="male" required> Male
+                                </label>
+                                <label class="salutation-option">
+                                    <input type="radio" name="gender" value="female" required> Female
+                                </label>
+                                <label class="salutation-option">
+                                    <input type="radio" name="gender" value="prefer not to say" required> Prefer not to say
+                                </label>
+                            </div>
+                            <div class="error-message" id="gender-error"></div>
+
+                            <div class="mb-4">
+                                <label class="form-label" for="first_name">First Name</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-input" name="first_name" id="first_name" placeholder="John" required>
+                                </div>
+                                <div class="error-message" id="first_name-error"></div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label" for="last_name">Last Name</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-input" name="last_name" id="last_name" placeholder="Doe" required>
+                                </div>
+                                <div class="error-message" id="last_name-error"></div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label">Mobile Number</label>
+                                <div class="mobile-row">
+                                    <div class="mobile-left">
+                                        <div class="input-group">
+                                            <input type="text" class="form-input" value="+60" readonly>
+                                        </div>
+                                    </div>
+                                    <div class="mobile-right">
+                                        <div class="input-group">
+                                            <input type="text" class="form-input" name="phone" placeholder="123456789" required>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="error-message" id="phone-error"></div>
+                            </div>
+
+                            <div class="mb-4 password-group">
+                                <label class="form-label" for="password">Password</label>
+                                <div class="input-group">
+                                    <img src="../images/padlock.png" alt="Lock" class="input-icon">
+                                    <input type="password" class="form-input" name="password" id="password" placeholder="••••••••" style="padding-right: 3rem;" required>
+                                    <img src="../images/show.png" id="togglePassword" class="password-toggle" alt="Show Password">
+                                </div>
+                                <div class="password-hint">
+                                    <ul>
+                                        <li>Min. of 8 characters</li>
+                                        <li>Mixed letter cases</li>
+                                        <li>1 digit</li>
+                                        <li>1 special character</li>
+                                    </ul>
+                                </div>
+                                <div class="error-message" id="password-error"></div>
+                            </div>
+
+                            <div class="mb-6">
+                                <label class="form-label" for="confirm_password">Confirm Password</label>
+                                <div class="input-group">
+                                    <img src="../images/padlock.png" alt="Lock" class="input-icon">
+                                    <input type="password" class="form-input" name="confirm_password" id="confirm_password" placeholder="••••••••" style="padding-right: 3rem;" required>
+                                    <img src="../images/show.png" id="toggleConfirmPassword" class="password-toggle" alt="Show Password">
+                                </div>
+                                <div class="error-message" id="confirm_password-error"></div>
+                            </div>
+
+                            <div class="mb-6">
+                                <label class="form-label">Date of Birth</label>
+                                <div class="dob-row" id="dob-row">
+                                    <div class="ck-select" data-placeholder="Day">
+                                        <div class="ck-selected">Day</div>
+                                        <input type="hidden" name="dob_day" class="ck-hidden-input" required>
+                                        <div class="ck-options" id="ck-day-options"></div>
+                                    </div>
+                                    <div class="ck-select" data-placeholder="Month">
+                                        <div class="ck-selected">Month</div>
+                                        <input type="hidden" name="dob_month" class="ck-hidden-input" required>
+                                        <div class="ck-options">
+                                            <div class="ck-option" data-value="01">January</div>
+                                            <div class="ck-option" data-value="02">February</div>
+                                            <div class="ck-option" data-value="03">March</div>
+                                            <div class="ck-option" data-value="04">April</div>
+                                            <div class="ck-option" data-value="05">May</div>
+                                            <div class="ck-option" data-value="06">June</div>
+                                            <div class="ck-option" data-value="07">July</div>
+                                            <div class="ck-option" data-value="08">August</div>
+                                            <div class="ck-option" data-value="09">September</div>
+                                            <div class="ck-option" data-value="10">October</div>
+                                            <div class="ck-option" data-value="11">November</div>
+                                            <div class="ck-option" data-value="12">December</div>
+                                        </div>
+                                    </div>
+                                    <div class="ck-select" data-placeholder="Year">
+                                        <div class="ck-selected">Year</div>
+                                        <input type="hidden" name="dob_year" class="ck-hidden-input" required>
+                                        <div class="ck-options" id="ck-year-options"></div>
+                                    </div>
+                                </div>
+                                <div class="error-message" id="dob-error"></div>
+                            </div>
+
+                            <button type="submit" class="btn-primary">Create Account</button>
+                            
+                            <div style="margin-top: 1rem;">
+                                <a href="#" class="btn-cancel" id="cancel-registration-btn">Cancel Registration</a>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="mt-6 text-center link-muted">
+                        Already have an account? <a href="login.php" class="link-primary">Login here</a>
+                    </div>
+
+                    <div class="form-footer-actions">
+                        <a href="home.php" class="footer-link muted-link">
+                            <span class="icon-arrow">←</span> Back to Home
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+
     <?php include '../include/footer.php'; ?>
 
-
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
+        // OTP Input Auto-focus
+        document.querySelectorAll('.otp-input').forEach((input, index) => {
+            input.addEventListener('input', function(e) {
+                if (this.value.length === 1 && index < 5) {
+                    document.getElementById('otp' + (index + 2)).focus();
+                }
+            });
+            
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Backspace' && this.value === '' && index > 0) {
+                    document.getElementById('otp' + index).focus();
+                }
+            });
+        });
 
-            // --- 1. SETUP (Populate Days and Years, Custom Select Logic) ---
-            // (This section remains largely the same)
+        // Send OTP
+        function sendOTP() {
+            const email = document.getElementById('email-input').value.trim();
+            const emailError = document.getElementById('email-error');
+            
+            if (!email) {
+                emailError.textContent = 'Please enter your email address.';
+                return;
+            }
+            
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                emailError.textContent = 'Invalid email format.';
+                return;
+            }
+            
+            emailError.textContent = '';
+            document.getElementById('send-otp-btn').disabled = true;
+            document.getElementById('send-otp-btn').textContent = 'Sending...';
+            
+            $.ajax({
+                url: 'send_otp.php',
+                type: 'POST',
+                data: { email: email },
+                dataType: 'json',
+                success: function(response) {
+                    if (response.success) {
+                        document.getElementById('otp-section').style.display = 'block';
+                        document.getElementById('otp-email-display').textContent = email;
+                        document.getElementById('email-input').disabled = true;
+                        
+                        // Start countdown
+                        startCountdown(180);
+                        
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Code Sent!',
+                            text: response.message || 'Please check your email for the verification code.',
+                            timer: 3000,
+                            showConfirmButton: false
+                        });
+                    } else {
+                        Swal.fire('Error', response.message || 'Failed to send verification code. Please try again.', 'error');
+                    }
+                    document.getElementById('send-otp-btn').disabled = false;
+                    document.getElementById('send-otp-btn').textContent = 'Send Verification Code';
+                },
+                error: function(xhr, status, error) {
+                    console.error('AJAX Error:', status, error);
+                    console.error('Response:', xhr.responseText);
+                    
+                    let errorMsg = 'Failed to send code. ';
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.message) {
+                            errorMsg = response.message;
+                        }
+                        if (response.error) {
+                            console.error('Server Error:', response.error);
+                        }
+                    } catch (e) {
+                        errorMsg += 'Please check browser console and server logs for details.';
+                    }
+                    
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: errorMsg,
+                        confirmButtonText: 'OK'
+                    });
+                    
+                    document.getElementById('send-otp-btn').disabled = false;
+                    document.getElementById('send-otp-btn').textContent = 'Send Verification Code';
+                }
+            });
+        }
 
-            // Populate Days (1-31)
+        // Verify OTP
+        function verifyOTP() {
+            const otp = document.getElementById('otp1').value +
+                       document.getElementById('otp2').value +
+                       document.getElementById('otp3').value +
+                       document.getElementById('otp4').value +
+                       document.getElementById('otp5').value +
+                       document.getElementById('otp6').value;
+            
+            if (otp.length !== 6) {
+                Swal.fire('Error', 'Please enter the complete 6-digit code.', 'error');
+                return;
+            }
+            
+            document.getElementById('verify-otp-btn').disabled = true;
+            document.getElementById('verify-otp-btn').textContent = 'Verifying...';
+            
+            $.ajax({
+                url: 'verify_otp.php',
+                type: 'POST',
+                data: { otp: otp },
+                dataType: 'json',
+                success: function(response) {
+                    if (response.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Email Verified!',
+                            text: 'Please complete your registration.',
+                            timer: 2000,
+                            showConfirmButton: false
+                        }).then(() => {
+                            window.location.reload();
+                        });
+                    } else {
+                        Swal.fire('Error', response.message, 'error');
+                        // Clear OTP inputs
+                        for (let i = 1; i <= 6; i++) {
+                            document.getElementById('otp' + i).value = '';
+                        }
+                        document.getElementById('otp1').focus();
+                    }
+                    document.getElementById('verify-otp-btn').disabled = false;
+                    document.getElementById('verify-otp-btn').textContent = 'Verify Code';
+                },
+                error: function() {
+                    Swal.fire('Error', 'Verification failed. Please try again.', 'error');
+                    document.getElementById('verify-otp-btn').disabled = false;
+                    document.getElementById('verify-otp-btn').textContent = 'Verify Code';
+                }
+            });
+        }
+
+        // Countdown Timer
+        function startCountdown(seconds) {
+            const countdownEl = document.getElementById('countdown');
+            const countdownText = document.getElementById('countdown-text');
+            const resendLink = document.getElementById('resend-link');
+            
+            countdownText.style.display = 'inline';
+            resendLink.style.pointerEvents = 'none';
+            resendLink.style.opacity = '0.5';
+            
+            let remaining = seconds;
+            countdownEl.textContent = remaining;
+            
+            const timer = setInterval(() => {
+                remaining--;
+                countdownEl.textContent = remaining;
+                
+                if (remaining <= 0) {
+                    clearInterval(timer);
+                    countdownText.style.display = 'none';
+                    resendLink.style.pointerEvents = 'auto';
+                    resendLink.style.opacity = '1';
+                }
+            }, 1000);
+        }
+
+        // Step 2: Custom Select and Form Validation (same as before)
+        document.addEventListener('DOMContentLoaded', function() {
+            // Populate Days and Years
             const dayOptions = document.getElementById('ck-day-options');
-            let dayHtml = '';
-            for (let i = 1; i <= 31; i++) {
-                const dayValue = i < 10 ? `0${i}` : `${i}`;
-                dayHtml += `<div class="ck-option" data-value="${dayValue}">${i}</div>`;
+            if (dayOptions) {
+                let dayHtml = '';
+                for (let i = 1; i <= 31; i++) {
+                    const dayValue = i < 10 ? `0${i}` : `${i}`;
+                    dayHtml += `<div class="ck-option" data-value="${dayValue}">${i}</div>`;
+                }
+                dayOptions.innerHTML = dayHtml;
             }
-            if (dayOptions) dayOptions.innerHTML = dayHtml;
 
-            // Populate Years (Current Year down to 1900)
             const yearOptions = document.getElementById('ck-year-options');
-            let yearHtml = '';
-            for (let y = new Date().getFullYear(); y >= 1900; y--) {
-                yearHtml += `<div class="ck-option" data-value="${y}">${y}</div>`;
+            if (yearOptions) {
+                let yearHtml = '';
+                for (let y = new Date().getFullYear(); y >= 1900; y--) {
+                    yearHtml += `<div class="ck-option" data-value="${y}">${y}</div>`;
+                }
+                yearOptions.innerHTML = yearHtml;
             }
-            if (yearOptions) yearOptions.innerHTML = yearHtml;
 
-
-            // Initialize Custom Select Logic (ck-select)
+            // Custom Select Logic
             document.querySelectorAll('.ck-select').forEach(select => {
                 const selected = select.querySelector('.ck-selected');
                 const optionsBox = select.querySelector('.ck-options');
@@ -641,52 +1096,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     hiddenInput.value = value;
                     selected.textContent = text;
                     selected.style.color = 'var(--text-dark)';
-
-                    select.querySelectorAll('.ck-option').forEach(o => o.classList.remove('selected'));
-                    select.querySelector(`.ck-option[data-value="${value}"]`)?.classList.add('selected');
                 };
-
-                // Handle pre-selected values (for sticky form on error)
-                if (hiddenInput.value) {
-                    let selectedOption = select.querySelector(`.ck-option[data-value="${hiddenInput.value}"]`);
-                    if (selectedOption) {
-                        setSelectedValue(hiddenInput.value, selectedOption.textContent);
-                    } else {
-                        if (select.getAttribute('data-placeholder') === 'Month') {
-                            const monthMap = {
-                                '01': 'January',
-                                '02': 'February',
-                                '03': 'March',
-                                '04': 'April',
-                                '05': 'May',
-                                '06': 'June',
-                                '07': 'July',
-                                '08': 'August',
-                                '09': 'September',
-                                '10': 'October',
-                                '11': 'November',
-                                '12': 'December'
-                            };
-                            selected.textContent = monthMap[hiddenInput.value] || placeholder;
-                            selected.style.color = monthMap[hiddenInput.value] ? 'var(--text-dark)' : '#7a7a7a';
-                        } else {
-                            selected.textContent = hiddenInput.value;
-                            selected.style.color = 'var(--text-dark)';
-                        }
-                    }
-                } else {
-                    selected.textContent = placeholder;
-                    selected.style.color = '#7a7a7a';
-                }
 
                 select.addEventListener('click', (e) => {
                     const isOpen = optionsBox.style.display === 'block';
                     document.querySelectorAll('.ck-options').forEach(opt => opt.style.display = 'none');
-                    document.querySelectorAll('.ck-select').forEach(sel => sel.classList.remove('active'));
-
                     optionsBox.style.display = isOpen ? 'none' : 'block';
-                    if (!isOpen) select.classList.add('active');
-
                     e.stopPropagation();
                 });
 
@@ -694,17 +1109,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     option.onclick = (e) => {
                         const value = option.getAttribute('data-value') || option.textContent;
                         setSelectedValue(value, option.textContent);
-
                         optionsBox.style.display = 'none';
-                        select.classList.remove('active');
-
-                        // *** ADD THIS LINE TO STOP THE CLICK FROM REOPENING THE BOX ***
-                        if (e) e.stopPropagation();
-
-                        // --- Validation logic ---
-                        if (form.classList.contains('submitted')) {
-                            checkSpecificField(hiddenInput);
-                        }
+                        e.stopPropagation();
                     };
                 });
             });
@@ -712,240 +1118,145 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             document.addEventListener('click', e => {
                 if (!e.target.closest('.ck-select')) {
                     document.querySelectorAll('.ck-options').forEach(opt => opt.style.display = 'none');
-                    document.querySelectorAll('.ck-select').forEach(sel => sel.classList.remove('active'));
                 }
             });
 
-            // --- 2. VALIDATION UTILITIES ---
+            // Profile Image Preview
+            const profileImageInput = document.getElementById('profile_image');
+            const profilePreview = document.getElementById('profile-preview-img');
+            const profilePlaceholder = document.getElementById('profile-placeholder');
+            const btnRemoveImage = document.getElementById('btn-remove-image');
+            const profileImageError = document.getElementById('profile-image-error');
 
+            if (profileImageInput) {
+                profileImageInput.addEventListener('change', function(e) {
+                    const file = e.target.files[0];
+                    profileImageError.textContent = '';
+
+                    if (file) {
+                        // Validate file type
+                        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+                        if (!allowedTypes.includes(file.type)) {
+                            profileImageError.textContent = 'Please upload JPG, PNG, or GIF files only.';
+                            profileImageInput.value = '';
+                            return;
+                        }
+
+                        // Validate file size (5MB)
+                        if (file.size > 5000000) {
+                            profileImageError.textContent = 'Image file is too large. Maximum size is 5MB.';
+                            profileImageInput.value = '';
+                            return;
+                        }
+
+                        // Show preview
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            profilePreview.src = e.target.result;
+                            profilePreview.style.display = 'block';
+                            profilePlaceholder.style.display = 'none';
+                            btnRemoveImage.style.display = 'inline-block';
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+            }
+
+            // Remove Profile Image
+            window.removeProfileImage = function() {
+                if (profileImageInput) profileImageInput.value = '';
+                if (profilePreview) {
+                    profilePreview.src = '';
+                    profilePreview.style.display = 'none';
+                }
+                if (profilePlaceholder) profilePlaceholder.style.display = 'flex';
+                if (btnRemoveImage) btnRemoveImage.style.display = 'none';
+                if (profileImageError) profileImageError.textContent = '';
+            };
+
+            // Form Validation (Step 2)
             const form = document.getElementById('registration-form');
-            let hasSubmitted = false; // Tracks if the form has ever been submitted and failed
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    // Basic validation - you can add more if needed
+                    const password = document.querySelector('[name="password"]').value;
+                    const confirmPassword = document.querySelector('[name="confirm_password"]').value;
+                    
+                    if (password !== confirmPassword) {
+                        e.preventDefault();
+                        Swal.fire('Error', 'Passwords do not match.', 'error');
+                        return false;
+                    }
 
-            const displayError = (field, message, isSelect = false) => {
-                const errorDiv = document.getElementById(`${field}-error`);
-                const input = document.querySelector(`[name="${field}"]`);
-
-                if (errorDiv) {
-                    errorDiv.textContent = message;
-                }
-
-                if (isSelect) {
-                    const dobRow = document.getElementById('dob-row');
-                    if (dobRow) {
-                        if (message) {
-                            dobRow.classList.add('error-border');
-                        } else {
-                            dobRow.classList.remove('error-border');
+                    // Validate image if selected
+                    if (profileImageInput && profileImageInput.files[0]) {
+                        const imageFile = profileImageInput.files[0];
+                        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+                        if (!allowedTypes.includes(imageFile.type)) {
+                            e.preventDefault();
+                            Swal.fire('Error', 'Please upload JPG, PNG, or GIF files only.', 'error');
+                            return false;
+                        }
+                        if (imageFile.size > 5000000) {
+                            e.preventDefault();
+                            Swal.fire('Error', 'Image file is too large. Maximum size is 5MB.', 'error');
+                            return false;
                         }
                     }
-                } else if (field === 'gender') {
-                    const genderGroup = document.getElementById('gender-group');
-                    if (genderGroup) {
-                        if (message) {
-                            genderGroup.style.border = '1px solid var(--danger-color)';
-                            genderGroup.style.borderRadius = '0.5rem';
-                            genderGroup.style.padding = '5px';
-                        } else {
-                            genderGroup.style.border = 'none';
-                            genderGroup.style.padding = '0';
-                        }
-                    }
-                } else if (input) {
-                    if (message) {
-                        input.classList.add('error-border');
+                });
+            }
+
+            // Password toggle for Step 2
+            const togglePassword = document.querySelector('#togglePassword');
+            const password = document.querySelector('#password');
+            if (togglePassword && password) {
+                togglePassword.addEventListener('click', function(e) {
+                    const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+                    password.setAttribute('type', type);
+                    if (type === 'text') {
+                        this.src = '../images/hide.png';
                     } else {
-                        input.classList.remove('error-border');
+                        this.src = '../images/show.png';
                     }
-                }
-                return !!message; // Returns true if there is an error message
-            };
+                });
+            }
 
-            const validatePassword = (password) => {
-                let errors = [];
-                if (password.length < 8) errors.push("Min. of 8 characters");
-                if (!/(?=.*[a-z])(?=.*[A-Z])/.test(password)) errors.push("Mixed letter cases");
-                if (!/(?=.*\d)/.test(password)) errors.push("1 digit");
-                if (!/(?=.*[^A-Za-z0-9])/.test(password)) errors.push("1 special character");
-                return errors;
-            };
-
-            // Function to check a single field or group
-            const checkSpecificField = (inputElement) => {
-                const fieldName = inputElement.name;
-                const value = inputElement.value ? inputElement.value.trim() : '';
-                let errorMessage = '';
-
-                // 1. Gender (special handling for group)
-                if (fieldName === 'gender') {
-                    if (!form.querySelector('[name="gender"]:checked')) {
-                        errorMessage = 'Please select your gender.';
-                    }
-                    displayError('gender', errorMessage, false);
-                    return !errorMessage;
-
-                    // 2. First/Last Name
-                } else if (fieldName === 'first_name' || fieldName === 'last_name') {
-                    if (value === '') {
-                        errorMessage = `${fieldName.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} is required.`;
-                    }
-                    displayError(fieldName, errorMessage, false);
-                    return !errorMessage;
-
-                    // 3. Email
-                } else if (fieldName === 'email') {
-                    if (value === '') {
-                        errorMessage = 'Email is required.';
-                    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-                        errorMessage = 'Invalid email format (e.g., user@domain.com).';
-                    }
-                    displayError('email', errorMessage, false);
-                    return !errorMessage;
-
-                    // 4. Phone
-                } else if (fieldName === 'phone') {
-                    if (value === '') {
-                        errorMessage = 'Mobile number is required.';
-                    } else if (!/^\d{7,15}$/.test(value)) {
-                        errorMessage = 'Invalid mobile number format (digits only).';
-                    }
-                    displayError('phone', errorMessage, false);
-                    return !errorMessage;
-
-                    // 5. Password
-                } else if (fieldName === 'password') {
-                    const passwordErrors = validatePassword(value);
-                    if (value === '') {
-                        errorMessage = 'Password is required.';
-                    } else if (passwordErrors.length > 0) {
-                        errorMessage = 'Password is too weak. Must meet criteria: ' + passwordErrors.join(', ');
-                    }
-                    displayError('password', errorMessage, false);
-                    // Also re-check confirm password if password is changed
-                    checkSpecificField(form.querySelector('[name="confirm_password"]'));
-                    return !errorMessage;
-
-                    // 6. Confirm Password
-                } else if (fieldName === 'confirm_password') {
-                    const password = form.querySelector('[name="password"]').value;
-                    if (value === '') {
-                        errorMessage = 'Confirm password is required.';
-                    } else if (password !== value) {
-                        errorMessage = 'Passwords do not match.';
-                    }
-                    displayError('confirm_password', errorMessage, false);
-                    return !errorMessage;
-
-                    // 7. DOB (Need to check all three inputs together)
-                } else if (fieldName === 'dob_day' || fieldName === 'dob_month' || fieldName === 'dob_year') {
-                    const day = form.querySelector('[name="dob_day"]').value;
-                    const month = form.querySelector('[name="dob_month"]').value;
-                    const year = form.querySelector('[name="dob_year"]').value;
-
-                    if (!day || !month || !year) {
-                        errorMessage = 'Please select a complete Date of Birth.';
+            const toggleConfirmPassword = document.querySelector('#toggleConfirmPassword');
+            const confirmPassword = document.querySelector('#confirm_password');
+            if (toggleConfirmPassword && confirmPassword) {
+                toggleConfirmPassword.addEventListener('click', function(e) {
+                    const type = confirmPassword.getAttribute('type') === 'password' ? 'text' : 'password';
+                    confirmPassword.setAttribute('type', type);
+                    if (type === 'text') {
+                        this.src = '../images/hide.png';
                     } else {
-                        const dateStr = `${year}-${month}-${day}`;
-                        const dob = new Date(dateStr);
-                        if (isNaN(dob.getTime()) || dob.getDate() != parseInt(day) || dob.getMonth() + 1 != parseInt(month)) {
-                            errorMessage = 'Invalid calendar date selected (e.g., February 30).';
-                        } else if (dob > new Date()) {
-                            errorMessage = "Date of Birth cannot be in the future.";
-                        }
-                    }
-                    displayError('dob', errorMessage, true);
-                    return !errorMessage;
-                }
-                return true;
-            };
-
-
-            // --- 3. CORE SUBMISSION LOGIC (Checks ALL fields) ---
-
-            const runValidation = (e) => {
-                let isValid = true;
-
-                // 1. Set the flag: the form has been submitted and validation is now active.
-                form.classList.add('submitted');
-
-                // 2. Clear all previous errors (before running checks)
-                document.querySelectorAll('.error-message').forEach(el => el.textContent = '');
-                document.querySelectorAll('.form-input-float').forEach(el => el.classList.remove('error-border'));
-                document.getElementById('dob-row').classList.remove('error-border');
-                document.getElementById('gender-group').style.border = 'none';
-                document.getElementById('gender-group').style.padding = '0';
-
-                // 3. Run all specific field checks
-                // Check all floating inputs
-                document.querySelectorAll('.form-input-float').forEach(input => {
-                    // Pass the input element to checkSpecificField
-                    if (!checkSpecificField(input)) {
-                        isValid = false;
+                        this.src = '../images/show.png';
                     }
                 });
-
-                // Check Gender
-                if (!checkSpecificField(form.querySelector('[name="gender"]'))) {
-                    isValid = false;
-                }
-
-                // Check DOB (checkSpecificField handles the three parts)
-                if (!checkSpecificField(form.querySelector('[name="dob_day"]'))) {
-                    isValid = false;
-                }
-
-                if (e && e.preventDefault && !isValid) {
-                    e.preventDefault(); // Stop the form from submitting on button click
-                }
-
-                return isValid;
-            };
-
-
-            // --- 4. ATTACH LISTENERS ---
-
-            // A. Submit Listener (Main Trigger)
-            form.addEventListener('submit', runValidation);
-
-            // B. Fix-to-Clear Listeners (Micro-Validation)
-            // Run single field validation, but only if the form has been submitted and failed once.
-
-            // Floating Inputs (Text, Email, Phone, Password)
-            document.querySelectorAll('.form-input-float').forEach(input => {
-                input.addEventListener('input', () => {
-                    if (form.classList.contains('submitted')) {
-                        checkSpecificField(input);
-                    }
-                });
-            });
-
-            // Radio Buttons (Gender)
-            document.querySelectorAll('[name="gender"]').forEach(radio => {
-                radio.addEventListener('change', () => {
-                    if (form.classList.contains('submitted')) {
-                        checkSpecificField(radio);
-                    }
-                });
-            });
-
-            // Password hint show/hide logic
-            document.querySelectorAll('.form-input-float[name="password"]').forEach(input => {
-                const hint = input.closest('.password-group').querySelector('.password-hint');
-
-                input.addEventListener('focus', () => {
-                    if (hint) hint.style.display = 'block';
-                });
-
-                input.addEventListener('blur', () => {
-                    setTimeout(() => {
-                        if (hint && !input.closest('.password-group').querySelector(':focus')) {
-                            hint.style.display = 'none';
-                        }
-                    }, 100);
-                });
-            });
+            }
         });
+
+        // Confirm Cancel Registration
+        const cancelBtn = document.getElementById('cancel-registration-btn');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                Swal.fire({
+                    title: 'Cancel Registration?',
+                    text: 'Are you sure you want to cancel? Your email verification will be reset and you\'ll need to verify again.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc2626',
+                    cancelButtonColor: '#6b7280',
+                    confirmButtonText: 'Yes, Cancel',
+                    cancelButtonText: 'No, Continue'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        window.location.href = '?cancel=true';
+                    }
+                });
+            });
+        }
     </script>
-
 </body>
-
 </html>

@@ -41,9 +41,7 @@ if ($loggedIn) {
         $stmt->execute([$member_id]);
         $row = $stmt->fetch();
         if ($row && !empty($row['image'])) {
-            // 这里使用了 product_utils 里的函数，或者直接用路径
-            // 假设头像存的是相对路径
-            $userAvatar = $row['image'];
+            $userAvatar = '../' . $row['image'];
         }
     } catch (PDOException $e) { /* Ignore */
     }

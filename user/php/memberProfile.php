@@ -327,8 +327,11 @@ if (isset($pdo)) {
         <aside>
             <div class="card-box">
                 <div class="user-brief">
-                    <?php if (!empty($member['image']) && file_exists($member['image'])): ?>
-                        <img src="<?php echo htmlspecialchars($member['image']); ?>?v=<?php echo time(); ?>" class="user-avatar">
+                    <?php 
+                    $image_path = !empty($member['image']) ? '../' . $member['image'] : '';
+                    $image_exists = !empty($image_path) && file_exists($image_path);
+                    if ($image_exists): ?>
+                        <img src="<?php echo htmlspecialchars($image_path); ?>?v=<?php echo time(); ?>" class="user-avatar">
                     <?php else: ?>
                         <div class="user-avatar"><?php echo strtoupper(substr($member['full_name'] ?? 'U', 0, 1)); ?></div>
                     <?php endif; ?>
@@ -588,7 +591,7 @@ if (isset($pdo)) {
                         <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
 
                         <div class="profile-upload-area">
-                            <img id="previewImg" src="<?php echo !empty($member['image']) ? htmlspecialchars($member['image']) . '?v=' . time() : '../images/user_placeholder.png'; ?>" class="profile-preview-lg">
+                            <img id="previewImg" src="<?php echo !empty($member['image']) ? htmlspecialchars('../' . $member['image']) . '?v=' . time() : '../images/user_placeholder.png'; ?>" class="profile-preview-lg">
                             <div class="upload-btn-wrapper" id="uploadWrapper" style="display:none;">
                                 <label for="fileInput" class="btn-upload-label">Change Photo</label>
                                 <input type="file" name="profile_image" id="fileInput" style="display:none;" onchange="handleFileSelect(this)" accept="image/*">
