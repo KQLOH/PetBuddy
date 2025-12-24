@@ -48,6 +48,8 @@ if (!$product) {
 }
 
 /* image path */
+$image = trim((string)$product['image']);
+
 $product['image_path'] = $product['image']
     ? '../../user/php/' . ltrim($product['image'], '/')
     : 'https://via.placeholder.com/140?text=No+Image';

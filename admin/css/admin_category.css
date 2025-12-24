@@ -1,0 +1,129 @@
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.no-data {
+    text-align: center;
+    color: #777;
+    padding: 20px;
+}
+
+.actions {
+    display: flex;
+    gap: 10px;
+}
+
+/* ===== Modal ===== */
+.modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+}
+
+.modal.hidden {
+    display: none;
+}
+
+.modal-box {
+    background: #fff;
+    border-radius: 18px;
+    padding: 26px 30px;
+    width: 420px;
+    box-shadow: 0 20px 50px rgba(0,0,0,.2);
+}
+
+.modal-large {
+    width: 520px;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 22px;
+    cursor: pointer;
+}
+
+.modal-body label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #777;
+}
+
+.modal-body p {
+    font-size: 14px;
+    margin-top: 2px;
+}
+
+/* ===== Forms ===== */
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2,1fr);
+    gap: 16px;
+}
+
+.form-grid .full {
+    grid-column: 1 / -1;
+}
+
+input, textarea {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1px solid #ddd;
+}
+
+textarea {
+    min-height: 90px;
+}
+
+/* ===== Buttons ===== */
+.btn-primary {
+    background: linear-gradient(135deg,#F4A261,#E68E3F);
+    color: #fff;
+    border: none;
+    padding: 10px 26px;
+    border-radius: 999px;
+    font-weight: 700;
+}
+
+.btn-secondary {
+    border: 1px solid #ccc;
+    background: #fff;
+    padding: 10px 20px;
+    border-radius: 999px;
+    color: #555;
+}
+
+.btn-danger {
+    background: #d32f2f;
+    color: #fff;
+    border: none;
+    padding: 10px 22px;
+    border-radius: 999px;
+    font-weight: 700;
+}
+
+/* ===== Detail Grid ===== */
+.detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2,1fr);
+    gap: 16px;
+}
+
+.detail-grid .full {
+    grid-column: 1 / -1;
+}

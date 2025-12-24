@@ -2,9 +2,6 @@
 session_start();
 require_once '../../user/include/db.php';
 
-/* =======================
-   AUTH
-======================= */
 if (
     empty($_SESSION['role']) ||
     !in_array($_SESSION['role'], ['admin', 'super_admin'], true)
@@ -14,29 +11,18 @@ if (
 }
 
 $adminRole = $_SESSION['role'];
-
-/* =======================
-   FILTERS
-======================= */
 $search = trim($_GET['search'] ?? '');
 $categoryFilter = $_GET['category_id'] ?? 'all';
 $subCategoryFilter = $_GET['sub_category_id'] ?? 'all';
-
-/* Pagination */
 $limit = 12;
 $page  = max(1, (int)($_GET['p'] ?? 1));
 $offset = ($page - 1) * $limit;
-
-/* =======================
-   Load Categories & Subcategories
-======================= */
 $categories = [];
 $subCategories = [];
 
 try {
     $categories = $pdo->query("SELECT category_id, name FROM product_categories ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
 
-    // sub-categories can be optionally filtered by category
     if ($categoryFilter !== 'all' && ctype_digit((string)$categoryFilter)) {
         $stmt = $pdo->prepare("SELECT sub_category_id, name FROM sub_categories WHERE category_id = ? ORDER BY name");
         $stmt->execute([(int)$categoryFilter]);
@@ -45,12 +31,8 @@ try {
         $subCategories = $pdo->query("SELECT sub_category_id, name FROM sub_categories ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
     }
 } catch (Throwable $e) {
-    // ignore UI dropdown failure
 }
 
-/* =======================
-   QUERY products (with category name)
-======================= */
 $where = [];
 $params = [];
 
@@ -88,7 +70,6 @@ if ($totalPages > 0 && $page > $totalPages) {
     $offset = ($page - 1) * $limit;
 }
 
-/* Main fetch */
 $sql = "
     SELECT
         p.product_id,
@@ -110,7 +91,6 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-/* Helper: keep query params */
 function q(array $extra = [])
 {
     $base = $_GET;
@@ -118,15 +98,12 @@ function q(array $extra = [])
     return http_build_query($base);
 }
 
-/* Resolve image path
-   Your DB may store: uploads/xxx.jpg
-   product_list.php is in: admin/php/
-   So show from: ../../user/php/uploads/xxx.jpg  (same pattern as member image)
-*/
 function productImageUrl(?string $dbPath): string
 {
-    if (!$dbPath) return 'https://via.placeholder.com/72?text=No+Image';
-    $dbPath = ltrim($dbPath, '/');
+    if (!$dbPath) {
+        return 'https://via.placeholder.com/72?text=No+Image';
+    }
+
     return '../../user/php/' . $dbPath;
 }
 ?>
@@ -302,7 +279,6 @@ function productImageUrl(?string $dbPath): string
         </main>
     </div>
 
-    <!-- Delete Modal -->
     <div id="deleteModal" class="modal hidden">
         <div class="modal-box">
             <h3 id="modalTitle">Confirm deletion</h3>
@@ -318,7 +294,6 @@ function productImageUrl(?string $dbPath): string
         </div>
     </div>
 
-    <!-- Create Product Modal -->
     <div id="createModal" class="modal hidden">
         <div class="modal-box modal-large">
             <div class="modal-header">
@@ -382,7 +357,6 @@ function productImageUrl(?string $dbPath): string
         </div>
     </div>
 
-    <!-- View Product Modal -->
     <div id="viewModal" class="modal hidden">
         <div class="modal-box modal-large">
             <div class="modal-header">
@@ -398,7 +372,6 @@ function productImageUrl(?string $dbPath): string
         </div>
     </div>
 
-    <!-- Edit Product Modal -->
     <div id="editModal" class="modal hidden">
         <div class="modal-box modal-large">
             <div class="modal-header">
@@ -464,11 +437,8 @@ function productImageUrl(?string $dbPath): string
     </div>
 
     <script>
-        // Sidebar toggle
         document.getElementById('sidebarToggle').onclick = () =>
             document.body.classList.toggle('sidebar-collapsed');
-
-        // Delete Modal
         const deleteModal = document.getElementById('deleteModal');
         const modalMsg = document.getElementById('modalMessage');
         const cancelBtn = document.getElementById('modalCancel');
@@ -487,7 +457,6 @@ function productImageUrl(?string $dbPath): string
             if (e.target === deleteModal) deleteModal.classList.add('hidden');
         };
 
-        // ========== CREATE MODAL ==========
         function openCreateProduct() {
             document.getElementById('createModal').classList.remove('hidden');
             document.getElementById('createForm').reset();
@@ -539,7 +508,6 @@ function productImageUrl(?string $dbPath): string
             if (e.target.id === 'createModal') closeCreateModal();
         };
 
-        // ========== VIEW MODAL ==========
         async function openViewProduct(id) {
             const modal = document.getElementById('viewModal');
             const content = document.getElementById('viewContent');
@@ -612,7 +580,6 @@ function productImageUrl(?string $dbPath): string
             if (e.target.id === 'viewModal') closeViewModal();
         };
 
-        // ========== EDIT MODAL ==========
         async function openEditProduct(id) {
             const modal = document.getElementById('editModal');
             const errorDiv = document.getElementById('editError');
@@ -684,7 +651,6 @@ function productImageUrl(?string $dbPath): string
             if (e.target.id === 'editModal') closeEditModal();
         };
 
-        // Helper function
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
