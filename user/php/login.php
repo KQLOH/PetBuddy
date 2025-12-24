@@ -1,11 +1,17 @@
 <?php
+$lifetime = 0; 
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['remember_me'])) {
+    $lifetime = 30 * 24 * 60 * 60; 
+}
+
+session_set_cookie_params($lifetime, '/');
 session_start();
+
 include '../include/db.php';
 
 $error = '';
 $registration_success_message = '';
 
-// login.php
 if (isset($_GET['registration_success']) && $_GET['registration_success'] === 'true') {
     $registration_success_message = 'Account created successfully! You can now login';
 }
@@ -23,7 +29,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $user = $stmt->fetch();
 
             if ($user && password_verify($password, $user['password_hash'])) {
-
+                // 登录成功，设置 Session 变量
                 $_SESSION['member_id'] = $user['member_id'];
                 $_SESSION['full_name'] = $user['full_name'];
                 $_SESSION['role'] = $user['role'];
@@ -225,6 +231,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         Sign In
                     </button>
 
+                                    <div class="mb-4" style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px;">
+                    <input type="checkbox" name="remember_me" id="remember_me" style="cursor: pointer;">
+                    <label for="remember_me" style="font-size: 0.9rem; color: #666; cursor: pointer;">Remember Me</label>
+                </div>
                 </form>
 
                 <div class="mt-6 text-center link-muted">
