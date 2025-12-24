@@ -1,7 +1,6 @@
 <?php
 session_start();
 require_once '../../user/include/db.php'; 
-require_once '../../user/include/product_utils.php'; 
 
 if (
     empty($_SESSION['role']) ||
@@ -14,25 +13,38 @@ if (
 $adminRole = $_SESSION['role'];
 $adminName = $_SESSION['full_name'] ?? 'Admin';
 
-/* =======================
-   FILTERS
-======================= */
 $search = trim($_GET['search'] ?? '');
 $statusFilter = $_GET['status'] ?? 'all';
 
-/* Pagination */
+$sort = $_GET['sort'] ?? 'order_id';
+$dir  = $_GET['dir'] ?? 'DESC';
+
+$allowedSorts = [
+    'order_id'     => 'o.order_id',
+    'order_date'   => 'o.order_date',
+    'full_name'    => 'm.full_name',
+    'total_amount' => 'o.total_amount',
+    'status'       => 'o.status'
+];
+
+if (!array_key_exists($sort, $allowedSorts)) {
+    $sort = 'order_id';
+}
+$sortSqlColumn = $allowedSorts[$sort];
+
+$dir = strtoupper($dir);
+if (!in_array($dir, ['ASC', 'DESC'])) {
+    $dir = 'DESC';
+}
+
 $limit = 12;
 $page  = max(1, (int)($_GET['p'] ?? 1));
 $offset = ($page - 1) * $limit;
 
-/* =======================
-   QUERY
-======================= */
 $where = [];
 $params = [];
 
 if ($search !== '') {
-    // Search by Order ID, Customer Name, or Email
     $where[] = "(o.order_id LIKE ? OR m.full_name LIKE ? OR m.email LIKE ?)";
     $like = "%{$search}%";
     array_push($params, $like, $like, $like);
@@ -45,7 +57,6 @@ if ($statusFilter !== 'all') {
 
 $whereSql = $where ? ("WHERE " . implode(" AND ", $where)) : "";
 
-/* Count */
 $countSql = "
     SELECT COUNT(*) 
     FROM orders o
@@ -61,7 +72,6 @@ if ($totalPages > 0 && $page > $totalPages) {
     $offset = ($page - 1) * $limit;
 }
 
-/* Main Fetch */
 $sql = "
     SELECT 
         o.order_id,
@@ -73,7 +83,7 @@ $sql = "
     FROM orders o
     JOIN members m ON o.member_id = m.member_id
     {$whereSql}
-    ORDER BY o.order_id DESC
+    ORDER BY {$sortSqlColumn} {$dir}
     LIMIT {$limit} OFFSET {$offset}
 ";
 
@@ -81,11 +91,25 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-/* Helper: URL Query Builder */
 function q(array $extra = []) {
     $base = $_GET;
     foreach ($extra as $k => $v) $base[$k] = $v;
     return http_build_query($base);
+}
+
+function sortLink($columnKey, $label) {
+    global $sort, $dir;
+    
+    $newDir = ($sort === $columnKey && $dir === 'ASC') ? 'DESC' : 'ASC';
+    
+    $icon = '';
+    if ($sort === $columnKey) {
+        $icon = ($dir === 'ASC') ? ' ▲' : ' ▼';
+    }
+    
+    $url = '?' . q(['sort' => $columnKey, 'dir' => $newDir, 'p' => 1]);
+    
+    return '<a href="' . htmlspecialchars($url) . '" class="sort-link">' . $label . $icon . '</a>';
 }
 
 $allStatuses = ['pending', 'paid', 'shipped', 'completed', 'cancelled', 'return_requested', 'returned'];
@@ -99,58 +123,9 @@ $allStatuses = ['pending', 'paid', 'shipped', 'completed', 'cancelled', 'return_
     <title>Orders - PetBuddy Admin</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="../css/admin_product.css">
+    <link rel="stylesheet" href="../css/admin_orders_list.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     
-    <style>
-        /* Specific Styles for Orders (that aren't in product css) */
-        
-        /* Status Pills (matching the shape of product stock pills) */
-        .status-pill {
-            padding: 4px 12px;
-            border-radius: 999px;
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            display: inline-block;
-        }
-        .status-pending { background-color: #FFF4E5; color: #B54708; border: 1px solid #FEDF89; }
-        .status-paid { background-color: #ECFDF3; color: #027A48; border: 1px solid #A6F4C5; }
-        .status-shipped { background-color: #F0F9FF; color: #026AA2; border: 1px solid #B9E6FE; }
-        .status-completed { background-color: #EDF7ED; color: #1E4620; border: 1px solid #C8E6C9; }
-        .status-cancelled { background-color: #FEF3F2; color: #B42318; border: 1px solid #FECDCA; }
-        .status-return_requested { background-color: #F8F9FA; color: #344054; border: 1px solid #D0D5DD; }
-
-        /* Modal Specifics */
-        .modal-large .modal-box { max-width: 700px; width: 90%; }
-        
-        .info-grid { 
-            display: grid; 
-            grid-template-columns: 1fr 1fr; 
-            gap: 24px; 
-            margin-bottom: 24px; 
-            padding-bottom: 24px; 
-            border-bottom: 1px solid #eee; 
-        }
-        .info-group h4 { 
-            font-size: 11px; 
-            color: #667085; 
-            margin-bottom: 8px; 
-            text-transform: uppercase; 
-            font-weight: 700; 
-            letter-spacing: 0.5px;
-        }
-        .info-group p { 
-            margin: 4px 0; 
-            font-size: 14px; 
-            color: #101828; 
-            line-height: 1.5;
-        }
-        
-        .item-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        .item-table th { background: #F9FAFB; text-align: left; padding: 12px; color: #475467; font-weight: 600; border-bottom: 1px solid #EAECF0; }
-        .item-table td { border-bottom: 1px solid #EAECF0; padding: 12px; vertical-align: middle; color: #344054; }
-        .item-thumb { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; margin-right: 12px; border: 1px solid #EAECF0; vertical-align: middle; }
-    </style>
 </head>
 
 <body>
@@ -177,6 +152,9 @@ $allStatuses = ['pending', 'paid', 'shipped', 'completed', 'cancelled', 'return_
             </div>
 
             <form class="filter-bar" method="get">
+                <input type="hidden" name="sort" value="<?= htmlspecialchars($sort) ?>">
+                <input type="hidden" name="dir" value="<?= htmlspecialchars($dir) ?>">
+
                 <select name="status" onchange="this.form.submit()">
                     <option value="all">All Status</option>
                     <?php foreach ($allStatuses as $s): ?>
@@ -199,11 +177,21 @@ $allStatuses = ['pending', 'paid', 'shipped', 'completed', 'cancelled', 'return_
                 <table>
                     <thead>
                         <tr>
-                            <th style="text-align:left;">Order ID</th>
-                            <th style="text-align:left;">Date</th>
-                            <th style="text-align:left;">Customer</th>
-                            <th style="text-align:left;">Total</th>
-                            <th style="text-align:left;">Status</th>
+                            <th style="text-align:left; width:100px;">
+                                <?= sortLink('order_id', 'Order ID') ?>
+                            </th>
+                            <th style="text-align:left;">
+                                <?= sortLink('order_date', 'Date') ?>
+                            </th>
+                            <th style="text-align:left;">
+                                <?= sortLink('full_name', 'Customer') ?>
+                            </th>
+                            <th style="text-align:left;">
+                                <?= sortLink('total_amount', 'Total') ?>
+                            </th>
+                            <th style="text-align:left;">
+                                <?= sortLink('status', 'Status') ?>
+                            </th>
                             <th style="text-align:left;">Action</th>
                         </tr>
                     </thead>
@@ -327,8 +315,19 @@ $allStatuses = ['pending', 'paid', 'shipped', 'completed', 'cancelled', 'return_
         </div>
     </div>
 
+    <div id="customAlert" class="custom-alert-overlay">
+        <div class="custom-alert-box">
+            <div id="customAlertIcon" class="custom-alert-icon"></div>
+            <h3 id="customAlertTitle" class="custom-alert-title"></h3>
+            <p id="customAlertText" class="custom-alert-text"></p>
+            <div id="customAlertButtons" class="custom-alert-buttons">
+                <button id="customAlertCancel" class="btn-alert btn-alert-cancel" style="display:none">Cancel</button>
+                <button id="customAlertConfirm" class="btn-alert btn-alert-confirm">OK</button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // Sidebar toggle
         document.getElementById('sidebarToggle').addEventListener('click', function () {
             document.body.classList.toggle('sidebar-collapsed');
         });
@@ -337,7 +336,44 @@ $allStatuses = ['pending', 'paid', 'shipped', 'completed', 'cancelled', 'return_
             document.getElementById(id).classList.add('hidden');
         }
 
-        // --- View Order Logic ---
+        function showCustomAlert(type, title, text, autoClose = false) {
+            const overlay = document.getElementById('customAlert');
+            const icon = document.getElementById('customAlertIcon');
+            const btnCancel = document.getElementById('customAlertCancel');
+            
+            document.getElementById('customAlertTitle').innerText = title;
+            document.getElementById('customAlertText').innerText = text;
+            
+            icon.className = 'custom-alert-icon';
+            if (type === 'success') {
+                icon.classList.add('icon-success');
+                icon.innerHTML = '✓';
+            } else if (type === 'error') {
+                icon.classList.add('icon-error');
+                icon.innerHTML = '✕';
+            } else {
+                icon.classList.add('icon-confirm');
+                icon.innerHTML = '?';
+            }
+            
+            btnCancel.style.display = 'none';
+            document.getElementById('customAlertConfirm').onclick = closeCustomAlert;
+            
+            overlay.style.display = 'flex';
+            setTimeout(() => overlay.classList.add('show'), 10);
+            
+            if (autoClose) setTimeout(closeCustomAlert, 2000);
+        }
+
+        function closeCustomAlert() {
+            const overlay = document.getElementById('customAlert');
+            overlay.classList.remove('show');
+            setTimeout(() => {
+                overlay.style.display = 'none';
+                document.getElementById('customAlertConfirm').innerText = 'OK';
+            }, 300);
+        }
+
         function openViewOrder(orderId) {
             document.getElementById('viewModal').classList.remove('hidden');
             document.getElementById('viewOrderId').innerText = '#' + orderId;
@@ -403,7 +439,6 @@ $allStatuses = ['pending', 'paid', 'shipped', 'completed', 'cancelled', 'return_
                 });
         }
 
-        // --- Update Status Logic ---
         function openUpdateStatus(orderId, currentStatus) {
             document.getElementById('statusModal').classList.remove('hidden');
             document.getElementById('statusOrderId').value = orderId;
@@ -426,20 +461,20 @@ $allStatuses = ['pending', 'paid', 'shipped', 'completed', 'cancelled', 'return_
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    alert('Order status updated successfully!');
-                    location.reload();
+                    showCustomAlert('success', 'Success', 'Order status updated successfully!');
+                    closeModal('statusModal');
+                    setTimeout(() => location.reload(), 1500);
                 } else {
-                    alert('Error: ' + data.error);
+                    showCustomAlert('error', 'Error', data.error);
                 }
             })
-            .catch(err => alert('System error updating status.'))
+            .catch(err => showCustomAlert('error', 'System Error', 'Could not update status.'))
             .finally(() => {
                 btn.innerText = originalText;
                 btn.disabled = false;
             });
         }
         
-        // Close modal on outside click
         window.onclick = function(event) {
             if (event.target.classList.contains('modal')) {
                 event.target.classList.add('hidden');
