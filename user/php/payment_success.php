@@ -108,6 +108,14 @@ $order_id = intval($_GET['order_id']);
             font-weight: 600;
             font-size: 15px;
             transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        
+        .btn i {
+            margin-right: 8px;
         }
 
         .btn-primary {
@@ -159,10 +167,62 @@ $order_id = intval($_GET['order_id']);
     </p>
 
     <div class="btn-group">
-        <a href="home.php" class="btn btn-primary">Continue Shopping</a>
-        
-        </div>
+        <button id="sendReceiptBtn" class="btn btn-primary" onclick="sendReceipt()">
+            <img src="../images/mail.png" alt="Email" style="width: 18px; height: 18px; margin-right: 8px; vertical-align: middle;"> Send E-Receipt (Email)
+        </button>
+        <a href="download_receipt.php?order_id=<?= $order_id ?>" class="btn btn-primary" style="background: #2196F3; display: flex; align-items: center; justify-content: center;">
+            <img src="../images/pdf.png" alt="PDF" style="width: 18px; height: 18px; margin-right: 8px; vertical-align: middle;"> Download E-Receipt (PDF)
+        </a>
+        <a href="home.php" class="btn btn-secondary" style="display: flex; align-items: center; justify-content: center;">
+            <img src="../images/shopping-bag.png" alt="Shopping" style="width: 18px; height: 18px; margin-right: 8px; vertical-align: middle;"> Continue Shopping
+        </a>
+    </div>
+    
+    <div id="receiptMessage" style="margin-top: 15px; font-size: 14px; display: none;"></div>
 </div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+function sendReceipt() {
+    const btn = document.getElementById('sendReceiptBtn');
+    const messageDiv = document.getElementById('receiptMessage');
+    const originalText = btn.innerHTML;
+    
+    // Disable button and show loading
+    btn.disabled = true;
+    btn.innerHTML = '<img src="../images/mail.png" alt="Email" style="width: 18px; height: 18px; margin-right: 8px; vertical-align: middle; opacity: 0.6;"> Sending...';
+    messageDiv.style.display = 'none';
+    
+    $.ajax({
+        url: 'send_receipt.php',
+        type: 'POST',
+        data: { order_id: <?= $order_id ?> },
+        dataType: 'json',
+        success: function(response) {
+            if (response.success) {
+                btn.innerHTML = '<img src="../images/mail.png" alt="Email" style="width: 18px; height: 18px; margin-right: 8px; vertical-align: middle;"> E-Receipt Sent!';
+                btn.style.background = '#4CAF50';
+                messageDiv.style.display = 'block';
+                messageDiv.style.color = '#4CAF50';
+                messageDiv.innerHTML = '✓ ' + response.message;
+            } else {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                messageDiv.style.display = 'block';
+                messageDiv.style.color = '#D92D20';
+                messageDiv.innerHTML = '✗ ' + response.message;
+            }
+        },
+        error: function() {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            messageDiv.style.display = 'block';
+            messageDiv.style.color = '#D92D20';
+            messageDiv.innerHTML = '✗ Error sending receipt. Please try again.';
+        }
+    });
+}
+</script>
 
 </body>
 </html>

@@ -27,7 +27,7 @@ $saved_addresses = $stmtAddr->fetchAll(PDO::FETCH_ASSOC);
 
 // 4. Determine Initial Field Values
 $prefill = [
-    'first_name' => '', // 这里的 key 保持叫 first_name 以兼容后端，但实际上存的是 Full Name
+    'full_name' => '', // Full Name field
     'phone' => '', 
     'addr1' => '', 'addr2' => '', 
     'postcode' => '', 'city' => '', 'state' => '', 'email' => $user_email
@@ -41,7 +41,7 @@ if (!empty($saved_addresses)) {
     $r_phone = !empty($def['recipient_phone']) ? $def['recipient_phone'] : $user_phone;
 
     // ✨ 修改：不再拆分名字，直接使用完整名字
-    $prefill['first_name'] = $r_name; 
+    $prefill['full_name'] = $r_name; 
     
     $prefill['phone'] = $r_phone;
     $prefill['addr1'] = $def['address_line1'];
@@ -53,7 +53,7 @@ if (!empty($saved_addresses)) {
 // Fallback to Member Profile Data
 else {
     // ✨ 修改：直接使用用户全名
-    $prefill['first_name'] = $user_full_name;
+    $prefill['full_name'] = $user_full_name;
     $prefill['phone'] = $user_phone;
 }
 
@@ -264,7 +264,7 @@ $total = $checkout_subtotal + $shipping_fee;
                 <?php endif; ?>
                 
                 <div class="form-group">
-                    <input type="text" name="first_name" id="f_name" placeholder="Full name" value="<?= htmlspecialchars($prefill['first_name']) ?>" required>
+                    <input type="text" name="full_name" id="f_name" placeholder="Full name" value="<?= htmlspecialchars($prefill['full_name']) ?>" required>
                 </div>
 
                 <div class="form-group">

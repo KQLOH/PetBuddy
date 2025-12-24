@@ -6,6 +6,27 @@ $register_error = "";
 $step = isset($_SESSION['email_verified']) && $_SESSION['email_verified'] ? 2 : 1; // Step 1: Email + OTP, Step 2: Complete Registration
 $verified_email = $_SESSION['verified_email'] ?? '';
 
+// Retrieve form data from session if validation failed
+$form_data = $_SESSION['form_data'] ?? [
+    'gender' => '',
+    'full_name' => '',
+    'phone' => '',
+    'dob_day' => '',
+    'dob_month' => '',
+    'dob_year' => ''
+];
+
+// Retrieve field errors from session
+$field_errors = $_SESSION['field_errors'] ?? [
+    'gender' => '',
+    'full_name' => '',
+    'phone' => '',
+    'password' => '',
+    'confirm_password' => '',
+    'dob' => '',
+    'profile_image' => ''
+];
+
 // Handle Cancel Registration
 if (isset($_GET['cancel']) && $_GET['cancel'] === 'true') {
     unset($_SESSION['email_verified']);
@@ -17,8 +38,7 @@ if (isset($_GET['cancel']) && $_GET['cancel'] === 'true') {
 // Step 2: Complete Registration (after OTP verification)
 if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $gender = $_POST['gender'] ?? '';
-    $first_name = trim($_POST['first_name'] ?? '');
-    $last_name = trim($_POST['last_name'] ?? '');
+    $full_name = trim($_POST['full_name'] ?? '');
     $phone = trim($_POST['phone'] ?? '');
     $password = $_POST['password'] ?? '';
     $confirm_password = $_POST['confirm_password'] ?? '';
@@ -26,7 +46,15 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $dob_month = $_POST['dob_month'] ?? '';
     $dob_year = $_POST['dob_year'] ?? '';
     
-    $full_name = $first_name . ' ' . $last_name;
+    // Store form data for repopulation
+    $form_data = [
+        'gender' => $gender,
+        'full_name' => $full_name,
+        'phone' => $phone,
+        'dob_day' => $dob_day,
+        'dob_month' => $dob_month,
+        'dob_year' => $dob_year
+    ];
     
     // Determine Gender
     $db_gender = null;
@@ -47,21 +75,153 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validation
     $server_side_valid = true;
     
-    if (empty($gender) || empty($first_name) || empty($last_name) || empty($password) || empty($phone)) {
-        $register_error = "Please fill in all required fields.";
+    // Enhanced Email Validation (even though it was verified in Step 1, validate again for security)
+    if (!empty($verified_email)) {
+        if (!filter_var($verified_email, FILTER_VALIDATE_EMAIL)) {
+            $register_error = "Invalid email format. Please verify your email again.";
+            $server_side_valid = false;
+        } else {
+            // Additional email validation checks
+            $emailParts = explode('@', $verified_email);
+            if (count($emailParts) !== 2) {
+                $register_error = "Invalid email format. Please verify your email again.";
+                $server_side_valid = false;
+            } else {
+                $localPart = $emailParts[0];
+                $domain = strtolower($emailParts[1]);
+                
+                // Check local part length (max 64 characters)
+                if (strlen($localPart) > 64) {
+                    $register_error = "Email username is too long. Maximum length is 64 characters.";
+                    $server_side_valid = false;
+                }
+                
+                // Check for consecutive dots
+                if (strpos($verified_email, '..') !== false) {
+                    $register_error = "Invalid email format. Cannot have consecutive dots.";
+                    $server_side_valid = false;
+                }
+                
+                // Check for dot at start or end of local part
+                if (substr($localPart, 0, 1) === '.' || substr($localPart, -1) === '.') {
+                    $register_error = "Invalid email format. Email cannot start or end with a dot.";
+                    $server_side_valid = false;
+                }
+                
+                // Check domain format
+                $domainParts = explode('.', $domain);
+                if (count($domainParts) < 2) {
+                    $register_error = "Invalid email domain. Please check your email address.";
+                    $server_side_valid = false;
+                }
+                
+                // Check TLD (should be at least 2 characters and only letters)
+                $tld = end($domainParts);
+                if (strlen($tld) < 2 || !preg_match('/^[a-zA-Z]+$/', $tld)) {
+                    $register_error = "Invalid email domain. Please check your email address.";
+                    $server_side_valid = false;
+                }
+                
+                // Check for common typos in email domains
+                $commonTypos = [
+                    'gmali.com' => 'gmail.com',
+                    'gmal.com' => 'gmail.com',
+                    'gmial.com' => 'gmail.com',
+                    'gmaill.com' => 'gmail.com',
+                    'gmai.com' => 'gmail.com',
+                    'hotmial.com' => 'hotmail.com',
+                    'hotmai.com' => 'hotmail.com',
+                    'hotmali.com' => 'hotmail.com',
+                    'yahooo.com' => 'yahoo.com',
+                    'yaho.com' => 'yahoo.com',
+                    'outlok.com' => 'outlook.com'
+                ];
+                
+                if (isset($commonTypos[$domain])) {
+                    $register_error = "Did you mean \"" . $commonTypos[$domain] . "\"? Please check your email address.";
+                    $server_side_valid = false;
+                }
+                
+                // Validate against common email providers
+                $validDomains = [
+                    'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'live.com',
+                    'msn.com', 'ymail.com', 'icloud.com', 'me.com', 'mac.com',
+                    'protonmail.com', 'proton.me', 'mail.com', 'aol.com', 'zoho.com',
+                    'gmx.com', 'yandex.com', 'qq.com', '163.com', '126.com',
+                    'sina.com', 'sohu.com', 'rediffmail.com', 'inbox.com', 'fastmail.com'
+                ];
+                
+                if (!in_array($domain, $validDomains)) {
+                    $register_error = "Please use a valid email provider (Gmail, Hotmail, Yahoo, Outlook, iCloud, etc.).";
+                    $server_side_valid = false;
+                }
+                
+                // Check total email length (max 254 characters)
+                if (strlen($verified_email) > 254) {
+                    $register_error = "Email address is too long. Maximum length is 254 characters.";
+                    $server_side_valid = false;
+                }
+            }
+        }
+    } else {
+        $register_error = "Email verification required. Please complete Step 1 first.";
         $server_side_valid = false;
-    } elseif ($password !== $confirm_password) {
-        $register_error = "Passwords do not match.";
-        $server_side_valid = false;
-    } elseif (strlen($password) < 8) {
-        $register_error = "Password must be at least 8 characters long.";
-        $server_side_valid = false;
-    } elseif (!preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/', $password)) {
-        $register_error = "Password must be at least 8 characters long, contain mixed letter cases, 1 digit, and 1 special character.";
-        $server_side_valid = false;
-    } elseif (!$dob) {
-        $register_error = "Please select a valid Date of Birth.";
-        $server_side_valid = false;
+    }
+    
+    // Field-specific validation with error messages
+    if ($server_side_valid) {
+        if (empty($gender)) {
+            $field_errors['gender'] = "Please select your gender.";
+            $server_side_valid = false;
+        }
+        
+        if (empty($full_name)) {
+            $field_errors['full_name'] = "Full name is required.";
+            $server_side_valid = false;
+        } elseif (strlen($full_name) < 2) {
+            $field_errors['full_name'] = "Full name must be at least 2 characters.";
+            $server_side_valid = false;
+        } elseif (strlen($full_name) > 100) {
+            $field_errors['full_name'] = "Full name is too long. Maximum length is 100 characters.";
+            $server_side_valid = false;
+        }
+        
+        if (empty($phone)) {
+            $field_errors['phone'] = "Phone number is required.";
+            $server_side_valid = false;
+        } elseif (!preg_match('/^[0-9]{9,15}$/', preg_replace('/[^0-9]/', '', $phone))) {
+            $field_errors['phone'] = "Please enter a valid phone number (9-15 digits).";
+            $server_side_valid = false;
+        }
+        
+        if (empty($password)) {
+            $field_errors['password'] = "Password is required.";
+            $server_side_valid = false;
+        } elseif (strlen($password) < 8) {
+            $field_errors['password'] = "Password must be at least 8 characters long.";
+            $server_side_valid = false;
+        } elseif (!preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/', $password)) {
+            $field_errors['password'] = "Password must contain: uppercase, lowercase, 1 digit, and 1 special character.";
+            $server_side_valid = false;
+        }
+        
+        if (empty($confirm_password)) {
+            $field_errors['confirm_password'] = "Please confirm your password.";
+            $server_side_valid = false;
+        } elseif ($password !== $confirm_password) {
+            $field_errors['confirm_password'] = "Passwords do not match.";
+            $server_side_valid = false;
+        }
+        
+        if (!$dob) {
+            $field_errors['dob'] = "Please select a valid Date of Birth.";
+            $server_side_valid = false;
+        }
+    }
+    
+    // General error message if any field has error
+    if (!$server_side_valid) {
+        $register_error = "Please correct the errors below and try again.";
     }
     
     // Handle Profile Image Upload
@@ -101,6 +261,18 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     
+    // Set default profile image based on gender if no image was uploaded
+    if ($server_side_valid && $image_path === null) {
+        if ($db_gender === 'male') {
+            $image_path = "images/boy.png";
+        } elseif ($db_gender === 'female') {
+            $image_path = "images/woman.png";
+        } else {
+            // If gender is 'prefer not to say' or other, use boy.png as default fallback
+            $image_path = "images/boy.png";
+        }
+    }
+    
     if ($server_side_valid && !empty($verified_email)) {
         try {
             // Check if email already registered (double check)
@@ -117,8 +289,9 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $pdo->prepare($sql);
                 
                 if ($stmt->execute([$verified_email, $password_hash, $full_name, $phone, $db_gender, $dob, $image_path])) {
-                    // If image was uploaded, rename it with the new member_id
-                    if ($image_path) {
+                    // If image was uploaded (not default image), rename it with the new member_id
+                    // Only rename uploaded images in uploads/ directory, not default images in images/ directory
+                    if ($image_path && strpos($image_path, 'uploads/') === 0) {
                         $new_member_id = $pdo->lastInsertId();
                         $old_path = "../" . $image_path;
                         
@@ -563,10 +736,35 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
             margin-top: 0.25rem;
             margin-bottom: 1rem;
             min-height: 15px;
+            display: block;
         }
 
         .error-border {
             border-color: #e53935 !important;
+        }
+        
+        .input-error {
+            border-color: #e53935 !important;
+            background-color: #fff5f5 !important;
+            box-shadow: 0 0 0 3px rgba(229, 57, 53, 0.1) !important;
+        }
+        
+        .input-error:focus {
+            border-color: #e53935 !important;
+            box-shadow: 0 0 0 3px rgba(229, 57, 53, 0.2) !important;
+        }
+        
+        .ck-select-error {
+            border-color: #e53935 !important;
+            background-color: #fff5f5 !important;
+        }
+        
+        .ck-select-error:hover {
+            border-color: #e53935 !important;
+        }
+        
+        .salutation-group:has(input:invalid) + .error-message {
+            display: block;
         }
 
         .verified-email-display {
@@ -755,38 +953,30 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <div class="image-upload-hint">
                                         JPG, PNG or GIF. Max size 5MB.
                                     </div>
-                                    <div class="error-message" id="profile-image-error"></div>
+                                    <div class="error-message" id="profile-image-error"><?php echo !empty($field_errors['profile_image']) ? htmlspecialchars($field_errors['profile_image']) : ''; ?></div>
                                 </div>
                             </div>
 
                             <label class="form-label">Gender</label>
                             <div class="salutation-group" id="gender-group">
                                 <label class="salutation-option">
-                                    <input type="radio" name="gender" value="male" required> Male
+                                    <input type="radio" name="gender" value="male" required <?php echo ($form_data['gender'] === 'male') ? 'checked' : ''; ?>> Male
                                 </label>
                                 <label class="salutation-option">
-                                    <input type="radio" name="gender" value="female" required> Female
+                                    <input type="radio" name="gender" value="female" required <?php echo ($form_data['gender'] === 'female') ? 'checked' : ''; ?>> Female
                                 </label>
                                 <label class="salutation-option">
-                                    <input type="radio" name="gender" value="prefer not to say" required> Prefer not to say
+                                    <input type="radio" name="gender" value="prefer not to say" required <?php echo ($form_data['gender'] === 'prefer not to say') ? 'checked' : ''; ?>> Prefer not to say
                                 </label>
                             </div>
-                            <div class="error-message" id="gender-error"></div>
+                            <div class="error-message" id="gender-error"><?php echo !empty($field_errors['gender']) ? htmlspecialchars($field_errors['gender']) : ''; ?></div>
 
                             <div class="mb-4">
-                                <label class="form-label" for="first_name">First Name</label>
+                                <label class="form-label" for="full_name">Full Name</label>
                                 <div class="input-group">
-                                    <input type="text" class="form-input" name="first_name" id="first_name" placeholder="John" required>
+                                    <input type="text" class="form-input <?php echo !empty($field_errors['full_name']) ? 'input-error' : ''; ?>" name="full_name" id="full_name" placeholder="John Doe" value="<?php echo htmlspecialchars($form_data['full_name']); ?>" required>
                                 </div>
-                                <div class="error-message" id="first_name-error"></div>
-                            </div>
-
-                            <div class="mb-4">
-                                <label class="form-label" for="last_name">Last Name</label>
-                                <div class="input-group">
-                                    <input type="text" class="form-input" name="last_name" id="last_name" placeholder="Doe" required>
-                                </div>
-                                <div class="error-message" id="last_name-error"></div>
+                                <div class="error-message" id="full_name-error"><?php echo !empty($field_errors['full_name']) ? htmlspecialchars($field_errors['full_name']) : ''; ?></div>
                             </div>
 
                             <div class="mb-4">
@@ -799,18 +989,18 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                                     </div>
                                     <div class="mobile-right">
                                         <div class="input-group">
-                                            <input type="text" class="form-input" name="phone" placeholder="123456789" required>
+                                            <input type="text" class="form-input <?php echo !empty($field_errors['phone']) ? 'input-error' : ''; ?>" name="phone" placeholder="123456789" value="<?php echo htmlspecialchars($form_data['phone']); ?>" required>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="error-message" id="phone-error"></div>
+                                <div class="error-message" id="phone-error"><?php echo !empty($field_errors['phone']) ? htmlspecialchars($field_errors['phone']) : ''; ?></div>
                             </div>
 
                             <div class="mb-4 password-group">
                                 <label class="form-label" for="password">Password</label>
                                 <div class="input-group">
                                     <img src="../images/padlock.png" alt="Lock" class="input-icon">
-                                    <input type="password" class="form-input" name="password" id="password" placeholder="••••••••" style="padding-right: 3rem;" required>
+                                    <input type="password" class="form-input <?php echo !empty($field_errors['password']) ? 'input-error' : ''; ?>" name="password" id="password" placeholder="••••••••" style="padding-right: 3rem;" required>
                                     <img src="../images/show.png" id="togglePassword" class="password-toggle" alt="Show Password">
                                 </div>
                                 <div class="password-hint">
@@ -821,30 +1011,37 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                                         <li>1 special character</li>
                                     </ul>
                                 </div>
-                                <div class="error-message" id="password-error"></div>
+                                <div class="error-message" id="password-error"><?php echo !empty($field_errors['password']) ? htmlspecialchars($field_errors['password']) : ''; ?></div>
                             </div>
 
                             <div class="mb-6">
                                 <label class="form-label" for="confirm_password">Confirm Password</label>
                                 <div class="input-group">
                                     <img src="../images/padlock.png" alt="Lock" class="input-icon">
-                                    <input type="password" class="form-input" name="confirm_password" id="confirm_password" placeholder="••••••••" style="padding-right: 3rem;" required>
+                                    <input type="password" class="form-input <?php echo !empty($field_errors['confirm_password']) ? 'input-error' : ''; ?>" name="confirm_password" id="confirm_password" placeholder="••••••••" style="padding-right: 3rem;" required>
                                     <img src="../images/show.png" id="toggleConfirmPassword" class="password-toggle" alt="Show Password">
                                 </div>
-                                <div class="error-message" id="confirm_password-error"></div>
+                                <div class="error-message" id="confirm_password-error"><?php echo !empty($field_errors['confirm_password']) ? htmlspecialchars($field_errors['confirm_password']) : ''; ?></div>
                             </div>
 
                             <div class="mb-6">
                                 <label class="form-label">Date of Birth</label>
                                 <div class="dob-row" id="dob-row">
-                                    <div class="ck-select" data-placeholder="Day">
-                                        <div class="ck-selected">Day</div>
-                                        <input type="hidden" name="dob_day" class="ck-hidden-input" required>
+                                    <div class="ck-select <?php echo !empty($field_errors['dob']) ? 'ck-select-error' : ''; ?>" data-placeholder="Day">
+                                        <div class="ck-selected"><?php echo !empty($form_data['dob_day']) ? $form_data['dob_day'] : 'Day'; ?></div>
+                                        <input type="hidden" name="dob_day" class="ck-hidden-input" value="<?php echo htmlspecialchars($form_data['dob_day']); ?>" required>
                                         <div class="ck-options" id="ck-day-options"></div>
                                     </div>
-                                    <div class="ck-select" data-placeholder="Month">
-                                        <div class="ck-selected">Month</div>
-                                        <input type="hidden" name="dob_month" class="ck-hidden-input" required>
+                                    <div class="ck-select <?php echo !empty($field_errors['dob']) ? 'ck-select-error' : ''; ?>" data-placeholder="Month">
+                                        <div class="ck-selected"><?php 
+                                            if (!empty($form_data['dob_month'])) {
+                                                $months = ['01' => 'January', '02' => 'February', '03' => 'March', '04' => 'April', '05' => 'May', '06' => 'June', '07' => 'July', '08' => 'August', '09' => 'September', '10' => 'October', '11' => 'November', '12' => 'December'];
+                                                echo $months[$form_data['dob_month']] ?? 'Month';
+                                            } else {
+                                                echo 'Month';
+                                            }
+                                        ?></div>
+                                        <input type="hidden" name="dob_month" class="ck-hidden-input" value="<?php echo htmlspecialchars($form_data['dob_month']); ?>" required>
                                         <div class="ck-options">
                                             <div class="ck-option" data-value="01">January</div>
                                             <div class="ck-option" data-value="02">February</div>
@@ -860,13 +1057,13 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                                             <div class="ck-option" data-value="12">December</div>
                                         </div>
                                     </div>
-                                    <div class="ck-select" data-placeholder="Year">
-                                        <div class="ck-selected">Year</div>
-                                        <input type="hidden" name="dob_year" class="ck-hidden-input" required>
+                                    <div class="ck-select <?php echo !empty($field_errors['dob']) ? 'ck-select-error' : ''; ?>" data-placeholder="Year">
+                                        <div class="ck-selected"><?php echo !empty($form_data['dob_year']) ? $form_data['dob_year'] : 'Year'; ?></div>
+                                        <input type="hidden" name="dob_year" class="ck-hidden-input" value="<?php echo htmlspecialchars($form_data['dob_year']); ?>" required>
                                         <div class="ck-options" id="ck-year-options"></div>
                                     </div>
                                 </div>
-                                <div class="error-message" id="dob-error"></div>
+                                <div class="error-message" id="dob-error"><?php echo !empty($field_errors['dob']) ? htmlspecialchars($field_errors['dob']) : ''; ?></div>
                             </div>
 
                             <button type="submit" class="btn-primary">Create Account</button>
@@ -909,6 +1106,104 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
             });
         });
 
+        // Email Validation Function
+        function validateEmail(email) {
+            // More strict email validation
+            const emailRegex = /^[a-zA-Z0-9][a-zA-Z0-9._-]*[a-zA-Z0-9]@[a-zA-Z0-9][a-zA-Z0-9.-]*\.[a-zA-Z]{2,}$/;
+            
+            if (!emailRegex.test(email)) {
+                return { valid: false, message: 'Invalid email format. Please enter a valid email address.' };
+            }
+            
+            // Extract domain
+            const domain = email.split('@')[1].toLowerCase();
+            
+            // Common email providers
+            const validDomains = [
+                'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'live.com',
+                'msn.com', 'ymail.com', 'icloud.com', 'me.com', 'mac.com',
+                'protonmail.com', 'proton.me', 'mail.com', 'aol.com', 'zoho.com',
+                'gmx.com', 'yandex.com', 'qq.com', '163.com', '126.com',
+                'sina.com', 'sohu.com', 'rediffmail.com', 'inbox.com', 'fastmail.com'
+            ];
+            
+            // Check if domain is valid (has proper TLD)
+            const domainParts = domain.split('.');
+            if (domainParts.length < 2) {
+                return { valid: false, message: 'Invalid email domain. Please check your email address.' };
+            }
+            
+            // Check TLD (should be at least 2 characters)
+            const tld = domainParts[domainParts.length - 1];
+            if (tld.length < 2 || !/^[a-zA-Z]+$/.test(tld)) {
+                return { valid: false, message: 'Invalid email domain. Please check your email address.' };
+            }
+            
+            // Check for common typos in email domains
+            const commonTypos = {
+                'gmali.com': 'gmail.com',
+                'gmal.com': 'gmail.com',
+                'gmial.com': 'gmail.com',
+                'gmaill.com': 'gmail.com',
+                'gmai.com': 'gmail.com',
+                'hotmial.com': 'hotmail.com',
+                'hotmai.com': 'hotmail.com',
+                'hotmali.com': 'hotmail.com',
+                'hotmial.com': 'hotmail.com',
+                'yahooo.com': 'yahoo.com',
+                'yaho.com': 'yahoo.com',
+                'outlok.com': 'outlook.com',
+                'outlok.com': 'outlook.com'
+            };
+            
+            if (commonTypos[domain]) {
+                return { valid: false, message: `Did you mean "${commonTypos[domain]}"? Please check your email address.` };
+            }
+            
+            // Check against common providers - only allow valid email providers
+            if (!validDomains.includes(domain)) {
+                return { valid: false, message: 'Please use a valid email provider (Gmail, Hotmail, Yahoo, Outlook, iCloud, etc.).' };
+            }
+            
+            // Additional checks
+            if (email.length > 254) {
+                return { valid: false, message: 'Email address is too long. Maximum length is 254 characters.' };
+            }
+            
+            if (email.split('@')[0].length > 64) {
+                return { valid: false, message: 'Email username is too long. Maximum length is 64 characters.' };
+            }
+            
+            // Check for consecutive dots
+            if (email.includes('..')) {
+                return { valid: false, message: 'Invalid email format. Cannot have consecutive dots.' };
+            }
+            
+            // Check for dot at start or end of local part
+            const localPart = email.split('@')[0];
+            if (localPart.startsWith('.') || localPart.endsWith('.')) {
+                return { valid: false, message: 'Invalid email format. Email cannot start or end with a dot.' };
+            }
+            
+            return { valid: true, message: '', checkRegistered: true };
+        }
+
+        // Check if email is already registered
+        function checkEmailRegistered(email, callback) {
+            $.ajax({
+                url: 'check_email_exists.php',
+                type: 'POST',
+                data: { email: email },
+                dataType: 'json',
+                success: function(response) {
+                    callback(response.exists);
+                },
+                error: function() {
+                    callback(false); // On error, assume not registered to allow proceeding
+                }
+            });
+        }
+
         // Send OTP
         function sendOTP() {
             const email = document.getElementById('email-input').value.trim();
@@ -919,69 +1214,91 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 return;
             }
             
-            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                emailError.textContent = 'Invalid email format.';
+            // Use improved validation
+            const validation = validateEmail(email);
+            if (!validation.valid) {
+                emailError.textContent = validation.message;
                 return;
             }
             
-            emailError.textContent = '';
+            // Check if email is already registered BEFORE sending OTP
+            emailError.textContent = 'Checking email...';
+            emailError.style.color = '#666';
             document.getElementById('send-otp-btn').disabled = true;
-            document.getElementById('send-otp-btn').textContent = 'Sending...';
+            document.getElementById('send-otp-btn').textContent = 'Checking...';
             
-            $.ajax({
-                url: 'send_otp.php',
-                type: 'POST',
-                data: { email: email },
-                dataType: 'json',
-                success: function(response) {
-                    if (response.success) {
-                        document.getElementById('otp-section').style.display = 'block';
-                        document.getElementById('otp-email-display').textContent = email;
-                        document.getElementById('email-input').disabled = true;
-                        
-                        // Start countdown
-                        startCountdown(180);
-                        
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Code Sent!',
-                            text: response.message || 'Please check your email for the verification code.',
-                            timer: 3000,
-                            showConfirmButton: false
-                        });
-                    } else {
-                        Swal.fire('Error', response.message || 'Failed to send verification code. Please try again.', 'error');
-                    }
+            checkEmailRegistered(email, function(isRegistered) {
+                if (isRegistered) {
+                    emailError.textContent = 'This email is already registered. Please use a different email or try logging in.';
+                    emailError.style.color = '#e53935';
                     document.getElementById('send-otp-btn').disabled = false;
                     document.getElementById('send-otp-btn').textContent = 'Send Verification Code';
-                },
-                error: function(xhr, status, error) {
-                    console.error('AJAX Error:', status, error);
-                    console.error('Response:', xhr.responseText);
-                    
-                    let errorMsg = 'Failed to send code. ';
-                    try {
-                        const response = JSON.parse(xhr.responseText);
-                        if (response.message) {
-                            errorMsg = response.message;
-                        }
-                        if (response.error) {
-                            console.error('Server Error:', response.error);
-                        }
-                    } catch (e) {
-                        errorMsg += 'Please check browser console and server logs for details.';
-                    }
-                    
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: errorMsg,
-                        confirmButtonText: 'OK'
-                    });
-                    
-                    document.getElementById('send-otp-btn').disabled = false;
-                    document.getElementById('send-otp-btn').textContent = 'Send Verification Code';
+                    return;
                 }
+                
+                // Email is not registered, proceed to send OTP
+                emailError.textContent = '';
+                document.getElementById('send-otp-btn').textContent = 'Sending...';
+                
+                $.ajax({
+                    url: 'send_otp.php',
+                    type: 'POST',
+                    data: { email: email },
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.success) {
+                            document.getElementById('otp-section').style.display = 'block';
+                            document.getElementById('otp-email-display').textContent = email;
+                            document.getElementById('email-input').disabled = true;
+                            
+                            // Start countdown
+                            startCountdown(180);
+                            
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Code Sent!',
+                                text: response.message || 'Please check your email for the verification code.',
+                                timer: 3000,
+                                showConfirmButton: false
+                            });
+                        } else {
+                            emailError.textContent = response.message || 'Failed to send verification code. Please try again.';
+                            emailError.style.color = '#e53935';
+                            Swal.fire('Error', response.message || 'Failed to send verification code. Please try again.', 'error');
+                        }
+                        document.getElementById('send-otp-btn').disabled = false;
+                        document.getElementById('send-otp-btn').textContent = 'Send Verification Code';
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('AJAX Error:', status, error);
+                        console.error('Response:', xhr.responseText);
+                        
+                        let errorMsg = 'Failed to send code. ';
+                        try {
+                            const response = JSON.parse(xhr.responseText);
+                            if (response.message) {
+                                errorMsg = response.message;
+                            }
+                            if (response.error) {
+                                console.error('Server Error:', response.error);
+                            }
+                        } catch (e) {
+                            errorMsg += 'Please check browser console and server logs for details.';
+                        }
+                        
+                        emailError.textContent = errorMsg;
+                        emailError.style.color = '#e53935';
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: errorMsg,
+                            confirmButtonText: 'OK'
+                        });
+                        
+                        document.getElementById('send-otp-btn').disabled = false;
+                        document.getElementById('send-otp-btn').textContent = 'Send Verification Code';
+                    }
+                });
             });
         }
 
@@ -1096,6 +1413,18 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     hiddenInput.value = value;
                     selected.textContent = text;
                     selected.style.color = 'var(--text-dark)';
+                    // Remove error styling when value is selected
+                    select.classList.remove('ck-select-error');
+                    // Check if all DOB fields are filled
+                    if (hiddenInput.name.includes('dob_')) {
+                        const dobDay = document.querySelector('[name="dob_day"]').value;
+                        const dobMonth = document.querySelector('[name="dob_month"]').value;
+                        const dobYear = document.querySelector('[name="dob_year"]').value;
+                        const errorElement = document.getElementById('dob-error');
+                        if (errorElement && dobDay && dobMonth && dobYear) {
+                            errorElement.textContent = '';
+                        }
+                    }
                 };
 
                 select.addEventListener('click', (e) => {
@@ -1113,6 +1442,34 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                         e.stopPropagation();
                     };
                 });
+                
+                // Set initial value if exists (for form repopulation)
+                if (hiddenInput && hiddenInput.value) {
+                    const placeholder = select.getAttribute('data-placeholder');
+                    // Check if current display is placeholder
+                    if (selected.textContent === placeholder || selected.textContent === 'Day' || selected.textContent === 'Month' || selected.textContent === 'Year') {
+                        // Find matching option
+                        const matchingOption = Array.from(select.querySelectorAll('.ck-option')).find(opt => 
+                            opt.getAttribute('data-value') === hiddenInput.value
+                        );
+                        if (matchingOption) {
+                            setSelectedValue(hiddenInput.value, matchingOption.textContent);
+                        } else if (hiddenInput.name === 'dob_month') {
+                            // Special handling for month names
+                            const monthNames = {
+                                '01': 'January', '02': 'February', '03': 'March', '04': 'April',
+                                '05': 'May', '06': 'June', '07': 'July', '08': 'August',
+                                '09': 'September', '10': 'October', '11': 'November', '12': 'December'
+                            };
+                            if (monthNames[hiddenInput.value]) {
+                                setSelectedValue(hiddenInput.value, monthNames[hiddenInput.value]);
+                            }
+                        } else if (hiddenInput.value) {
+                            // For day and year, just use the value
+                            setSelectedValue(hiddenInput.value, hiddenInput.value);
+                        }
+                    }
+                }
             });
 
             document.addEventListener('click', e => {
@@ -1174,18 +1531,186 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (profileImageError) profileImageError.textContent = '';
             };
 
+            // Real-time Form Validation (Step 2)
+            function validateField(fieldName, value) {
+                const errorElement = document.getElementById(fieldName + '-error');
+                const inputElement = document.querySelector('[name="' + fieldName + '"]') || document.getElementById(fieldName);
+                
+                if (!errorElement || !inputElement) return;
+                
+                let isValid = true;
+                let errorMessage = '';
+                
+                switch(fieldName) {
+                    case 'full_name':
+                        if (!value || value.trim() === '') {
+                            isValid = false;
+                            errorMessage = 'Full name is required.';
+                        } else if (value.trim().length < 2) {
+                            isValid = false;
+                            errorMessage = 'Full name must be at least 2 characters.';
+                        } else if (value.trim().length > 100) {
+                            isValid = false;
+                            errorMessage = 'Full name is too long. Maximum length is 100 characters.';
+                        }
+                        break;
+                    case 'phone':
+                        const phoneDigits = value.replace(/[^0-9]/g, '');
+                        if (!value || phoneDigits === '') {
+                            isValid = false;
+                            errorMessage = 'Phone number is required.';
+                        } else if (phoneDigits.length < 9 || phoneDigits.length > 15) {
+                            isValid = false;
+                            errorMessage = 'Please enter a valid phone number (9-15 digits).';
+                        }
+                        break;
+                    case 'password':
+                        if (!value || value === '') {
+                            isValid = false;
+                            errorMessage = 'Password is required.';
+                        } else if (value.length < 8) {
+                            isValid = false;
+                            errorMessage = 'Password must be at least 8 characters long.';
+                        } else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(value)) {
+                            isValid = false;
+                            errorMessage = 'Password must contain: uppercase, lowercase, 1 digit, and 1 special character.';
+                        }
+                        break;
+                    case 'confirm_password':
+                        const passwordValue = document.querySelector('[name="password"]').value;
+                        if (!value || value === '') {
+                            isValid = false;
+                            errorMessage = 'Please confirm your password.';
+                        } else if (value !== passwordValue) {
+                            isValid = false;
+                            errorMessage = 'Passwords do not match.';
+                        }
+                        break;
+                }
+                
+                // Update UI
+                if (isValid) {
+                    inputElement.classList.remove('input-error');
+                    errorElement.textContent = '';
+                } else {
+                    inputElement.classList.add('input-error');
+                    errorElement.textContent = errorMessage;
+                }
+                
+                return isValid;
+            }
+            
+            // Add real-time validation listeners
+            const fullNameInput = document.getElementById('full_name');
+            const phoneInput = document.querySelector('[name="phone"]');
+            const passwordInput = document.getElementById('password');
+            const confirmPasswordInput = document.getElementById('confirm_password');
+            
+            if (fullNameInput) {
+                fullNameInput.addEventListener('blur', function() { validateField('full_name', this.value); });
+                fullNameInput.addEventListener('input', function() { 
+                    if (this.classList.contains('input-error')) {
+                        validateField('full_name', this.value);
+                    }
+                });
+            }
+            
+            if (phoneInput) {
+                phoneInput.addEventListener('blur', function() { validateField('phone', this.value); });
+                phoneInput.addEventListener('input', function() { 
+                    if (this.classList.contains('input-error')) {
+                        validateField('phone', this.value);
+                    }
+                });
+            }
+            
+            if (passwordInput) {
+                passwordInput.addEventListener('blur', function() { validateField('password', this.value); });
+                passwordInput.addEventListener('input', function() { 
+                    if (this.classList.contains('input-error')) {
+                        validateField('password', this.value);
+                    }
+                });
+            }
+            
+            if (confirmPasswordInput) {
+                confirmPasswordInput.addEventListener('blur', function() { validateField('confirm_password', this.value); });
+                confirmPasswordInput.addEventListener('input', function() { 
+                    if (this.classList.contains('input-error')) {
+                        validateField('confirm_password', this.value);
+                    }
+                    // Also validate password when confirm password changes
+                    if (passwordInput && passwordInput.value) {
+                        validateField('password', passwordInput.value);
+                    }
+                });
+            }
+            
+            // Gender validation
+            const genderInputs = document.querySelectorAll('input[name="gender"]');
+            genderInputs.forEach(input => {
+                input.addEventListener('change', function() {
+                    const errorElement = document.getElementById('gender-error');
+                    if (errorElement) {
+                        errorElement.textContent = '';
+                    }
+                });
+            });
+            
+            // DOB validation
+            const dobSelects = document.querySelectorAll('.ck-select');
+            dobSelects.forEach(select => {
+                const hiddenInput = select.querySelector('.ck-hidden-input');
+                if (hiddenInput && hiddenInput.name.includes('dob_')) {
+                    select.addEventListener('click', function() {
+                        setTimeout(() => {
+                            const errorElement = document.getElementById('dob-error');
+                            if (errorElement && hiddenInput.value) {
+                                errorElement.textContent = '';
+                                select.classList.remove('ck-select-error');
+                            }
+                        }, 100);
+                    });
+                }
+            });
+
             // Form Validation (Step 2)
             const form = document.getElementById('registration-form');
             if (form) {
                 form.addEventListener('submit', function(e) {
-                    // Basic validation - you can add more if needed
-                    const password = document.querySelector('[name="password"]').value;
-                    const confirmPassword = document.querySelector('[name="confirm_password"]').value;
+                    let hasErrors = false;
                     
-                    if (password !== confirmPassword) {
-                        e.preventDefault();
-                        Swal.fire('Error', 'Passwords do not match.', 'error');
-                        return false;
+                    // Validate all fields
+                    if (fullNameInput && !validateField('full_name', fullNameInput.value)) hasErrors = true;
+                    if (phoneInput && !validateField('phone', phoneInput.value)) hasErrors = true;
+                    if (passwordInput && !validateField('password', passwordInput.value)) hasErrors = true;
+                    if (confirmPasswordInput && !validateField('confirm_password', confirmPasswordInput.value)) hasErrors = true;
+                    
+                    // Check gender
+                    const genderSelected = document.querySelector('input[name="gender"]:checked');
+                    if (!genderSelected) {
+                        const errorElement = document.getElementById('gender-error');
+                        if (errorElement) {
+                            errorElement.textContent = 'Please select your gender.';
+                            hasErrors = true;
+                        }
+                    }
+                    
+                    // Check DOB
+                    const dobDay = document.querySelector('[name="dob_day"]').value;
+                    const dobMonth = document.querySelector('[name="dob_month"]').value;
+                    const dobYear = document.querySelector('[name="dob_year"]').value;
+                    if (!dobDay || !dobMonth || !dobYear) {
+                        const errorElement = document.getElementById('dob-error');
+                        if (errorElement) {
+                            errorElement.textContent = 'Please select a valid Date of Birth.';
+                            hasErrors = true;
+                        }
+                        document.querySelectorAll('.ck-select').forEach(sel => {
+                            if (sel.querySelector('.ck-hidden-input').name.includes('dob_')) {
+                                sel.classList.add('ck-select-error');
+                            }
+                        });
                     }
 
                     // Validate image if selected
@@ -1202,6 +1727,17 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                             Swal.fire('Error', 'Image file is too large. Maximum size is 5MB.', 'error');
                             return false;
                         }
+                    }
+                    
+                    if (hasErrors) {
+                        e.preventDefault();
+                        Swal.fire('Error', 'Please correct the errors highlighted in red and try again.', 'error');
+                        // Scroll to first error
+                        const firstError = document.querySelector('.input-error, .ck-select-error');
+                        if (firstError) {
+                            firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                        return false;
                     }
                 });
             }
