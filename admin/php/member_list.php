@@ -160,11 +160,9 @@ $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     </tbody>
                 </table>
             </div>
-
         </main>
     </div>
 
-    <!-- View Modal -->
     <div id="viewModal" class="modal hidden">
         <div class="modal-box modal-large">
             <div class="modal-header">
@@ -177,7 +175,6 @@ $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </div>
 
-    <!-- Edit Modal -->
     <div id="editModal" class="modal hidden">
         <div class="modal-box modal-large">
             <div class="modal-header">
@@ -190,7 +187,6 @@ $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </div>
 
-    <!-- Delete Modal -->
     <div id="deleteModal" class="modal hidden">
         <div class="modal-box">
             <h3 id="modalTitle"></h3>
@@ -212,14 +208,13 @@ $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
         document.getElementById('sidebarToggle').onclick = () =>
             document.body.classList.toggle('sidebar-collapsed');
 
-        // View Modal Functions
         function openViewModal(memberId) {
             const modal = document.getElementById('viewModal');
             const content = document.getElementById('viewModalContent');
             modal.classList.remove('hidden');
             content.innerHTML = '<div class="loading">Loading...</div>';
 
-            fetch(`get_member.php?id=${memberId}`)
+            fetch(`member_get.php?id=${memberId}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
@@ -282,14 +277,13 @@ $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
             document.getElementById('viewModal').classList.add('hidden');
         }
 
-        // Edit Modal Functions
         function openEditModal(memberId) {
             const modal = document.getElementById('editModal');
             const content = document.getElementById('editModalContent');
             modal.classList.remove('hidden');
             content.innerHTML = '<div class="loading">Loading...</div>';
 
-            fetch(`get_member.php?id=${memberId}`)
+            fetch(`member_get.php?id=${memberId}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
@@ -367,17 +361,16 @@ $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
             const form = event.target;
             const formData = new FormData(form);
             formData.append('id', memberId);
-            
-            // Disable submit button
+
             const submitBtn = form.querySelector('button[type="submit"]');
             const originalText = submitBtn.textContent;
             submitBtn.disabled = true;
             submitBtn.textContent = 'Saving...';
 
-            fetch('update_member.php', {
-                method: 'POST',
-                body: formData
-            })
+            fetch('member_edit.php', {
+                    method: 'POST',
+                    body: formData
+                })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
@@ -399,24 +392,19 @@ $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 });
         }
 
-        // Toast Notification Functions
         function showToast(message, type = 'success') {
             const toast = document.createElement('div');
             toast.className = `toast toast-${type}`;
             toast.textContent = message;
             document.body.appendChild(toast);
 
-            // Trigger animation
             setTimeout(() => toast.classList.add('show'), 10);
-
-            // Remove after 3 seconds
             setTimeout(() => {
                 toast.classList.remove('show');
                 setTimeout(() => toast.remove(), 300);
             }, 3000);
         }
 
-        // Helper Functions
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
@@ -433,7 +421,6 @@ $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
             }
         }
 
-        // Delete Modal
         const modal = document.getElementById('deleteModal');
         const title = document.getElementById('modalTitle');
         const message = document.getElementById('modalMessage');
@@ -470,7 +457,6 @@ $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
             confirmBtn.style.display = 'inline-block';
         };
 
-        // Close modals when clicking outside
         document.getElementById('viewModal').addEventListener('click', function(e) {
             if (e.target === this) closeViewModal();
         });
@@ -479,7 +465,6 @@ $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
             if (e.target === this) closeEditModal();
         });
     </script>
-
 </body>
 
 </html>
