@@ -575,43 +575,49 @@ include '../include/header.php';
             box-shadow: 0 15px 40px rgba(255, 183, 116, 0.4);
         }
 
-/* 2. 重置原本控制 Emoji 的样式 */
-.category-icon-new {
-    /* 删除 font-size，或者保留也没关系，因为对 img 没影响 */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
+        /* 2. 重置原本控制 Emoji 的样式 */
+        .category-icon-new {
+            /* 删除 font-size，或者保留也没关系，因为对 img 没影响 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
 
         .category-icon-new img {
-    width: 50px;        /* 普通卡片的图片大小 */
-    height: 50px;
-    object-fit: contain; /* 保持图片比例 */
-    display: block;
-}
+            width: 50px;
+            /* 普通卡片的图片大小 */
+            height: 50px;
+            object-fit: contain;
+            /* 保持图片比例 */
+            display: block;
+        }
 
 
-/* 1. 让图片在容器里适应大小 */
-.category-icon-new img {
-    width: 50px;        /* 普通卡片的图片大小 */
-    height: 50px;
-    object-fit: contain; /* 保持图片比例 */
-    display: block;
-}
+        /* 1. 让图片在容器里适应大小 */
+        .category-icon-new img {
+            width: 50px;
+            /* 普通卡片的图片大小 */
+            height: 50px;
+            object-fit: contain;
+            /* 保持图片比例 */
+            display: block;
+        }
 
-/* 2. 重置原本控制 Emoji 的样式 */
-.category-icon-new {
-    /* 删除 font-size，或者保留也没关系，因为对 img 没影响 */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
+        /* 2. 重置原本控制 Emoji 的样式 */
+        .category-icon-new {
+            /* 删除 font-size，或者保留也没关系，因为对 img 没影响 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
 
-/* 3. 特殊处理：第一个大卡片的图片要大一点 */
-.category-card-new:first-child .category-icon-new img {
-    width: 80px;       /*大卡片的图片大小 */
-    height: 80px;
-}
+        /* 3. 特殊处理：第一个大卡片的图片要大一点 */
+        .category-card-new:first-child .category-icon-new img {
+            width: 80px;
+            /*大卡片的图片大小 */
+            height: 80px;
+        }
+
         .category-card-new:hover .category-icon-new {
             transform: scale(1.1);
             filter: grayscale(0);
@@ -835,12 +841,20 @@ include '../include/header.php';
             color: #222;
             margin-bottom: 8px;
             line-height: 1.4;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            min-height: 42px;
             text-decoration: none;
+
+            /* ✨ 标准无黄线写法 (只显示 1 行) ✨ */
+            white-space: nowrap;
+            /* 强制在一行显示 */
+            overflow: hidden;
+            /* 隐藏超出的文字 */
+            text-overflow: ellipsis;
+            /* 超出的部分变成 ... */
+            display: block;
+            /* 确保它是块级元素 */
+
+            /*以此保持卡片对齐，但我把高度稍微改小了一点，因为现在只有1行了 */
+            min-height: 22px;
         }
 
         .p-title:hover {
@@ -1220,8 +1234,8 @@ include '../include/header.php';
                     '../images/rabbit.png',    // 对应 category 3
                     '../images/bird.png',  // 对应 category 4
                     '../images/clown-fish.png',       // 对应 category 5
-                    '../images/pet-spa.png' ,     // 对应 category 6
-                    '../images/home-accessory.png' ,   // 对应 category 7
+                    '../images/pet-spa.png',     // 对应 category 6
+                    '../images/home-accessory.png',   // 对应 category 7
                     '../images/pet-food.png'    // 对应 category 8
                 ];
                 $category_descriptions = [
@@ -1239,14 +1253,14 @@ include '../include/header.php';
                     <a href="product_listing.php?category=<?= $cat['category_id'] ?>" style="text-decoration: none;">
                         <div class="category-card-new">
                             <div class="category-icon-wrapper">
-                                
-<div class="category-icon-new">
-    <?php if (strpos($icon, 'images/') !== false): ?>
-        <img src="<?= $icon ?>" alt="<?= htmlspecialchars($cat['name']) ?>">
-    <?php else: ?>
-        <?= $icon ?>
-    <?php endif; ?>
-</div>
+
+                                <div class="category-icon-new">
+                                    <?php if (strpos($icon, 'images/') !== false): ?>
+                                        <img src="<?= $icon ?>" alt="<?= htmlspecialchars($cat['name']) ?>">
+                                    <?php else: ?>
+                                        <?= $icon ?>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                             <h3 class="category-name-new"><?= htmlspecialchars($cat['name']) ?></h3>
                             <p class="category-desc-new"><?= $desc ?></p>
