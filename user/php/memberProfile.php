@@ -349,7 +349,7 @@ if (isset($pdo)) {
         <aside>
             <div class="card-box">
                 <div class="user-brief">
-                    <?php 
+                    <?php
                     $image_path = !empty($member['image']) ? '../' . $member['image'] : '';
                     $image_exists = !empty($image_path) && file_exists($image_path);
                     if ($image_exists): ?>
@@ -507,14 +507,20 @@ if (isset($pdo)) {
                                             </form>
                                         <?php endif; ?>
 
+                                        <?php if ($order['status'] == 'completed'): ?>
+                                            <button type="button" class="btn-order-action btn-view" onclick="openReviewModal(<?php echo $order['order_id']; ?>)">
+                                                <img src="../images/review.png" style="width:14px; margin-right:5px;"> Review
+                                            </button>
+                                        <?php endif; ?>
+
                                         <button type="button" class="btn-order-action btn-view" onclick="viewOrderDetails(<?php echo $order['order_id']; ?>)">
                                             View Details
                                         </button>
-                                        
+
                                         <button type="button" class="btn-order-action btn-view" onclick="sendReceiptEmail(<?php echo $order['order_id']; ?>, this)">
                                             <img src="../images/mail.png" alt="Email" style="width: 16px; height: 16px; margin-right: 6px; vertical-align: middle;"> E-Receipt (Email)
                                         </button>
-                                        
+
                                         <a href="download_receipt.php?order_id=<?php echo $order['order_id']; ?>" class="btn-order-action btn-view">
                                             <img src="../images/pdf.png" alt="PDF" style="width: 16px; height: 16px; margin-right: 6px; vertical-align: middle;"> E-Receipt (PDF)
                                         </a>
@@ -760,6 +766,20 @@ if (isset($pdo)) {
                         <span>Discount: <strong id="modal_discount" style="color:red;"></strong></span>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="reviewModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3>Rate Products</h3>
+                <button class="close-modal" onclick="toggleModal('reviewModal')">&times;</button>
+            </div>
+            <div class="modal-body" id="reviewModalBody" style="max-height: 60vh; overflow-y: auto;">
+            </div>
+            <div style="padding: 15px; text-align: right; border-top: 1px solid #eee;">
+                <button class="btn-save-full" onclick="submitAllReviews()">Submit Reviews</button>
             </div>
         </div>
     </div>
@@ -1207,15 +1227,16 @@ if (isset($pdo)) {
         function sendReceiptEmail(orderId, btnElement) {
             const btn = btnElement;
             const originalText = btn.innerHTML;
-            
-            // Disable button and show loading
+
             btn.disabled = true;
             btn.innerHTML = '<img src="../images/mail.png" alt="Email" style="width: 16px; height: 16px; margin-right: 6px; vertical-align: middle; opacity: 0.6;"> Sending...';
-            
+
             $.ajax({
                 url: 'send_receipt.php',
                 type: 'POST',
-                data: { order_id: orderId },
+                data: {
+                    order_id: orderId
+                },
                 dataType: 'json',
                 success: function(response) {
                     if (response.success) {
@@ -1250,6 +1271,87 @@ if (isset($pdo)) {
                         alert('✗ Error sending receipt. Please try again.');
                     }
                 }
+            });
+        }
+
+        function openReviewModal(orderId) {
+            document.getElementById('reviewModalBody').innerHTML = '<div style="text-align:center; padding:20px;">Loading products...</div>';
+            toggleModal('reviewModal');
+
+            $.ajax({
+                url: 'get_order_details.php',
+                type: 'GET',
+                data: {
+                    order_id: orderId
+                },
+                dataType: 'json',
+                success: function(res) {
+                    if (res.success) {
+                        let html = '';
+                        res.items.forEach(item => {
+                            html += `
+                                <div class="review-item" data-product-id="${item.product_id}">
+                                    <div class="review-product-info">
+                                        <img src="${item.image_url}" class="review-product-img">
+                                        <div>
+                                            <div style="font-weight:600; font-size:0.95rem;">${item.name}</div>
+                                            <div style="font-size:0.85rem; color:#888;">x${item.quantity}</div>
+                                        </div>
+                                    </div>
+                                    <div style="margin-bottom:8px;">Rating:</div>
+                                    <div class="star-rating">
+                                        <input type="radio" id="star5_${item.product_id}" name="rating_${item.product_id}" value="5"><label for="star5_${item.product_id}">★</label>
+                                        <input type="radio" id="star4_${item.product_id}" name="rating_${item.product_id}" value="4"><label for="star4_${item.product_id}">★</label>
+                                        <input type="radio" id="star3_${item.product_id}" name="rating_${item.product_id}" value="3"><label for="star3_${item.product_id}">★</label>
+                                        <input type="radio" id="star2_${item.product_id}" name="rating_${item.product_id}" value="2"><label for="star2_${item.product_id}">★</label>
+                                        <input type="radio" id="star1_${item.product_id}" name="rating_${item.product_id}" value="1"><label for="star1_${item.product_id}">★</label>
+                                    </div>
+                                    <textarea class="review-textarea" placeholder="Write your review here..."></textarea>
+                                </div>
+                            `;
+                        });
+                        document.getElementById('reviewModalBody').innerHTML = html;
+                    } else {
+                        document.getElementById('reviewModalBody').innerHTML = '<p style="color:red; text-align:center;">Failed to load items.</p>';
+                    }
+                }
+            });
+        }
+
+        function submitAllReviews() {
+            const items = document.querySelectorAll('.review-item');
+            let promises = [];
+
+            items.forEach(div => {
+                const pid = div.getAttribute('data-product-id');
+                const ratingInput = div.querySelector(`input[name="rating_${pid}"]:checked`);
+                const comment = div.querySelector('textarea').value;
+
+                if (ratingInput) {
+                    const rating = ratingInput.value;
+                    const req = $.ajax({
+                        url: 'submit_review.php',
+                        type: 'POST',
+                        data: {
+                            product_id: pid,
+                            rating: rating,
+                            comment: comment
+                        }
+                    });
+                    promises.push(req);
+                }
+            });
+
+            if (promises.length === 0) {
+                showCustomAlert('error', 'Oops', 'Please select a star rating for at least one product.');
+                return;
+            }
+
+            Promise.all(promises).then(() => {
+                showCustomAlert('success', 'Thank You!', 'Your reviews have been submitted.', true);
+                toggleModal('reviewModal');
+            }).catch(() => {
+                showCustomAlert('error', 'Error', 'Some reviews failed to save.');
             });
         }
     </script>
