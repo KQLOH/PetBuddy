@@ -142,25 +142,49 @@ body.sidebar-collapsed {
     box-shadow: 0 0 0 3px rgba(244, 162, 97, 0.2);
 }
 
-.btn-search,
-.btn-reset {
+.btn-search {
     padding: 8px 18px;
     border-radius: 999px;
-    border: 1px solid var(--border-color);
-    background-color: #ffffff;
     font-size: 13px;
-    font-weight: 500;
+    font-weight: 600;
     text-decoration: none;
-    color: #555;
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(25, 118, 210, 0.08);
+    color: var(--info-color);
+    border: 1px solid rgba(25, 118, 210, 0.25);
     transition: all 0.2s ease;
 }
 
-.btn-search:hover,
+.btn-search:hover {
+    background-color: var(--info-color);
+    color: #ffffff;
+    transform: translateY(-1px);
+}
+
+/* Reset button */
+.btn-reset {
+    padding: 8px 18px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(119, 119, 119, 0.08);
+    color: #555;
+    border: 1px solid rgba(119, 119, 119, 0.25);
+    transition: all 0.2s ease;
+}
+
 .btn-reset:hover {
-    border-color: var(--primary-color);
-    color: var(--primary-dark);
-    background-color: #fffaf4;
+    background-color: #555;
+    color: #ffffff;
+    transform: translateY(-1px);
 }
 
 .panel {
