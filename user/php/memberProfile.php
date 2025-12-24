@@ -3,7 +3,6 @@ session_start();
 include '../include/db.php';
 require_once "../include/product_utils.php";
 
-// --- Initialize Variables ---
 $message = "";
 $msg_type = "";
 $active_tab = 'dashboard';
@@ -12,8 +11,8 @@ $orders = [];
 $addresses = [];
 $stats = ['total_orders' => 0, 'total_spent' => 0];
 $voucher_count = 0;
+$my_vouchers = [];
 
-// --- 1. Security & Session Check ---
 if (!isset($_SESSION['member_id'])) {
     header("Location: login.php");
     exit;
@@ -24,7 +23,6 @@ if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-// --- 2. Check for Flash Messages ---
 if (isset($_SESSION['flash_msg'])) {
     $message = $_SESSION['flash_msg'];
     $msg_type = $_SESSION['flash_type'];
@@ -45,7 +43,6 @@ if (isset($pdo)) {
 
         $redirect_needed = false;
 
-        // --- A. Change Password (UNCHANGED) ---
         if (isset($_POST['form_type']) && $_POST['form_type'] === 'change_password') {
             $active_tab = 'profile';
             $current_pwd = $_POST['current_password'] ?? '';
@@ -82,10 +79,7 @@ if (isset($pdo)) {
                 $message = "Incorrect current password.";
                 $msg_type = "error";
             }
-        }
-
-        // --- B. Update Profile (UNCHANGED LOGIC) ---
-        else if (isset($_POST['form_type']) && $_POST['form_type'] === 'update_profile') {
+        } else if (isset($_POST['form_type']) && $_POST['form_type'] === 'update_profile') {
             $active_tab = 'profile';
             $full_name = trim($_POST['full_name'] ?? '');
             $phone = trim($_POST['phone'] ?? '');
@@ -134,13 +128,8 @@ if (isset($pdo)) {
                     $msg_type = "error";
                 }
             }
-        }
-
-        // --- C. Save Address (UPDATED: Handles Add AND Edit) ---
-        else if (isset($_POST['form_type']) && $_POST['form_type'] === 'save_address') {
-
-            // New Fields
-            $addr_id = $_POST['address_id'] ?? ''; // If ID exists, we are editing
+        } else if (isset($_POST['form_type']) && $_POST['form_type'] === 'save_address') {
+            $addr_id = $_POST['address_id'] ?? '';
             $r_name = trim($_POST['recipient_name']);
             $r_phone = trim($_POST['recipient_phone']);
             $addr1 = trim($_POST['address_line1']);
@@ -150,19 +139,15 @@ if (isset($pdo)) {
             $postcode = trim($_POST['postcode']);
             $is_default = isset($_POST['is_default']) ? 1 : 0;
 
-            // Handle Default Logic (Reset others to 0 first)
             if ($is_default) {
                 $pdo->prepare("UPDATE member_addresses SET is_default = 0 WHERE member_id = ?")->execute([$member_id]);
             }
 
             if (!empty($addr_id)) {
-                // === EDIT MODE ===
                 $sql = "UPDATE member_addresses SET recipient_name=?, recipient_phone=?, address_line1=?, address_line2=?, city=?, state=?, postcode=?, is_default=? WHERE address_id=? AND member_id=?";
                 $params = [$r_name, $r_phone, $addr1, $addr2, $city, $state, $postcode, $is_default, $addr_id, $member_id];
                 $msg = "Address updated successfully!";
             } else {
-                // === ADD MODE ===
-                // First address check
                 if ($is_default == 0) {
                     $stmtCheck = $pdo->prepare("SELECT COUNT(*) FROM member_addresses WHERE member_id = ?");
                     $stmtCheck->execute([$member_id]);
@@ -184,10 +169,7 @@ if (isset($pdo)) {
                 $message = "Error saving address.";
                 $msg_type = "error";
             }
-        }
-
-        // --- D. Set Default Address (UNCHANGED) ---
-        else if (isset($_POST['action']) && $_POST['action'] === 'set_default') {
+        } else if (isset($_POST['action']) && $_POST['action'] === 'set_default') {
             $addr_id = $_POST['address_id'];
             $pdo->beginTransaction();
             $pdo->prepare("UPDATE member_addresses SET is_default = 0 WHERE member_id = ?")->execute([$member_id]);
@@ -197,34 +179,45 @@ if (isset($pdo)) {
             $_SESSION['flash_type'] = "success";
             $_SESSION['flash_tab'] = "addresses";
             $redirect_needed = true;
-        }
-
-        // --- E. Delete Address (UNCHANGED) ---
-        // --- F. Order Actions (Cancel, Complete, Return) ---
-        else if (isset($_POST['action']) && in_array($_POST['action'], ['cancel_order', 'complete_order', 'request_return'])) {
+        } else if (isset($_POST['action']) && $_POST['action'] === 'delete_address') {
+            $addr_id = $_POST['address_id'];
+            try {
+                $stmt = $pdo->prepare("DELETE FROM member_addresses WHERE address_id = ? AND member_id = ?");
+                if ($stmt->execute([$addr_id, $member_id])) {
+                    $_SESSION['flash_msg'] = "Address deleted successfully.";
+                    $_SESSION['flash_type'] = "success";
+                    $_SESSION['flash_tab'] = "addresses";
+                    $redirect_needed = true;
+                }
+            } catch (PDOException $e) {
+                if ($e->getCode() == '23000') {
+                    $message = "Cannot delete this address because it is used in past orders.";
+                } else {
+                    $message = "System error: " . $e->getMessage();
+                }
+                $msg_type = "error";
+                $active_tab = "addresses";
+            }
+        } else if (isset($_POST['action']) && in_array($_POST['action'], ['cancel_order', 'complete_order', 'request_return'])) {
             $order_id = $_POST['order_id'];
             $new_status = '';
             $allow_update = false;
 
-            // Check current status first
             $stmtCheck = $pdo->prepare("SELECT status FROM orders WHERE order_id = ? AND member_id = ?");
             $stmtCheck->execute([$order_id, $member_id]);
             $current_status = $stmtCheck->fetchColumn();
 
             if ($_POST['action'] === 'cancel_order') {
-                // Can only cancel if Pending or Paid (Not shipped yet)
                 if (in_array($current_status, ['pending', 'paid'])) {
                     $new_status = 'cancelled';
                     $allow_update = true;
                 }
             } elseif ($_POST['action'] === 'complete_order') {
-                // Can only complete if Shipped
                 if ($current_status === 'shipped') {
                     $new_status = 'completed';
                     $allow_update = true;
                 }
             } elseif ($_POST['action'] === 'request_return') {
-                // Can request return if Completed (within valid time) or Shipped
                 if (in_array($current_status, ['shipped', 'completed'])) {
                     $new_status = 'return_requested';
                     $allow_update = true;
@@ -234,13 +227,14 @@ if (isset($pdo)) {
             if ($allow_update) {
                 $stmtUpdate = $pdo->prepare("UPDATE orders SET status = ? WHERE order_id = ?");
                 if ($stmtUpdate->execute([$new_status, $order_id])) {
-                    $_SESSION['flash_msg'] = "Order status updated to " . ucfirst(str_replace('_', ' ', $new_status));
+                    $_SESSION['flash_msg'] = "Order status updated.";
                     $_SESSION['flash_type'] = "success";
                     $_SESSION['flash_tab'] = "orders";
                     $redirect_needed = true;
                 }
             } else {
-                $message = "Action not allowed for current order status."; $msg_type = "error";
+                $message = "Action not allowed for current order status.";
+                $msg_type = "error";
             }
         }
 
@@ -250,14 +244,11 @@ if (isset($pdo)) {
         }
     }
 
-    // --- 4. FETCH DATA ---
     try {
         $stmt = $pdo->prepare("SELECT * FROM members WHERE member_id = ?");
         $stmt->execute([$member_id]);
         $member = $stmt->fetch();
 
-        // Orders
-        // --- UPDATED ORDER QUERY TO GET IMAGES ---
         $orderSql = "SELECT o.*, 
                      COUNT(oi.order_item_id) as item_count,
                      (SELECT p.image FROM order_items oi2 JOIN products p ON oi2.product_id = p.product_id WHERE oi2.order_id = o.order_id LIMIT 1) as first_img,
@@ -266,25 +257,25 @@ if (isset($pdo)) {
                      LEFT JOIN order_items oi ON o.order_id = oi.order_id
                      WHERE o.member_id = ? 
                      GROUP BY o.order_id 
-                     ORDER BY o.order_date DESC LIMIT 20";
-
+                     ORDER BY o.order_date DESC";
         $stmtOrders = $pdo->prepare($orderSql);
         $stmtOrders->execute([$member_id]);
         $orders = $stmtOrders->fetchAll();
 
         $stats['total_orders'] = count($orders);
         foreach ($orders as $o) {
-            $stats['total_spent'] += $o['total_amount'];
+            if ($o['status'] !== 'cancelled') {
+                $stats['total_spent'] += $o['total_amount'];
+            }
         }
 
-        // Vouchers
         $today = date('Y-m-d');
-        $vSql = "SELECT COUNT(*) FROM vouchers WHERE start_date <= ? AND end_date >= ?";
+        $vSql = "SELECT * FROM vouchers WHERE start_date <= ? AND end_date >= ? ORDER BY end_date ASC";
         $vStmt = $pdo->prepare($vSql);
         $vStmt->execute([$today, $today]);
-        $voucher_count = $vStmt->fetchColumn();
+        $my_vouchers = $vStmt->fetchAll(PDO::FETCH_ASSOC);
+        $voucher_count = count($my_vouchers);
 
-        // Addresses (UPDATED to fetch new columns)
         $addrSql = "SELECT * FROM member_addresses WHERE member_id = ? ORDER BY is_default DESC, created_at DESC";
         $stmtAddr = $pdo->prepare($addrSql);
         $stmtAddr->execute([$member_id]);
@@ -303,6 +294,9 @@ if (isset($pdo)) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Account - PetBuddy</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="../css/memberProfileStyle.css">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -311,6 +305,22 @@ if (isset($pdo)) {
 <body>
 
     <?php include '../include/header.php'; ?>
+
+    <?php if ($message): ?>
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                Swal.fire({
+                    icon: '<?php echo $msg_type === "success" ? "success" : "error"; ?>',
+                    title: '<?php echo $msg_type === "success" ? "Success" : "Oops..."; ?>',
+                    text: "<?php echo $message; ?>",
+                    confirmButtonColor: '#F4A261',
+                    confirmButtonText: 'OK',
+                    timer: 3000,
+                    timerProgressBar: true
+                });
+            });
+        </script>
+    <?php endif; ?>
 
     <div class="dashboard-container">
 
@@ -330,19 +340,19 @@ if (isset($pdo)) {
 
                 <nav class="sidebar-nav">
                     <div id="link-dashboard" class="sidebar-link active" onclick="switchTab('dashboard')">
-                        <img src="../images/dashboard.png" alt="Dashboard"> Dashboard
+                        <img src="../images/dashboard.png" style="width:20px; opacity:0.7;"> Dashboard
                     </div>
                     <div id="link-orders" class="sidebar-link" onclick="switchTab('orders')">
-                        <img src="../images/purchase-order.png" alt="Orders"> My Orders
+                        <img src="../images/purchase-order.png" style="width:20px; opacity:0.7;"> My Orders
                     </div>
                     <div id="link-addresses" class="sidebar-link" onclick="switchTab('addresses')">
-                        <img src="../images/phone-book.png" alt="Addresses" style="width:20px; opacity:0.7;"> Address Book
+                        <img src="../images/phone-book.png" style="width:20px; opacity:0.7;"> Address Book
                     </div>
                     <div id="link-profile" class="sidebar-link" onclick="switchTab('profile')">
-                        <img src="../images/profileSetting.png" alt="Settings"> Settings
+                        <img src="../images/profileSetting.png" style="width:20px; opacity:0.7;"> Settings
                     </div>
                     <a href="#" onclick="confirmLogout()" class="sidebar-link text-red">
-                        <img src="../images/exit.png" alt="Logout"> Logout
+                        <img src="../images/exit.png" style="width:20px; opacity:0.7;"> Logout
                     </a>
                 </nav>
             </div>
@@ -352,12 +362,6 @@ if (isset($pdo)) {
             <div class="breadcrumb">
                 <a href="home.php">Home</a> / <span>My Account</span>
             </div>
-
-            <?php if ($message): ?>
-                <div id="alertBox" class="alert <?php echo $msg_type == 'success' ? 'alert-success' : 'alert-error'; ?> fade-out">
-                    <?php echo $message; ?>
-                </div>
-            <?php endif; ?>
 
             <div id="dashboard" class="tab-content">
                 <div class="stat-grid">
@@ -375,35 +379,44 @@ if (isset($pdo)) {
                             <h3>RM <?php echo number_format($stats['total_spent'], 2); ?></h3>
                         </div>
                     </div>
-                    <div class="stat-card" onclick="window.location.href='vouchers.php'" style="cursor: pointer;">
+                    <div class="stat-card" onclick="switchTab('orders')" style="cursor: pointer;">
                         <div class="stat-icon-box bg-orange-light"><img src="../images/voucher.png" style="width:24px;"></div>
                         <div class="stat-info">
                             <p>Available Vouchers</p>
-                            <h3><?php echo $voucher_count ?? 0; ?></h3>
+                            <h3><?php echo $voucher_count; ?></h3>
                         </div>
                     </div>
                 </div>
 
                 <div class="card-box">
-                    <h3 class="section-title">Recent Activity</h3>
-                    <?php if (count($orders) > 0): ?>
-                        <div class="activity-list">
-                            <?php foreach (array_slice($orders, 0, 3) as $order): ?>
-                                <div class="activity-item">
-                                    <div>
-                                        <strong>Order #<?php echo $order['order_id']; ?></strong><br>
-                                        <span style="font-size:0.85rem; color:#777;"><?php echo date('d M Y', strtotime($order['order_date'])); ?></span>
+                    <div class="section-header" style="margin-bottom: 1.5rem;">
+                        <h3 class="section-title" style="margin:0;">My Active Vouchers</h3>
+                        <a href="vouchers.php" class="link-orange" style="font-size:0.9rem;">View All</a>
+                    </div>
+                    <?php if (count($my_vouchers) > 0): ?>
+                        <div class="voucher-dashboard-grid">
+                            <?php foreach (array_slice($my_vouchers, 0, 3) as $v):
+                                $minSpend = (float)$v['min_amount'];
+                            ?>
+                                <div class="dashboard-voucher-card">
+                                    <div class="d-voucher-left">
+                                        <div class="d-voucher-amount">RM <?php echo number_format($v['discount_amount'], 0); ?></div>
+                                        <div class="d-voucher-label">OFF</div>
                                     </div>
-                                    <div class="text-right">
-                                        <div style="font-weight:bold;">RM <?php echo number_format($order['total_amount'], 2); ?></div>
-                                        <span class="status-badge <?php echo $order['status'] == 'completed' ? 'status-completed' : 'status-pending'; ?>"><?php echo ucfirst($order['status']); ?></span>
+                                    <div class="d-voucher-right">
+                                        <div class="d-voucher-code"><?php echo htmlspecialchars($v['code']); ?></div>
+                                        <div class="d-voucher-condition">
+                                            <?php echo ($minSpend > 0) ? "Min. spend RM " . number_format($minSpend, 0) : "No min. spend"; ?>
+                                        </div>
+                                        <div class="d-voucher-expiry">Exp: <?php echo date('d M Y', strtotime($v['end_date'])); ?></div>
                                     </div>
                                 </div>
                             <?php endforeach; ?>
                         </div>
                     <?php else: ?>
-                        <div class="empty-state">
-                            <p class="empty-text">No recent activity.</p>
+                        <div class="empty-state" style="padding: 2rem 0;">
+                            <div class="empty-icon" style="width:50px; height:50px; margin-bottom:10px;"><img src="../images/voucher.png" style="width:24px; opacity:0.4;"></div>
+                            <p class="empty-text">No active vouchers available right now.</p>
                         </div>
                     <?php endif; ?>
                 </div>
@@ -411,7 +424,7 @@ if (isset($pdo)) {
 
             <div id="orders" class="tab-content">
                 <div class="card-box" style="min-height: 400px; background: transparent; border:none; box-shadow:none; padding:0;">
-                    
+
                     <div class="order-tabs">
                         <div class="order-tab active" onclick="filterOrders('all', this)">All</div>
                         <div class="order-tab" onclick="filterOrders('pending', this)">To Pay</div>
@@ -424,15 +437,18 @@ if (isset($pdo)) {
 
                     <?php if (count($orders) > 0): ?>
                         <div class="order-card-list">
-                            <?php foreach ($orders as $order): 
+                            <?php foreach ($orders as $order):
                                 $imgSrc = !empty($order['first_img']) ? productImageUrl($order['first_img']) : '../images/no-image.png';
                                 $moreItems = $order['item_count'] - 1;
                                 $itemText = htmlspecialchars($order['first_item_name']);
-                                if($moreItems > 0) { $itemText .= " <span style='color:#999; font-weight:400;'>+ $moreItems other items</span>"; }
-                                
-                                // Map DB status to Tab Categories for filtering
-                                $filterStatus = $order['status']; 
-                                if($order['status'] == 'return_requested' || $order['status'] == 'returned') { $filterStatus = 'return_requested'; }
+                                if ($moreItems > 0) {
+                                    $itemText .= " <span style='color:#999; font-weight:400;'>+ $moreItems other items</span>";
+                                }
+
+                                $filterStatus = $order['status'];
+                                if ($order['status'] == 'return_requested' || $order['status'] == 'returned') {
+                                    $filterStatus = 'return_requested';
+                                }
                             ?>
                                 <div class="order-card" data-status="<?php echo $filterStatus; ?>">
                                     <div class="order-header">
@@ -447,11 +463,10 @@ if (isset($pdo)) {
                                         </div>
                                         <div><span class="order-status-badge status-<?php echo strtolower($order['status']); ?>"><?php echo ucfirst(str_replace('_', ' ', $order['status'])); ?></span></div>
                                     </div>
-                                    
+
                                     <div class="order-actions">
-                                        
                                         <?php if (in_array($order['status'], ['pending', 'paid'])): ?>
-                                            <form method="POST" onsubmit="return confirm('Are you sure you want to cancel this order?');" style="margin:0;">
+                                            <form method="POST" onsubmit="return confirmSubmit(event, 'Are you sure you want to cancel this order?');" style="margin:0;">
                                                 <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                                                 <input type="hidden" name="action" value="cancel_order">
                                                 <input type="hidden" name="order_id" value="<?php echo $order['order_id']; ?>">
@@ -460,7 +475,7 @@ if (isset($pdo)) {
                                         <?php endif; ?>
 
                                         <?php if ($order['status'] == 'shipped'): ?>
-                                            <form method="POST" onsubmit="return confirm('Confirm you have received the order?');" style="margin:0;">
+                                            <form method="POST" onsubmit="return confirmSubmit(event, 'Confirm you have received the order? This cannot be undone.');" style="margin:0;">
                                                 <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                                                 <input type="hidden" name="action" value="complete_order">
                                                 <input type="hidden" name="order_id" value="<?php echo $order['order_id']; ?>">
@@ -469,7 +484,7 @@ if (isset($pdo)) {
                                         <?php endif; ?>
 
                                         <?php if (in_array($order['status'], ['shipped', 'completed'])): ?>
-                                            <form method="POST" onsubmit="return confirm('Request a return/refund?');" style="margin:0;">
+                                            <form method="POST" onsubmit="return confirmSubmit(event, 'Request a return/refund?');" style="margin:0;">
                                                 <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                                                 <input type="hidden" name="action" value="request_return">
                                                 <input type="hidden" name="order_id" value="<?php echo $order['order_id']; ?>">
@@ -536,7 +551,7 @@ if (isset($pdo)) {
                                                     <input type="hidden" name="address_id" value="<?php echo $addr['address_id']; ?>">
                                                     <button type="submit" class="btn-link-action" style="color:var(--primary-dark);margin-top:10px;">Set Default</button>
                                                 </form>
-                                                <form method="POST" style="margin:0;" onsubmit="return confirm('Delete this address?');">
+                                                <form method="POST" style="margin:0;" onsubmit="return confirmSubmit(event, 'Delete this address?');">
                                                     <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                                                     <input type="hidden" name="action" value="delete_address">
                                                     <input type="hidden" name="address_id" value="<?php echo $addr['address_id']; ?>">
@@ -561,16 +576,14 @@ if (isset($pdo)) {
                     <div class="section-header">
                         <h3 class="section-title">General Settings</h3>
                         <div style="display:flex; gap:10px;">
-                            <button type="button" id="editProfileBtn" onclick="enableProfileEdit()" class="btn-edit-profile">
-                                Edit Profile
-                            </button>
+                            <button type="button" id="editProfileBtn" onclick="enableProfileEdit()" class="btn-edit-profile">Edit Profile</button>
                             <button type="button" onclick="toggleModal('pwdModal')" class="link-btn">
                                 <img src="../images/padlock.png" style="width:14px;"> Change Password
                             </button>
                         </div>
                     </div>
 
-                    <form method="POST" enctype="multipart/form-data" id="profileForm" onsubmit="return confirm('Are you sure you want to save these changes?');">
+                    <form method="POST" enctype="multipart/form-data" id="profileForm" onsubmit="return confirmSubmit(event, 'Are you sure you want to save these changes?');">
                         <input type="hidden" name="form_type" value="update_profile">
                         <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
 
@@ -583,18 +596,9 @@ if (isset($pdo)) {
                         </div>
 
                         <div class="form-grid">
-                            <div>
-                                <label class="form-label">Full Name</label>
-                                <input type="text" name="full_name" class="form-input editable-field" value="<?php echo htmlspecialchars($member['full_name']); ?>" readonly required>
-                            </div>
-                            <div>
-                                <label class="form-label">Phone Number</label>
-                                <input type="text" name="phone" class="form-input editable-field" value="<?php echo htmlspecialchars($member['phone']); ?>" readonly>
-                            </div>
-                            <div class="col-span-2">
-                                <label class="form-label">Email Address (Cannot change)</label>
-                                <input type="email" value="<?php echo htmlspecialchars($member['email']); ?>" class="form-input" readonly style="opacity:0.7;">
-                            </div>
+                            <div><label class="form-label">Full Name</label><input type="text" name="full_name" class="form-input editable-field" value="<?php echo htmlspecialchars($member['full_name']); ?>" readonly required></div>
+                            <div><label class="form-label">Phone Number</label><input type="text" name="phone" class="form-input editable-field" value="<?php echo htmlspecialchars($member['phone']); ?>" readonly></div>
+                            <div class="col-span-2"><label class="form-label">Email Address (Cannot change)</label><input type="email" value="<?php echo htmlspecialchars($member['email']); ?>" class="form-input" readonly style="opacity:0.7;"></div>
                         </div>
 
                         <div id="saveProfileBtnGroup" style="overflow:hidden;">
@@ -614,46 +618,22 @@ if (isset($pdo)) {
                 <h3 id="addrModalTitle">Add New Address</h3>
                 <button class="close-modal" onclick="toggleModal('addrModal')">&times;</button>
             </div>
-
             <form method="POST" class="modal-body" id="addrForm">
                 <input type="hidden" name="form_type" value="save_address">
                 <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                 <input type="hidden" name="address_id" id="modal_address_id" value="">
 
                 <div class="form-row-split">
-                    <div class="form-col">
-                        <label>Recipient Name *</label>
-                        <input type="text" name="recipient_name" id="modal_r_name" required>
-                    </div>
-                    <div class="form-col">
-                        <label>Phone *</label>
-                        <input type="text" name="recipient_phone" id="modal_r_phone" required>
-                    </div>
+                    <div class="form-col"><label>Recipient Name *</label><input type="text" name="recipient_name" id="modal_r_name" required></div>
+                    <div class="form-col"><label>Phone *</label><input type="text" name="recipient_phone" id="modal_r_phone" required></div>
                 </div>
-
-                <div class="form-group">
-                    <label>Address Line 1 *</label>
-                    <input type="text" name="address_line1" id="modal_line1" required placeholder="Street address, P.O. box">
-                </div>
-
-                <div class="form-group">
-                    <label>Address Line 2 (Optional)</label>
-                    <input type="text" name="address_line2" id="modal_line2" placeholder="Apartment, suite, unit, etc.">
-                </div>
-
+                <div class="form-group"><label>Address Line 1 *</label><input type="text" name="address_line1" id="modal_line1" required placeholder="Street address, P.O. box"></div>
+                <div class="form-group"><label>Address Line 2 (Optional)</label><input type="text" name="address_line2" id="modal_line2" placeholder="Apartment, suite, unit, etc."></div>
                 <div class="form-row-split">
-                    <div class="form-col">
-                        <label>Postcode *</label>
-                        <input type="text" name="postcode" id="modal_postcode" maxlength="5" required placeholder="e.g. 81300">
-                    </div>
-                    <div class="form-col">
-                        <label>City *</label>
-                        <input type="text" name="city" id="modal_city" required placeholder="Auto-filled">
-                    </div>
+                    <div class="form-col"><label>Postcode *</label><input type="text" name="postcode" id="modal_postcode" maxlength="5" required placeholder="e.g. 81300"></div>
+                    <div class="form-col"><label>City *</label><input type="text" name="city" id="modal_city" required placeholder="Auto-filled"></div>
                 </div>
-
-                <div class="form-group">
-                    <label>State *</label>
+                <div class="form-group"><label>State *</label>
                     <select name="state" id="modal_state" required>
                         <option value="">Select State</option>
                         <option value="Johor">Johor</option>
@@ -674,12 +654,7 @@ if (isset($pdo)) {
                         <option value="Terengganu">Terengganu</option>
                     </select>
                 </div>
-
-                <div class="checkbox-group">
-                    <input type="checkbox" name="is_default" id="modal_is_default">
-                    <label for="modal_is_default">Set as default shipping address</label>
-                </div>
-
+                <div class="checkbox-group"><input type="checkbox" name="is_default" id="modal_is_default"><label for="modal_is_default">Set as default shipping address</label></div>
                 <button type="submit" class="btn-save-full">Save Address</button>
             </form>
         </div>
@@ -691,42 +666,22 @@ if (isset($pdo)) {
                 <h3>Change Password</h3>
                 <button class="close-modal" onclick="toggleModal('pwdModal')">&times;</button>
             </div>
-
             <form method="POST" action="" id="pwdForm" class="modal-body" onsubmit="return showLoading(this);">
                 <input type="hidden" name="form_type" value="change_password">
                 <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-
-                <div class="form-group">
-                    <label>Current Password</label>
-                    <div style="position: relative;">
-                        <input type="password" name="current_password" id="current_pwd" required style="padding-right: 40px;">
-                        <img src="../images/show.png" class="password-toggle" onclick="toggleVisibility('current_pwd', this)" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 20px; cursor: pointer; opacity: 0.6;">
-                    </div>
+                <div class="form-group"><label>Current Password</label>
+                    <div style="position: relative;"><input type="password" name="current_password" id="current_pwd" required style="padding-right: 40px;"><img src="../images/show.png" class="password-toggle" onclick="toggleVisibility('current_pwd', this)" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 20px; cursor: pointer; opacity: 0.6;"></div>
                 </div>
-
-                <div class="form-group">
-                    <label>New Password</label>
-                    <div style="position: relative;">
-                        <input type="password" name="new_password" id="new_pwd" required style="padding-right: 40px;">
-                        <img src="../images/show.png" class="password-toggle" onclick="toggleVisibility('new_pwd', this)" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 20px; cursor: pointer; opacity: 0.6;">
-                    </div>
-                    <small id="pwd_msg" style="display:block; margin-top:6px; font-size:0.8rem; color:#666; min-height:18px;"></small>
+                <div class="form-group"><label>New Password</label>
+                    <div style="position: relative;"><input type="password" name="new_password" id="new_pwd" required style="padding-right: 40px;"><img src="../images/show.png" class="password-toggle" onclick="toggleVisibility('new_pwd', this)" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 20px; cursor: pointer; opacity: 0.6;"></div><small id="pwd_msg" style="display:block; margin-top:6px; font-size:0.8rem; color:#666; min-height:18px;"></small>
                 </div>
-
-                <div class="form-group" style="margin-bottom: 24px;">
-                    <label>Confirm Password</label>
-                    <div style="position: relative;">
-                        <input type="password" name="confirm_password" id="confirm_pwd" required style="padding-right: 40px;">
-                        <img src="../images/show.png" class="password-toggle" onclick="toggleVisibility('confirm_pwd', this)" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 20px; cursor: pointer; opacity: 0.6;">
-                    </div>
-                    <small id="match_msg" style="display:block; margin-top:6px; font-size:0.8rem; color:#666; min-height:18px;"></small>
+                <div class="form-group" style="margin-bottom: 24px;"><label>Confirm Password</label>
+                    <div style="position: relative;"><input type="password" name="confirm_password" id="confirm_pwd" required style="padding-right: 40px;"><img src="../images/show.png" class="password-toggle" onclick="toggleVisibility('confirm_pwd', this)" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 20px; cursor: pointer; opacity: 0.6;"></div><small id="match_msg" style="display:block; margin-top:6px; font-size:0.8rem; color:#666; min-height:18px;"></small>
                 </div>
-
                 <button type="submit" id="btnUpdatePwd" class="btn-save-full">Update Password</button>
             </form>
         </div>
     </div>
-
 
     <div id="orderModal" class="modal-overlay">
         <div class="modal-box" style="max-width: 700px;">
@@ -765,8 +720,7 @@ if (isset($pdo)) {
                                 <th style="padding:10px; text-align:right; font-size:0.85rem; color:#555;">Price</th>
                             </tr>
                         </thead>
-                        <tbody id="modal_order_items_body">
-                        </tbody>
+                        <tbody id="modal_order_items_body"></tbody>
                     </table>
                 </div>
 
@@ -781,67 +735,50 @@ if (isset($pdo)) {
         </div>
     </div>
 
-    <?php include '../include/footer.php'; ?>
 
     <script>
-        // --- Tab Logic ---
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.sidebar-link').forEach(el => el.classList.remove('active'));
 
-            // Activate content
             const content = document.getElementById(tabId);
             if (content) content.classList.add('active');
 
-            // Activate sidebar link
             const link = document.getElementById('link-' + tabId);
             if (link) link.classList.add('active');
         }
 
-        // --- Profile Edit Logic (Fixed Cancel) ---
         function enableProfileEdit() {
-            // Enable inputs
             document.querySelectorAll('.editable-field').forEach(input => {
                 input.removeAttribute('readonly');
                 input.style.backgroundColor = '#fff';
                 input.style.borderColor = 'var(--primary-color)';
                 input.style.cursor = 'text';
             });
-            // Show Save/Cancel, Hide Edit
             document.getElementById('editProfileBtn').style.display = 'none';
             document.getElementById('saveProfileBtnGroup').style.display = 'flex';
-            document.getElementById('uploadWrapper').style.display = 'flex'; // Changed to flex for better alignment
+            document.getElementById('uploadWrapper').style.display = 'flex';
         }
 
         function cancelProfileEdit() {
-            // 1. Reset the form values to what they were before editing
             document.getElementById('profileForm').reset();
-
-            // 2. Lock the inputs again
             document.querySelectorAll('.editable-field').forEach(input => {
                 input.setAttribute('readonly', 'true');
-                input.style.backgroundColor = ''; // Reverts to CSS default (gray)
-                input.style.borderColor = ''; // Reverts to CSS default
+                input.style.backgroundColor = '';
+                input.style.borderColor = '';
                 input.style.cursor = 'not-allowed';
             });
-
-            // 3. Reset Button Visibility
-            document.getElementById('editProfileBtn').style.display = 'block'; // Show Edit button
-            document.getElementById('saveProfileBtnGroup').style.display = 'none'; // Hide Save/Cancel
-            document.getElementById('uploadWrapper').style.display = 'none'; // Hide Upload button
-
-            // IMPORTANT: We DO NOT call window.location.reload() here.
-            // This keeps the user on the current tab instantly.
+            document.getElementById('editProfileBtn').style.display = 'block';
+            document.getElementById('saveProfileBtnGroup').style.display = 'none';
+            document.getElementById('uploadWrapper').style.display = 'none';
         }
 
-        // --- Address Modal Logic (Add vs Edit) ---
         function openAddrModal(mode, data = null) {
             const modal = document.getElementById('addrModal');
             const title = document.getElementById('addrModalTitle');
             const form = document.getElementById('addrForm');
 
             if (mode === 'edit' && data) {
-                // Edit Mode: Pre-fill data
                 title.textContent = "Edit Address";
                 document.getElementById('modal_address_id').value = data.address_id;
                 document.getElementById('modal_r_name').value = data.recipient_name || "";
@@ -851,16 +788,12 @@ if (isset($pdo)) {
                 document.getElementById('modal_postcode').value = data.postcode;
                 document.getElementById('modal_city').value = data.city;
                 document.getElementById('modal_state').value = data.state;
-
-                // Handle Checkbox
                 document.getElementById('modal_is_default').checked = (data.is_default == 1);
             } else {
-                // Add Mode: Clear form
                 title.textContent = "Add New Address";
                 form.reset();
-                document.getElementById('modal_address_id').value = ""; // Empty ID
+                document.getElementById('modal_address_id').value = "";
             }
-
             modal.style.display = 'flex';
         }
 
@@ -873,17 +806,9 @@ if (isset($pdo)) {
             toggleModal('addrModal');
         }
 
-        // --- General Utilities ---
         document.addEventListener('DOMContentLoaded', function() {
-            // Load the active tab from PHP
             const initialTab = "<?php echo $active_tab; ?>";
             switchTab(initialTab);
-
-            // Auto-dismiss alerts
-            setTimeout(() => {
-                const alert = document.getElementById('alertBox');
-                if (alert) alert.style.display = 'none';
-            }, 5000);
         });
 
         function handleFileSelect(input) {
@@ -897,9 +822,38 @@ if (isset($pdo)) {
         }
 
         function confirmLogout() {
-            if (confirm("Are you sure you want to log out?")) {
-                window.location.href = "logout.php";
-            }
+            Swal.fire({
+                title: 'Logout?',
+                text: "Are you sure you want to log out?",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#F4A261',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Yes, Logout'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = "logout.php";
+                }
+            });
+        }
+
+        function confirmSubmit(event, message) {
+            event.preventDefault();
+            const form = event.target;
+            Swal.fire({
+                title: 'Are you sure?',
+                text: message,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#F4A261',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Yes'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    form.submit();
+                }
+            });
+            return false;
         }
 
         function showLoading(form) {
@@ -920,7 +874,6 @@ if (isset($pdo)) {
             }
         }
 
-        // --- Postcode Auto-fill ---
         $(document).ready(function() {
             $("#modal_postcode").on("keyup change", function() {
                 var postcode = $(this).val();
@@ -948,7 +901,6 @@ if (isset($pdo)) {
             });
         });
 
-        // --- Password Validation Logic ---
         document.addEventListener('DOMContentLoaded', function() {
             const btn = document.getElementById('btnUpdatePwd');
             const newPwd = document.getElementById('new_pwd');
@@ -998,12 +950,8 @@ if (isset($pdo)) {
             }
         });
 
-        // --- View Order Details (AJAX) ---
         function viewOrderDetails(orderId) {
-            // Show loading state or clear previous data
             document.getElementById('modal_order_items_body').innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px;">Loading...</td></tr>';
-
-            // Open Modal
             toggleModal('orderModal');
 
             $.ajax({
@@ -1018,7 +966,6 @@ if (isset($pdo)) {
                         const order = res.order;
                         const items = res.items;
 
-                        // 1. Fill Header Info
                         document.getElementById('modal_order_id').innerText = '#' + order.order_id;
                         document.getElementById('modal_order_date').innerText = new Date(order.order_date).toLocaleDateString('en-GB', {
                             day: 'numeric',
@@ -1029,16 +976,13 @@ if (isset($pdo)) {
                         });
                         document.getElementById('modal_order_total').innerText = 'RM ' + parseFloat(order.total_amount).toFixed(2);
 
-                        // Status Badge Style
                         const statusSpan = document.getElementById('modal_order_status');
                         statusSpan.innerText = order.status.charAt(0).toUpperCase() + order.status.slice(1);
                         statusSpan.className = 'order-status-badge status-' + order.status.toLowerCase();
 
-                        // 2. Fill Shipping Info
                         document.getElementById('modal_shipping_info').innerHTML =
                             `<strong>${order.shipping_name}</strong> (${order.shipping_phone})<br>${order.shipping_address}`;
 
-                        // 3. Fill Items Table
                         let rows = '';
                         let subtotal = 0;
                         items.forEach(item => {
@@ -1057,7 +1001,6 @@ if (isset($pdo)) {
                         });
                         document.getElementById('modal_order_items_body').innerHTML = rows;
 
-                        // 4. Fill Footer Totals
                         document.getElementById('modal_subtotal').innerText = 'RM ' + subtotal.toFixed(2);
                         document.getElementById('modal_shipping').innerText = 'RM ' + parseFloat(order.shipping_fee).toFixed(2);
                         document.getElementById('modal_discount').innerText = '- RM ' + parseFloat(order.discount_amount).toFixed(2);
@@ -1074,13 +1017,10 @@ if (isset($pdo)) {
             });
         }
 
-        // --- Order Tab Filtering ---
         function filterOrders(status, tabElement) {
-            // 1. Visual update for tabs
             document.querySelectorAll('.order-tab').forEach(t => t.classList.remove('active'));
             tabElement.classList.add('active');
 
-            // 2. Filter Cards
             const cards = document.querySelectorAll('.order-card');
             cards.forEach(card => {
                 if (status === 'all') {
