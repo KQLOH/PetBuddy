@@ -2,10 +2,10 @@
 session_start();
 require_once '../../user/include/db.php'; 
 
-if (
-    empty($_SESSION['role']) ||
-    !in_array($_SESSION['role'], ['admin', 'super_admin'], true)
-) {
+/* =======================
+   AUTH
+======================= */
+if (empty($_SESSION['role']) || !in_array($_SESSION['role'], ['admin', 'super_admin'], true)) {
     header('Location: admin_login.php');
     exit;
 }
@@ -13,6 +13,9 @@ if (
 $adminRole = $_SESSION['role'];
 $adminName = $_SESSION['full_name'] ?? 'Admin';
 
+/* =======================
+   FILTERS & SORTING
+======================= */
 $search = trim($_GET['search'] ?? '');
 $statusFilter = $_GET['status'] ?? 'all';
 
@@ -37,10 +40,14 @@ if (!in_array($dir, ['ASC', 'DESC'])) {
     $dir = 'DESC';
 }
 
+/* Pagination */
 $limit = 12;
 $page  = max(1, (int)($_GET['p'] ?? 1));
 $offset = ($page - 1) * $limit;
 
+/* =======================
+   QUERY
+======================= */
 $where = [];
 $params = [];
 
@@ -57,12 +64,8 @@ if ($statusFilter !== 'all') {
 
 $whereSql = $where ? ("WHERE " . implode(" AND ", $where)) : "";
 
-$countSql = "
-    SELECT COUNT(*) 
-    FROM orders o
-    JOIN members m ON o.member_id = m.member_id
-    {$whereSql}
-";
+/* Count */
+$countSql = "SELECT COUNT(*) FROM orders o JOIN members m ON o.member_id = m.member_id {$whereSql}";
 $countStmt = $pdo->prepare($countSql);
 $countStmt->execute($params);
 $total = (int)$countStmt->fetchColumn();
@@ -72,14 +75,9 @@ if ($totalPages > 0 && $page > $totalPages) {
     $offset = ($page - 1) * $limit;
 }
 
+/* Main Fetch */
 $sql = "
-    SELECT 
-        o.order_id,
-        o.order_date,
-        o.total_amount,
-        o.status,
-        m.full_name,
-        m.email
+    SELECT o.order_id, o.order_date, o.total_amount, o.status, m.full_name, m.email
     FROM orders o
     JOIN members m ON o.member_id = m.member_id
     {$whereSql}
@@ -97,19 +95,29 @@ function q(array $extra = []) {
     return http_build_query($base);
 }
 
+// --- UPDATED SORT LINK FUNCTION ---
 function sortLink($columnKey, $label) {
     global $sort, $dir;
     
+    // Determine next direction
     $newDir = ($sort === $columnKey && $dir === 'ASC') ? 'DESC' : 'ASC';
     
-    $icon = '';
+    // Determine which icon to show
+    $iconHtml = '';
     if ($sort === $columnKey) {
-        $icon = ($dir === 'ASC') ? ' ▲' : ' ▼';
+        if ($dir === 'ASC') {
+            $iconHtml = '<img src="../images/up.png" class="sort-icon" alt="Asc">';
+        } else {
+            $iconHtml = '<img src="../images/down.png" class="sort-icon" alt="Desc">';
+        }
+    } else {
+        // Optional: Show a faded icon for unsorted columns (user preference)
+        // $iconHtml = '<img src="../../images/down.png" class="sort-icon inactive" alt="Sort">';
     }
     
     $url = '?' . q(['sort' => $columnKey, 'dir' => $newDir, 'p' => 1]);
     
-    return '<a href="' . htmlspecialchars($url) . '" class="sort-link">' . $label . $icon . '</a>';
+    return '<a href="' . htmlspecialchars($url) . '" class="sort-link">' . $label . $iconHtml . '</a>';
 }
 
 $allStatuses = ['pending', 'paid', 'shipped', 'completed', 'cancelled', 'return_requested', 'returned'];
@@ -125,7 +133,6 @@ $allStatuses = ['pending', 'paid', 'shipped', 'completed', 'cancelled', 'return_
     <link rel="stylesheet" href="../css/admin_product.css">
     <link rel="stylesheet" href="../css/admin_orders_list.css">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    
 </head>
 
 <body>
@@ -328,6 +335,7 @@ $allStatuses = ['pending', 'paid', 'shipped', 'completed', 'cancelled', 'return_
     </div>
 
     <script>
+        // Sidebar toggle
         document.getElementById('sidebarToggle').addEventListener('click', function () {
             document.body.classList.toggle('sidebar-collapsed');
         });
@@ -336,6 +344,7 @@ $allStatuses = ['pending', 'paid', 'shipped', 'completed', 'cancelled', 'return_
             document.getElementById(id).classList.add('hidden');
         }
 
+        // --- Custom Alert Logic ---
         function showCustomAlert(type, title, text, autoClose = false) {
             const overlay = document.getElementById('customAlert');
             const icon = document.getElementById('customAlertIcon');
@@ -374,6 +383,7 @@ $allStatuses = ['pending', 'paid', 'shipped', 'completed', 'cancelled', 'return_
             }, 300);
         }
 
+        // --- View Order Logic ---
         function openViewOrder(orderId) {
             document.getElementById('viewModal').classList.remove('hidden');
             document.getElementById('viewOrderId').innerText = '#' + orderId;
@@ -439,6 +449,7 @@ $allStatuses = ['pending', 'paid', 'shipped', 'completed', 'cancelled', 'return_
                 });
         }
 
+        // --- Update Status Logic ---
         function openUpdateStatus(orderId, currentStatus) {
             document.getElementById('statusModal').classList.remove('hidden');
             document.getElementById('statusOrderId').value = orderId;
