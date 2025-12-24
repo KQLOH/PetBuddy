@@ -1,5 +1,4 @@
 <?php
-// admin/php/sidebar.php
 $currentPage = basename($_SERVER['PHP_SELF']);
 
 function isActive(string $file, string $currentPage): string
@@ -33,9 +32,8 @@ function isActive(string $file, string $currentPage): string
     <ul class="menu">
         <li><a href="product_list.php" class="<?= isActive('product_list.php', $currentPage); ?>">Products</a></li>
         <li><a href="category_list.php" class="<?= isActive('category_list.php', $currentPage); ?>">Categories</a></li>
-        <li><a href="orders_list.php" class="<?= isActive('order_list.php', $currentPage); ?>">Orders</a></li>
+        <li><a href="orders_list.php" class="<?= isActive('orders_list.php', $currentPage); ?>">Orders</a></li>
         <li><a href="member_list.php" class="<?= isActive('member_list.php', $currentPage); ?>">Members</a></li>
-        <li><a href="reviews_list.php" class="<?= isActive('review_list.php', $currentPage); ?>">Reviews</a></li>
         <li><a href="chat.php" class="<?= isActive('chat.php', $currentPage); ?>">Chat</a></li>
     </ul>
 
