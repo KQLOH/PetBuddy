@@ -37,7 +37,6 @@ $dob       = $_POST['dob'] ?: null;
 $role      = $_POST['role'] ?? null;
 $password  = trim($_POST['password'] ?? '');
 
-// Validation
 if ($full_name === '') {
     http_response_code(400);
     echo json_encode(['error' => 'Full name is required']);
@@ -56,7 +55,6 @@ if ($gender && !in_array($gender, ['male', 'female'], true)) {
     exit;
 }
 
-// Check if email already exists
 $check = $pdo->prepare("
     SELECT member_id FROM members
     WHERE email = ? AND member_id != ?
@@ -68,12 +66,10 @@ if ($check->fetch()) {
     exit;
 }
 
-// Get current member role (role is read-only, so we keep the original value)
 $currentMember = $pdo->prepare("SELECT role FROM members WHERE member_id = ?");
 $currentMember->execute([$member_id]);
 $currentRole = $currentMember->fetchColumn();
 
-// Update member (role is read-only, always keep current role)
 $pdo->prepare("
     UPDATE members SET
         full_name = ?, email = ?, phone = ?, address = ?,
@@ -86,11 +82,10 @@ $pdo->prepare("
     $address,
     $gender,
     $dob,
-    $currentRole,  // Always keep the original role
+    $currentRole,
     $member_id
 ]);
 
-// Update password if provided
 if ($password !== '') {
     if (strlen($password) < 6) {
         http_response_code(400);

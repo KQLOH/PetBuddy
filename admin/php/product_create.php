@@ -2,9 +2,6 @@
 session_start();
 require_once '../../user/include/db.php';
 
-/* =======================
-   AUTH
-======================= */
 if (
     empty($_SESSION['role']) ||
     !in_array($_SESSION['role'], ['admin','super_admin'], true)
@@ -13,9 +10,6 @@ if (
     exit;
 }
 
-/* =======================
-   LOAD CATEGORIES
-======================= */
 $categories = $pdo->query("
     SELECT category_id, name 
     FROM product_categories 
@@ -30,9 +24,6 @@ $subCategories = $pdo->query("
 
 $error = null;
 
-/* =======================
-   HANDLE POST
-======================= */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $name  = trim($_POST['name'] ?? '');
@@ -50,7 +41,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Invalid stock quantity.';
     }
 
-    /* ================= IMAGE UPLOAD ================= */
     $imagePath = null;
 
     if (!$error && isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
@@ -62,12 +52,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $ext = pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION);
             $newName = 'product_' . time() . '_' . rand(1000,9999) . '.' . $ext;
-
-            /* ===== PHYSICAL PATH (真实文件) ===== */
             $baseFolder = '../../user/images/product/';
-
-            /* ===== DB PATH（你要的） ===== */
-            $dbPath = 'images/product/';
+            $dbPath = '../images/product/';
 
             if ($cat) {
                 $catStmt = $pdo->prepare("SELECT name FROM product_categories WHERE category_id = ?");
@@ -99,12 +85,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             move_uploaded_file($_FILES['image']['tmp_name'], $baseFolder . $newName);
 
-            /* 最终存进 DB 的值 */
             $imagePath = $dbPath . $newName;
         }
     }
 
-    /* ================= INSERT ================= */
     if (!$error) {
         try {
             $pdo->prepare("
@@ -121,7 +105,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $imagePath
             ]);
 
-            /* AJAX support */
             if (
                 !empty($_SERVER['HTTP_X_REQUESTED_WITH']) &&
                 strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest'

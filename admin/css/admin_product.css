@@ -658,6 +658,25 @@ tbody tr:hover {
     box-shadow: 0 4px 12px rgba(244, 162, 97, .3)
 }
 
+.sort-link {
+        text-decoration: none;
+        color: inherit;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-weight: bold;
+    }
+    .sort-icon {
+        width: 10px;
+        height: auto;
+    }
+    .success-icon { 
+        width: 60px; height: 60px; background: #ECFDF3; color: #027A48; 
+        border: 2px solid #027A48; border-radius: 50%; 
+        display: flex; align-items: center; justify-content: center; 
+        font-size: 30px; margin: 0 auto 15px; 
+    }
+
 /* Responsive */
 @media(max-width:768px) {
     body {
