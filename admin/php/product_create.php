@@ -63,34 +63,94 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $ext = pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION);
             $newName = 'product_' . time() . '_' . rand(1000,9999) . '.' . $ext;
 
-            $uploadDir = '../../user/php/uploads/';
-            if (!is_dir($uploadDir)) {
-                mkdir($uploadDir, 0777, true);
+            // Build folder path based on category and subcategory
+            $folderPath = '../../user/images/product/';
+            $relativePath = 'images/product/';
+            $catFolder = null;
+            $subFolder = null;
+            
+            if ($cat) {
+                // Get category name
+                $catStmt = $pdo->prepare("SELECT name FROM product_categories WHERE category_id = ?");
+                $catStmt->execute([$cat]);
+                $catName = $catStmt->fetchColumn();
+                
+                if ($catName) {
+                    // Sanitize folder name (remove special characters, spaces)
+                    $catFolder = preg_replace('/[^a-zA-Z0-9_-]/', '_', strtolower($catName));
+                    $folderPath .= $catFolder . '/';
+                    $relativePath .= $catFolder . '/';
+                    
+                    if ($sub) {
+                        // Get subcategory name
+                        $subStmt = $pdo->prepare("SELECT name FROM sub_categories WHERE sub_category_id = ?");
+                        $subStmt->execute([$sub]);
+                        $subName = $subStmt->fetchColumn();
+                        
+                        if ($subName) {
+                            // Sanitize folder name
+                            $subFolder = preg_replace('/[^a-zA-Z0-9_-]/', '_', strtolower($subName));
+                            $folderPath .= $subFolder . '/';
+                            $relativePath .= $subFolder . '/';
+                        }
+                    }
+                }
+            }
+            
+            // Create directory if it doesn't exist
+            if (!is_dir($folderPath)) {
+                mkdir($folderPath, 0777, true);
             }
 
-            move_uploaded_file($_FILES['image']['tmp_name'], $uploadDir . $newName);
-            $imagePath = 'uploads/' . $newName;
+            move_uploaded_file($_FILES['image']['tmp_name'], $folderPath . $newName);
+            $imagePath = $relativePath . $newName;
         }
     }
 
     /* ===== INSERT ===== */
     if (!$error) {
-        $pdo->prepare("
-            INSERT INTO products
-            (name, description, price, stock_qty, category_id, sub_category_id, image)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ")->execute([
-            $name,
-            $desc,
-            $price,
-            $stock,
-            $cat,
-            $sub,
-            $imagePath
-        ]);
+        try {
+            $pdo->prepare("
+                INSERT INTO products
+                (name, description, price, stock_qty, category_id, sub_category_id, image)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ")->execute([
+                $name,
+                $desc,
+                $price,
+                $stock,
+                $cat,
+                $sub,
+                $imagePath
+            ]);
 
-        header('Location: product_list.php?created=1');
-        exit;
+            // Check if this is an AJAX request
+            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => true, 'message' => 'Product created successfully.']);
+                exit;
+            }
+
+            header('Location: product_list.php?created=1');
+            exit;
+        } catch (Exception $e) {
+            $error = 'Database error: ' . $e->getMessage();
+            // If AJAX, return JSON error
+            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+                header('Content-Type: application/json');
+                http_response_code(500);
+                echo json_encode(['error' => $error]);
+                exit;
+            }
+        }
+    } else {
+        // If AJAX and has error, return JSON error
+        if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+            header('Content-Type: application/json');
+            http_response_code(400);
+            echo json_encode(['error' => $error]);
+            exit;
+        }
     }
 }
 ?>
