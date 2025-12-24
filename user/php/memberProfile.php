@@ -49,86 +49,105 @@ if (isset($pdo)) {
             $new_pwd = $_POST['new_password'] ?? '';
             $confirm_pwd = $_POST['confirm_password'] ?? '';
 
-            $stmt = $pdo->prepare("SELECT password_hash FROM members WHERE member_id = ?");
-            $stmt->execute([$member_id]);
-            $userAuth = $stmt->fetch();
+            if (empty($current_pwd) || empty($new_pwd) || empty($confirm_pwd)) {
+                $message = "All password fields are required.";
+                $msg_type = "error";
+            } elseif ($new_pwd !== $confirm_pwd) {
+                $message = "New passwords do not match.";
+                $msg_type = "error";
+            } elseif (!preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*[\W_]).{6,}$/', $new_pwd)) {
+                $message = "Password must be at least 6 characters, contain 1 uppercase, 1 lowercase, and 1 symbol.";
+                $msg_type = "error";
+            } else {
+                $stmt = $pdo->prepare("SELECT password_hash FROM members WHERE member_id = ?");
+                $stmt->execute([$member_id]);
+                $userAuth = $stmt->fetch();
 
-            if ($userAuth && password_verify($current_pwd, $userAuth['password_hash'])) {
-                if ($new_pwd === $confirm_pwd) {
-                    if (preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*[\W_]).{6,}$/', $new_pwd)) {
-                        $new_hash = password_hash($new_pwd, PASSWORD_DEFAULT);
-                        $updStmt = $pdo->prepare("UPDATE members SET password_hash = ? WHERE member_id = ?");
-                        if ($updStmt->execute([$new_hash, $member_id])) {
-                            $_SESSION['flash_msg'] = "Password changed successfully!";
-                            $_SESSION['flash_type'] = "success";
-                            $_SESSION['flash_tab'] = "profile";
-                            $redirect_needed = true;
-                        } else {
-                            $message = "System error updating password.";
-                            $msg_type = "error";
-                        }
+                if ($userAuth && password_verify($current_pwd, $userAuth['password_hash'])) {
+                    $new_hash = password_hash($new_pwd, PASSWORD_DEFAULT);
+                    $updStmt = $pdo->prepare("UPDATE members SET password_hash = ? WHERE member_id = ?");
+                    if ($updStmt->execute([$new_hash, $member_id])) {
+                        $_SESSION['flash_msg'] = "Password changed successfully!";
+                        $_SESSION['flash_type'] = "success";
+                        $_SESSION['flash_tab'] = "profile";
+                        $redirect_needed = true;
                     } else {
-                        $message = "Password too weak.";
+                        $message = "System error updating password.";
                         $msg_type = "error";
                     }
                 } else {
-                    $message = "New passwords do not match.";
+                    $message = "Incorrect current password.";
                     $msg_type = "error";
                 }
-            } else {
-                $message = "Incorrect current password.";
-                $msg_type = "error";
             }
         } else if (isset($_POST['form_type']) && $_POST['form_type'] === 'update_profile') {
             $active_tab = 'profile';
             $full_name = trim($_POST['full_name'] ?? '');
             $phone = trim($_POST['phone'] ?? '');
 
-            $image_path = null;
-            $upload_error = false;
+            if (empty($full_name)) {
+                $message = "Full Name cannot be empty.";
+                $msg_type = "error";
+            } elseif (!empty($phone) && !preg_match('/^[0-9\-\+ ]{9,15}$/', $phone)) {
+                $message = "Invalid phone number format.";
+                $msg_type = "error";
+            } else {
+                $clean_phone = preg_replace('/[^0-9]/', '', $phone);
 
-            if (isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] == 0) {
-                $target_dir = "uploads/";
-                if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
-                $file_ext = strtolower(pathinfo($_FILES["profile_image"]["name"], PATHINFO_EXTENSION));
-                $new_filename = "mem_" . $member_id . "_" . time() . "." . $file_ext;
-                $target_file = $target_dir . $new_filename;
+                $image_path = null;
+                $upload_error = false;
 
-                $check = getimagesize($_FILES["profile_image"]["tmp_name"]);
-                if ($check !== false && in_array($file_ext, ['jpg', 'jpeg', 'png', 'gif'])) {
-                    if (move_uploaded_file($_FILES["profile_image"]["tmp_name"], $target_file)) {
-                        $image_path = $target_file;
+                if (isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] == 0) {
+                    $target_dir = "uploads/";
+                    if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
+                    $file_ext = strtolower(pathinfo($_FILES["profile_image"]["name"], PATHINFO_EXTENSION));
+
+                    $allowed_types = ['jpg', 'jpeg', 'png', 'gif'];
+                    if (in_array($file_ext, $allowed_types)) {
+                        $check = getimagesize($_FILES["profile_image"]["tmp_name"]);
+                        if ($check !== false) {
+                            $new_filename = "mem_" . $member_id . "_" . time() . "." . $file_ext;
+                            $target_file = $target_dir . $new_filename;
+                            if (move_uploaded_file($_FILES["profile_image"]["tmp_name"], $target_file)) {
+                                $image_path = $target_file;
+                            } else {
+                                $upload_error = true;
+                                $message = "Failed to move uploaded file.";
+                                $msg_type = "error";
+                            }
+                        } else {
+                            $upload_error = true;
+                            $message = "File is not an image.";
+                            $msg_type = "error";
+                        }
                     } else {
                         $upload_error = true;
-                        $message = "Upload failed.";
+                        $message = "Only JPG, JPEG, PNG & GIF files are allowed.";
                         $msg_type = "error";
                     }
-                } else {
-                    $upload_error = true;
-                    $message = "Invalid image.";
-                    $msg_type = "error";
                 }
-            }
 
-            if (!$upload_error) {
-                try {
-                    if ($image_path) {
-                        $sql = "UPDATE members SET full_name = ?, phone = ?, image = ? WHERE member_id = ?";
-                        $pdo->prepare($sql)->execute([$full_name, $phone, $image_path, $member_id]);
-                    } else {
-                        $sql = "UPDATE members SET full_name = ?, phone = ? WHERE member_id = ?";
-                        $pdo->prepare($sql)->execute([$full_name, $phone, $member_id]);
+                if (!$upload_error) {
+                    try {
+                        if ($image_path) {
+                            $sql = "UPDATE members SET full_name = ?, phone = ?, image = ? WHERE member_id = ?";
+                            $pdo->prepare($sql)->execute([$full_name, $clean_phone, $image_path, $member_id]);
+                        } else {
+                            $sql = "UPDATE members SET full_name = ?, phone = ? WHERE member_id = ?";
+                            $pdo->prepare($sql)->execute([$full_name, $clean_phone, $member_id]);
+                        }
+                        $_SESSION['flash_msg'] = "Profile updated successfully!";
+                        $_SESSION['flash_type'] = "success";
+                        $_SESSION['flash_tab'] = "profile";
+                        $redirect_needed = true;
+                    } catch (PDOException $e) {
+                        $message = "Error updating profile.";
+                        $msg_type = "error";
                     }
-                    $_SESSION['flash_msg'] = "Profile updated successfully!";
-                    $_SESSION['flash_type'] = "success";
-                    $_SESSION['flash_tab'] = "profile";
-                    $redirect_needed = true;
-                } catch (PDOException $e) {
-                    $message = "Error updating profile.";
-                    $msg_type = "error";
                 }
             }
         } else if (isset($_POST['form_type']) && $_POST['form_type'] === 'save_address') {
+            $active_tab = 'addresses';
             $addr_id = $_POST['address_id'] ?? '';
             $r_name = trim($_POST['recipient_name']);
             $r_phone = trim($_POST['recipient_phone']);
@@ -139,37 +158,51 @@ if (isset($pdo)) {
             $postcode = trim($_POST['postcode']);
             $is_default = isset($_POST['is_default']) ? 1 : 0;
 
-            if ($is_default) {
-                $pdo->prepare("UPDATE member_addresses SET is_default = 0 WHERE member_id = ?")->execute([$member_id]);
-            }
-
-            if (!empty($addr_id)) {
-                $sql = "UPDATE member_addresses SET recipient_name=?, recipient_phone=?, address_line1=?, address_line2=?, city=?, state=?, postcode=?, is_default=? WHERE address_id=? AND member_id=?";
-                $params = [$r_name, $r_phone, $addr1, $addr2, $city, $state, $postcode, $is_default, $addr_id, $member_id];
-                $msg = "Address updated successfully!";
-            } else {
-                if ($is_default == 0) {
-                    $stmtCheck = $pdo->prepare("SELECT COUNT(*) FROM member_addresses WHERE member_id = ?");
-                    $stmtCheck->execute([$member_id]);
-                    if ($stmtCheck->fetchColumn() == 0) {
-                        $is_default = 1;
-                    }
-                }
-                $sql = "INSERT INTO member_addresses (recipient_name, recipient_phone, address_line1, address_line2, city, state, postcode, is_default, member_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-                $params = [$r_name, $r_phone, $addr1, $addr2, $city, $state, $postcode, $is_default, $member_id];
-                $msg = "New address added!";
-            }
-
-            if ($pdo->prepare($sql)->execute($params)) {
-                $_SESSION['flash_msg'] = $msg;
-                $_SESSION['flash_type'] = "success";
-                $_SESSION['flash_tab'] = "addresses";
-                $redirect_needed = true;
-            } else {
-                $message = "Error saving address.";
+            if (empty($r_name) || empty($r_phone) || empty($addr1) || empty($city) || empty($state) || empty($postcode)) {
+                $message = "Please fill in all required fields marked with *.";
                 $msg_type = "error";
+            } elseif (!preg_match('/^\d{5}$/', $postcode)) {
+                $message = "Postcode must be exactly 5 digits.";
+                $msg_type = "error";
+            } elseif (!preg_match('/^[0-9\-\+ ]{9,15}$/', $r_phone)) {
+                $message = "Invalid phone number format.";
+                $msg_type = "error";
+            } else {
+                $clean_phone = preg_replace('/[^0-9]/', '', $r_phone);
+
+                if ($is_default) {
+                    $pdo->prepare("UPDATE member_addresses SET is_default = 0 WHERE member_id = ?")->execute([$member_id]);
+                }
+
+                if (!empty($addr_id)) {
+                    $sql = "UPDATE member_addresses SET recipient_name=?, recipient_phone=?, address_line1=?, address_line2=?, city=?, state=?, postcode=?, is_default=? WHERE address_id=? AND member_id=?";
+                    $params = [$r_name, $clean_phone, $addr1, $addr2, $city, $state, $postcode, $is_default, $addr_id, $member_id];
+                    $msg = "Address updated successfully!";
+                } else {
+                    if ($is_default == 0) {
+                        $stmtCheck = $pdo->prepare("SELECT COUNT(*) FROM member_addresses WHERE member_id = ?");
+                        $stmtCheck->execute([$member_id]);
+                        if ($stmtCheck->fetchColumn() == 0) {
+                            $is_default = 1;
+                        }
+                    }
+                    $sql = "INSERT INTO member_addresses (recipient_name, recipient_phone, address_line1, address_line2, city, state, postcode, is_default, member_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    $params = [$r_name, $clean_phone, $addr1, $addr2, $city, $state, $postcode, $is_default, $member_id];
+                    $msg = "New address added!";
+                }
+
+                if ($pdo->prepare($sql)->execute($params)) {
+                    $_SESSION['flash_msg'] = $msg;
+                    $_SESSION['flash_type'] = "success";
+                    $_SESSION['flash_tab'] = "addresses";
+                    $redirect_needed = true;
+                } else {
+                    $message = "Error saving address.";
+                    $msg_type = "error";
+                }
             }
         } else if (isset($_POST['action']) && $_POST['action'] === 'set_default') {
+            $active_tab = 'addresses';
             $addr_id = $_POST['address_id'];
             $pdo->beginTransaction();
             $pdo->prepare("UPDATE member_addresses SET is_default = 0 WHERE member_id = ?")->execute([$member_id]);
@@ -180,6 +213,7 @@ if (isset($pdo)) {
             $_SESSION['flash_tab'] = "addresses";
             $redirect_needed = true;
         } else if (isset($_POST['action']) && $_POST['action'] === 'delete_address') {
+            $active_tab = 'addresses';
             $addr_id = $_POST['address_id'];
             try {
                 $stmt = $pdo->prepare("DELETE FROM member_addresses WHERE address_id = ? AND member_id = ?");
@@ -196,9 +230,9 @@ if (isset($pdo)) {
                     $message = "System error: " . $e->getMessage();
                 }
                 $msg_type = "error";
-                $active_tab = "addresses";
             }
         } else if (isset($_POST['action']) && in_array($_POST['action'], ['cancel_order', 'complete_order', 'request_return'])) {
+            $active_tab = 'orders';
             $order_id = $_POST['order_id'];
             $new_status = '';
             $allow_update = false;
@@ -233,7 +267,7 @@ if (isset($pdo)) {
                     $redirect_needed = true;
                 }
             } else {
-                $message = "Action not allowed for current order status.";
+                $message = "Action not allowed.";
                 $msg_type = "error";
             }
         }
@@ -294,30 +328,18 @@ if (isset($pdo)) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Account - PetBuddy</title>
-
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="../css/memberProfileStyle.css">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 
 <body>
-
     <?php include '../include/header.php'; ?>
 
     <?php if ($message): ?>
         <script>
             document.addEventListener('DOMContentLoaded', function() {
-                Swal.fire({
-                    icon: '<?php echo $msg_type === "success" ? "success" : "error"; ?>',
-                    title: '<?php echo $msg_type === "success" ? "Success" : "Oops..."; ?>',
-                    text: "<?php echo $message; ?>",
-                    confirmButtonColor: '#F4A261',
-                    confirmButtonText: 'OK',
-                    timer: 3000,
-                    timerProgressBar: true
-                });
+                showCustomAlert('<?php echo $msg_type; ?>', '<?php echo $msg_type == "success" ? "Success" : "Error"; ?>', '<?php echo $message; ?>');
             });
         </script>
     <?php endif; ?>
@@ -327,8 +349,11 @@ if (isset($pdo)) {
         <aside>
             <div class="card-box">
                 <div class="user-brief">
-                    <?php if (!empty($member['image']) && file_exists($member['image'])): ?>
-                        <img src="<?php echo htmlspecialchars($member['image']); ?>?v=<?php echo time(); ?>" class="user-avatar">
+                    <?php
+                    $image_path = !empty($member['image']) ? '../' . $member['image'] : '';
+                    $image_exists = !empty($image_path) && file_exists($image_path);
+                    if ($image_exists): ?>
+                        <img src="<?php echo htmlspecialchars($image_path); ?>?v=<?php echo time(); ?>" class="user-avatar">
                     <?php else: ?>
                         <div class="user-avatar"><?php echo strtoupper(substr($member['full_name'] ?? 'U', 0, 1)); ?></div>
                     <?php endif; ?>
@@ -339,21 +364,11 @@ if (isset($pdo)) {
                 </div>
 
                 <nav class="sidebar-nav">
-                    <div id="link-dashboard" class="sidebar-link active" onclick="switchTab('dashboard')">
-                        <img src="../images/dashboard.png" style="width:20px; opacity:0.7;"> Dashboard
-                    </div>
-                    <div id="link-orders" class="sidebar-link" onclick="switchTab('orders')">
-                        <img src="../images/purchase-order.png" style="width:20px; opacity:0.7;"> My Orders
-                    </div>
-                    <div id="link-addresses" class="sidebar-link" onclick="switchTab('addresses')">
-                        <img src="../images/phone-book.png" style="width:20px; opacity:0.7;"> Address Book
-                    </div>
-                    <div id="link-profile" class="sidebar-link" onclick="switchTab('profile')">
-                        <img src="../images/profileSetting.png" style="width:20px; opacity:0.7;"> Settings
-                    </div>
-                    <a href="#" onclick="confirmLogout()" class="sidebar-link text-red">
-                        <img src="../images/exit.png" style="width:20px; opacity:0.7;"> Logout
-                    </a>
+                    <div id="link-dashboard" class="sidebar-link active" onclick="switchTab('dashboard')">Dashboard</div>
+                    <div id="link-orders" class="sidebar-link" onclick="switchTab('orders')">My Orders</div>
+                    <div id="link-addresses" class="sidebar-link" onclick="switchTab('addresses')">Address Book</div>
+                    <div id="link-profile" class="sidebar-link" onclick="switchTab('profile')">Settings</div>
+                    <a href="#" onclick="confirmLogout()" class="sidebar-link text-red" style="text-decoration: none;">Logout</a>
                 </nav>
             </div>
         </aside>
@@ -379,7 +394,7 @@ if (isset($pdo)) {
                             <h3>RM <?php echo number_format($stats['total_spent'], 2); ?></h3>
                         </div>
                     </div>
-                    <div class="stat-card" onclick="switchTab('orders')" style="cursor: pointer;">
+                    <div class="stat-card">
                         <div class="stat-icon-box bg-orange-light"><img src="../images/voucher.png" style="width:24px;"></div>
                         <div class="stat-info">
                             <p>Available Vouchers</p>
@@ -513,7 +528,7 @@ if (isset($pdo)) {
                 <div class="card-box">
                     <div class="section-header">
                         <h3 class="section-title">My Address Book</h3>
-                        <button class="btn-add-addr" onclick="openAddrModal('add')">+ Add New</button>
+                        <button type="button" class="btn-add-addr" onclick="openAddrModal('add')">+ Add New</button>
                     </div>
 
                     <div class="address-grid">
@@ -588,7 +603,7 @@ if (isset($pdo)) {
                         <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
 
                         <div class="profile-upload-area">
-                            <img id="previewImg" src="<?php echo !empty($member['image']) ? htmlspecialchars($member['image']) . '?v=' . time() : '../images/user_placeholder.png'; ?>" class="profile-preview-lg">
+                            <img id="previewImg" src="<?php echo !empty($member['image']) ? htmlspecialchars('../' . $member['image']) . '?v=' . time() : '../images/user_placeholder.png'; ?>" class="profile-preview-lg">
                             <div class="upload-btn-wrapper" id="uploadWrapper" style="display:none;">
                                 <label for="fileInput" class="btn-upload-label">Change Photo</label>
                                 <input type="file" name="profile_image" id="fileInput" style="display:none;" onchange="handleFileSelect(this)" accept="image/*">
@@ -598,7 +613,7 @@ if (isset($pdo)) {
                         <div class="form-grid">
                             <div><label class="form-label">Full Name</label><input type="text" name="full_name" class="form-input editable-field" value="<?php echo htmlspecialchars($member['full_name']); ?>" readonly required></div>
                             <div><label class="form-label">Phone Number</label><input type="text" name="phone" class="form-input editable-field" value="<?php echo htmlspecialchars($member['phone']); ?>" readonly></div>
-                            <div class="col-span-2"><label class="form-label">Email Address (Cannot change)</label><input type="email" value="<?php echo htmlspecialchars($member['email']); ?>" class="form-input" readonly style="opacity:0.7;"></div>
+                            <div class="col-span-2"><label class="form-label">Email Address</label><input type="email" value="<?php echo htmlspecialchars($member['email']); ?>" class="form-input" readonly style="opacity:0.7;"></div>
                         </div>
 
                         <div id="saveProfileBtnGroup" style="overflow:hidden;">
@@ -610,6 +625,18 @@ if (isset($pdo)) {
             </div>
 
         </main>
+    </div>
+
+    <div id="customAlert" class="custom-alert-overlay">
+        <div class="custom-alert-box">
+            <div id="customAlertIcon" class="custom-alert-icon"></div>
+            <h3 id="customAlertTitle" class="custom-alert-title"></h3>
+            <p id="customAlertText" class="custom-alert-text"></p>
+            <div id="customAlertButtons" class="custom-alert-buttons">
+                <button id="customAlertCancel" class="btn-alert btn-alert-cancel" style="display:none">Cancel</button>
+                <button id="customAlertConfirm" class="btn-alert btn-alert-confirm">OK</button>
+            </div>
+        </div>
     </div>
 
     <div id="addrModal" class="modal-overlay">
@@ -693,24 +720,19 @@ if (isset($pdo)) {
             <div class="modal-body" style="padding-top: 0;">
                 <div style="display:flex; justify-content:space-between; margin-bottom: 20px; background:#f9fafb; padding:15px; border-radius:8px;">
                     <div>
-                        <div style="font-size:0.85rem; color:#666;">Order Date</div>
-                        <strong id="modal_order_date" style="color:#333;"></strong>
+                        <div style="font-size:0.85rem; color:#666;">Order Date</div><strong id="modal_order_date" style="color:#333;"></strong>
                     </div>
                     <div>
-                        <div style="font-size:0.85rem; color:#666;">Status</div>
-                        <span id="modal_order_status" class="order-status-badge"></span>
+                        <div style="font-size:0.85rem; color:#666;">Status</div><span id="modal_order_status" class="order-status-badge"></span>
                     </div>
                     <div style="text-align:right;">
-                        <div style="font-size:0.85rem; color:#666;">Total Amount</div>
-                        <strong id="modal_order_total" style="color:var(--primary-color); font-size:1.1rem;"></strong>
+                        <div style="font-size:0.85rem; color:#666;">Total Amount</div><strong id="modal_order_total" style="color:var(--primary-color); font-size:1.1rem;"></strong>
                     </div>
                 </div>
-
                 <div style="margin-bottom: 20px;">
                     <h4 style="font-size:0.95rem; margin-bottom:8px; color:#333;">Shipping Address</h4>
                     <p id="modal_shipping_info" style="font-size:0.9rem; color:#555; line-height:1.5;"></p>
                 </div>
-
                 <div style="max-height: 300px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px;">
                     <table style="width:100%; border-collapse: collapse;">
                         <thead style="background:#f4f4f4; position:sticky; top:0;">
@@ -723,7 +745,6 @@ if (isset($pdo)) {
                         <tbody id="modal_order_items_body"></tbody>
                     </table>
                 </div>
-
                 <div style="margin-top: 20px; text-align:right; font-size:0.9rem; color:#555;">
                     <div style="display:flex; justify-content:flex-end; gap:20px;">
                         <span>Subtotal: <strong id="modal_subtotal"></strong></span>
@@ -734,7 +755,6 @@ if (isset($pdo)) {
             </div>
         </div>
     </div>
-
 
     <script>
         function switchTab(tabId) {
@@ -821,39 +841,98 @@ if (isset($pdo)) {
             }
         }
 
-        function confirmLogout() {
-            Swal.fire({
-                title: 'Logout?',
-                text: "Are you sure you want to log out?",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#F4A261',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Yes, Logout'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    window.location.href = "logout.php";
-                }
-            });
+        let pendingForm = null;
+
+        function showCustomAlert(type, title, text, autoClose = false) {
+            const overlay = document.getElementById('customAlert');
+            const icon = document.getElementById('customAlertIcon');
+            const btnCancel = document.getElementById('customAlertCancel');
+
+            document.getElementById('customAlertTitle').innerText = title;
+            document.getElementById('customAlertText').innerText = text;
+
+            icon.className = 'custom-alert-icon';
+            if (type === 'success') {
+                icon.classList.add('icon-success');
+                icon.innerHTML = '✓';
+            } else if (type === 'error') {
+                icon.classList.add('icon-error');
+                icon.innerHTML = '✕';
+            } else {
+                icon.classList.add('icon-confirm');
+                icon.innerHTML = '?';
+            }
+
+            btnCancel.style.display = 'none';
+            document.getElementById('customAlertConfirm').onclick = closeCustomAlert;
+
+            overlay.style.display = 'flex';
+            setTimeout(() => overlay.classList.add('show'), 10);
+
+            if (autoClose) setTimeout(closeCustomAlert, 2000);
         }
 
         function confirmSubmit(event, message) {
             event.preventDefault();
-            const form = event.target;
-            Swal.fire({
-                title: 'Are you sure?',
-                text: message,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#F4A261',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Yes'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    form.submit();
-                }
-            });
+            pendingForm = event.target;
+
+            const overlay = document.getElementById('customAlert');
+            const icon = document.getElementById('customAlertIcon');
+            const btnCancel = document.getElementById('customAlertCancel');
+
+            document.getElementById('customAlertTitle').innerText = 'Are you sure?';
+            document.getElementById('customAlertText').innerText = message;
+
+            icon.className = 'custom-alert-icon icon-confirm';
+            icon.innerHTML = '?';
+
+            btnCancel.style.display = 'block';
+            btnCancel.onclick = closeCustomAlert;
+
+            const btnConfirm = document.getElementById('customAlertConfirm');
+            btnConfirm.innerText = 'Yes';
+            btnConfirm.onclick = () => {
+                pendingForm.submit();
+                closeCustomAlert();
+            };
+
+            overlay.style.display = 'flex';
+            setTimeout(() => overlay.classList.add('show'), 10);
+
             return false;
+        }
+
+        function confirmLogout() {
+            const overlay = document.getElementById('customAlert');
+            const icon = document.getElementById('customAlertIcon');
+            const btnCancel = document.getElementById('customAlertCancel');
+
+            document.getElementById('customAlertTitle').innerText = 'Logout?';
+            document.getElementById('customAlertText').innerText = "Are you sure you want to log out?";
+
+            icon.className = 'custom-alert-icon icon-confirm';
+            icon.innerHTML = '?';
+
+            btnCancel.style.display = 'block';
+            btnCancel.onclick = closeCustomAlert;
+
+            const btnConfirm = document.getElementById('customAlertConfirm');
+            btnConfirm.innerText = 'Yes, Logout';
+            btnConfirm.onclick = () => {
+                window.location.href = "logout.php";
+            };
+
+            overlay.style.display = 'flex';
+            setTimeout(() => overlay.classList.add('show'), 10);
+        }
+
+        function closeCustomAlert() {
+            const overlay = document.getElementById('customAlert');
+            overlay.classList.remove('show');
+            setTimeout(() => {
+                overlay.style.display = 'none';
+                document.getElementById('customAlertConfirm').innerText = 'OK';
+            }, 300);
         }
 
         function showLoading(form) {
@@ -1034,6 +1113,88 @@ if (isset($pdo)) {
                 }
             });
         }
+
+        $(document).ready(function() {
+
+            function setStatus(input, isValid, msg) {
+                $(input).next('.validation-msg').remove();
+
+                if (!isValid) {
+                    $(input).addClass('input-error').removeClass('input-success');
+                    $(input).after('<span class="validation-msg">' + msg + '</span>');
+                    $(input).closest('form').find('button[type="submit"]').prop('disabled', true).css('opacity', '0.5');
+                } else {
+                    $(input).removeClass('input-error').addClass('input-success');
+                    if ($(input).closest('form').find('.input-error').length === 0) {
+                        $(input).closest('form').find('button[type="submit"]').prop('disabled', false).css('opacity', '1');
+                    }
+                }
+            }
+
+            $('input[name="full_name"], input[name="recipient_name"], input[name="address_line1"], input[name="city"]').on('input blur', function() {
+                let val = $(this).val().trim();
+                setStatus(this, val.length > 0, "This field cannot be empty.");
+            });
+
+            $('input[name="phone"], input[name="recipient_phone"]').on('input blur', function() {
+                let val = $(this).val().replace(/[^0-9]/g, '');
+                let isValid = (val.length >= 9 && val.length <= 15);
+                setStatus(this, isValid, "Phone must be 9-15 digits.");
+            });
+
+            $('input[name="postcode"]').on('input blur', function() {
+                let val = $(this).val();
+                let isValid = /^\d{5}$/.test(val);
+                setStatus(this, isValid, "Postcode must be exactly 5 digits.");
+            });
+
+            $('#new_pwd').on('input blur', function() {
+                let val = $(this).val();
+                let regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[\W_]).{6,}$/;
+
+                if (val.length === 0) {
+                    setStatus(this, false, "Password required.");
+                } else if (!regex.test(val)) {
+                    setStatus(this, false, "Weak: Need 1 Upper, 1 Lower, 1 Symbol, Min 6 chars.");
+                } else {
+                    setStatus(this, true, "");
+                }
+
+                $('#confirm_pwd').trigger('input');
+            });
+
+            $('#confirm_pwd').on('input blur', function() {
+                let confirmVal = $(this).val();
+                let originalVal = $('#new_pwd').val();
+
+                if (confirmVal === "") {
+                    setStatus(this, false, "Please confirm password.");
+                } else if (confirmVal !== originalVal) {
+                    setStatus(this, false, "Passwords do not match.");
+                } else {
+                    setStatus(this, true, "");
+                }
+            });
+
+            $('form').on('submit', function(e) {
+                $(this).find('input[required]').each(function() {
+                    if ($(this).val().trim() === '') {
+                        setStatus(this, false, "This field is required.");
+                    }
+                });
+
+                if ($(this).find('.input-error').length > 0) {
+                    e.preventDefault();
+                    if (typeof showCustomAlert === 'function') {
+                        showCustomAlert('error', 'Error', 'Please fix the highlighted errors before saving.');
+                    } else {
+                        alert("Please fix the highlighted errors before saving.");
+                    }
+                    return false;
+                }
+            });
+
+        });
     </script>
 </body>
 
