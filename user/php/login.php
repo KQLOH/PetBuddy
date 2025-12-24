@@ -29,11 +29,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $user = $stmt->fetch();
 
             if ($user && password_verify($password, $user['password_hash'])) {
-                // 登录成功，设置 Session 变量
                 $_SESSION['member_id'] = $user['member_id'];
                 $_SESSION['full_name'] = $user['full_name'];
                 $_SESSION['role'] = $user['role'];
-                $_SESSION['user_image'] = $user['image'] ?: '../images/default-avatar.png';
+                $_SESSION['user_image'] = !empty($user['image']) ? '../' . $user['image'] : '../images/default-avatar.png';
 
                 header("Location: home.php");
                 exit;
@@ -55,6 +54,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - PetBuddy</title>
     <link rel="stylesheet" href="../css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         .header-logo {
             height: 1.8rem;
@@ -195,11 +195,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
                 <h2 class="card-title">Member Login</h2>
 
-                <?php if (!empty($registration_success_message)): ?>
-                    <div class="alert-success" role="alert">
-                        <p><?php echo htmlspecialchars($registration_success_message); ?></p>
-                    </div>
-                <?php endif; ?>
 
                 <?php if ($error): ?>
                     <div class="alert-error" role="alert">
@@ -267,6 +262,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 this.src = '../images/show.png';
             }
         });
+
+        // Show SweetAlert2 popup for registration success
+        <?php if (!empty($registration_success_message)): ?>
+        document.addEventListener('DOMContentLoaded', function() {
+            Swal.fire({
+                icon: 'success',
+                title: 'Registration Successful!',
+                text: '<?php echo htmlspecialchars($registration_success_message, ENT_QUOTES); ?>',
+                confirmButtonColor: '#f4a261',
+                confirmButtonText: 'OK'
+            });
+        });
+        <?php endif; ?>
     </script>
     <?php include '../include/footer.php'; ?>
 </body>
