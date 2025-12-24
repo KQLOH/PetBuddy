@@ -1,23 +1,10 @@
 <?php
-$lifetime = 0; 
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['remember_me'])) {
-    $lifetime = 30 * 24 * 60 * 60; // 30天
-}
-
-session_set_cookie_params($lifetime, '/');
+session_set_cookie_params(0, '/');
 session_start();
 
-include '../include/db.php';
+include '../include/db.php'; 
 
 $error = '';
-$registration_success_message = '';
-
-// ✨✨✨ 修复逻辑开始 ✨✨✨
-// 只有当不是 POST 请求（即不是正在提交登录表单）时，才检测注册成功参数
-if ($_SERVER["REQUEST_METHOD"] != "POST" && isset($_GET['registration_success']) && $_GET['registration_success'] === 'true') {
-    $registration_success_message = 'Account created successfully! You can now login';
-}
-// ✨✨✨ 修复逻辑结束 ✨✨✨
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $email = trim($_POST['email']);
@@ -35,10 +22,26 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $_SESSION['member_id'] = $user['member_id'];
                 $_SESSION['full_name'] = $user['full_name'];
                 $_SESSION['role'] = $user['role'];
-                $_SESSION['user_image'] = !empty($user['image']) ? '../' . $user['image'] : '../images/default-avatar.png';
+                $_SESSION['user_image'] = !empty($user['image']) ? $user['image'] : '../images/default-avatar.png';
+
+                if (isset($_POST['remember_me'])) {
+                    $token = bin2hex(random_bytes(32));
+                    $updateStmt = $pdo->prepare("UPDATE members SET remember_token = ? WHERE member_id = ?");
+                    $updateStmt->execute([$token, $user['member_id']]);
+                    setcookie('remember_token', $token, time() + (86400 * 30), "/", "", false, true);
+                } else {
+                    $clearStmt = $pdo->prepare("UPDATE members SET remember_token = NULL WHERE member_id = ?");
+                    $clearStmt->execute([$user['member_id']]);
+                    
+                    if (isset($_COOKIE['remember_token'])) {
+                        setcookie('remember_token', '', time() - 3600, "/", "", false, true);
+                        unset($_COOKIE['remember_token']);
+                    }
+                }
 
                 header("Location: home.php");
                 exit;
+                
             } else {
                 $error = "Invalid email or password.";
             }
@@ -57,7 +60,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - PetBuddy</title>
     <link rel="stylesheet" href="../css/style.css">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         .header-logo {
             height: 1.8rem;
@@ -198,6 +200,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
                 <h2 class="card-title">Member Login</h2>
 
+                <?php if (!empty($registration_success_message)): ?>
+                    <div class="alert-success" role="alert">
+                        <p><?php echo htmlspecialchars($registration_success_message); ?></p>
+                    </div>
+                <?php endif; ?>
+
                 <?php if ($error): ?>
                     <div class="alert-error" role="alert">
                         <p><?php echo htmlspecialchars($error); ?></p>
@@ -228,10 +236,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         Sign In
                     </button>
 
-                    <div class="mb-4" style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px;">
-                        <input type="checkbox" name="remember_me" id="remember_me" style="cursor: pointer;">
-                        <label for="remember_me" style="font-size: 0.9rem; color: #666; cursor: pointer;">Remember Me</label>
-                    </div>
+                                    <div class="mb-4" style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px;">
+                    <input type="checkbox" name="remember_me" id="remember_me" style="cursor: pointer;">
+                    <label for="remember_me" style="font-size: 0.9rem; color: #666; cursor: pointer;">Remember Me</label>
+                </div>
                 </form>
 
                 <div class="mt-6 text-center link-muted">
@@ -264,19 +272,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 this.src = '../images/show.png';
             }
         });
-
-        // Show SweetAlert2 popup for registration success
-        <?php if (!empty($registration_success_message)): ?>
-        document.addEventListener('DOMContentLoaded', function() {
-            Swal.fire({
-                icon: 'success',
-                title: 'Registration Successful!',
-                text: '<?php echo htmlspecialchars($registration_success_message, ENT_QUOTES); ?>',
-                confirmButtonColor: '#f4a261',
-                confirmButtonText: 'OK'
-            });
-        });
-        <?php endif; ?>
     </script>
     <?php include '../include/footer.php'; ?>
 </body>
