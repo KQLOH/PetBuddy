@@ -10,6 +10,12 @@ $categoryId    = isset($_GET['category']) ? max(0, (int)$_GET['category']) : 0;
 $subCategoryId = isset($_GET['sub_category']) ? max(0, (int)$_GET['sub_category']) : 0;
 $searchTerm    = trim($_GET['search'] ?? '');
 
+// === 筛选器参数 ===
+$minPrice = isset($_GET['min_price']) ? max(0, (float)$_GET['min_price']) : 0;
+$maxPrice = isset($_GET['max_price']) ? max(0, (float)$_GET['max_price']) : 0;
+$sortBy = isset($_GET['sort']) ? $_GET['sort'] : 'newest'; // newest, oldest, price_low, price_high, name_asc, name_desc
+$inStockOnly = isset($_GET['in_stock']) && $_GET['in_stock'] == '1' ? true : false;
+
 // === ✨ 3. (关键步骤) 获取当前用户已收藏的商品 ID ===
 $wishlistIds = [];
 if (isset($_SESSION['member_id'])) {
@@ -61,7 +67,43 @@ try {
         if ($catName) $pageTitle = $catName;
     }
 
-    $sql .= " ORDER BY p.product_id DESC";
+    // 价格范围筛选
+    if ($minPrice > 0) {
+        $sql .= " AND p.price >= ?";
+        $params[] = $minPrice;
+    }
+    if ($maxPrice > 0) {
+        $sql .= " AND p.price <= ?";
+        $params[] = $maxPrice;
+    }
+
+    // 库存筛选
+    if ($inStockOnly) {
+        $sql .= " AND p.stock_qty > 0";
+    }
+
+    // 排序
+    switch ($sortBy) {
+        case 'price_low':
+            $sql .= " ORDER BY p.price ASC";
+            break;
+        case 'price_high':
+            $sql .= " ORDER BY p.price DESC";
+            break;
+        case 'oldest':
+            $sql .= " ORDER BY p.product_id ASC";
+            break;
+        case 'name_asc':
+            $sql .= " ORDER BY p.name ASC";
+            break;
+        case 'name_desc':
+            $sql .= " ORDER BY p.name DESC";
+            break;
+        case 'newest':
+        default:
+            $sql .= " ORDER BY p.product_id DESC";
+            break;
+    }
 
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
@@ -69,6 +111,9 @@ try {
 } catch (PDOException $e) {
     $products = [];
 }
+
+// 检查是否有筛选条件
+$hasFilters = ($minPrice > 0 || $maxPrice > 0 || $sortBy != 'newest' || $inStockOnly);
 ?>
 
 <!DOCTYPE html>
@@ -148,6 +193,198 @@ try {
             color: #ff4d4d;
             text-decoration: underline;
             margin-left: 5px;
+        }
+
+        /* === Filter Toggle Button === */
+        .btn-filter-toggle {
+            background: linear-gradient(135deg, #FFB774, #E89C55);
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(255, 183, 116, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-filter-toggle:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 183, 116, 0.4);
+        }
+
+        .btn-filter-toggle.active {
+            background: linear-gradient(135deg, #E89C55, #FFB774);
+        }
+
+        /* === 筛选器样式 === */
+        .filter-section {
+            background: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            border: 1px solid #f0f0f0;
+            display: none;
+            animation: slideDown 0.3s ease;
+        }
+
+        .filter-section.show {
+            display: block;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .filter-row {
+            display: flex;
+            align-items: flex-end;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 0 1 auto;
+            min-width: 150px;
+        }
+
+        .filter-group:first-child {
+            flex: 1 1 200px;
+        }
+
+        .filter-group label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 0;
+        }
+
+        .filter-group input[type="number"],
+        .filter-group select {
+            padding: 10px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+            background: #fff;
+        }
+
+        .filter-group input[type="number"]:focus,
+        .filter-group select:focus {
+            outline: none;
+            border-color: #FFB774;
+            box-shadow: 0 0 0 3px rgba(255, 183, 116, 0.1);
+        }
+
+        .price-inputs {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .price-inputs input {
+            flex: 1;
+        }
+
+        .price-inputs span {
+            color: #999;
+            font-weight: 500;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 10px 0;
+        }
+
+        .checkbox-label input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #FFB774;
+        }
+
+        .checkbox-label span {
+            font-size: 14px;
+            color: #555;
+            user-select: none;
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .btn-filter {
+            background: linear-gradient(135deg, #FFB774, #E89C55);
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(255, 183, 116, 0.3);
+        }
+
+        .btn-filter:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 183, 116, 0.4);
+        }
+
+        .btn-reset {
+            background: #f5f5f5;
+            color: #666;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s;
+            border: 2px solid #e0e0e0;
+        }
+
+        .btn-reset:hover {
+            background: #e8e8e8;
+            border-color: #d0d0d0;
+        }
+
+        @media (max-width: 768px) {
+            .filter-row {
+                flex-direction: column;
+            }
+
+            .filter-group {
+                width: 100%;
+            }
+
+            .filter-actions {
+                width: 100%;
+            }
+
+            .btn-filter,
+            .btn-reset {
+                flex: 1;
+            }
         }
 
         /* === 网格布局 (一行5个) === */
@@ -401,12 +638,78 @@ try {
                 <p class="page-subtitle">Find the perfect products for your pets.</p>
             </div>
 
-            <?php if ($searchTerm !== ''): ?>
-                <div class="search-feedback">
-                    Results for <span class="search-chip">"<?= htmlspecialchars($searchTerm) ?>"</span>
-                    <a class="clear-search" href="product_listing.php">Clear</a>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <?php if ($searchTerm !== ''): ?>
+                    <div class="search-feedback">
+                        Results for <span class="search-chip">"<?= htmlspecialchars($searchTerm) ?>"</span>
+                        <a class="clear-search" href="product_listing.php">Clear</a>
+                    </div>
+                <?php endif; ?>
+                <button id="toggleFilterBtn" class="btn-filter-toggle">
+                    <i class="fas fa-filter"></i> Filter
+                </button>
+            </div>
+        </div>
+
+        <!-- Filter Section -->
+        <div class="filter-section">
+            <form id="filterForm" method="GET" action="product_listing.php">
+                <!-- 保留原有的筛选参数 -->
+                <?php if ($categoryId > 0): ?>
+                    <input type="hidden" name="category" value="<?= $categoryId ?>">
+                <?php endif; ?>
+                <?php if ($subCategoryId > 0): ?>
+                    <input type="hidden" name="sub_category" value="<?= $subCategoryId ?>">
+                <?php endif; ?>
+                <?php if ($searchTerm !== ''): ?>
+                    <input type="hidden" name="search" value="<?= htmlspecialchars($searchTerm) ?>">
+                <?php endif; ?>
+
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>Price Range (RM)</label>
+                        <div class="price-inputs">
+                            <input type="number" name="min_price" id="min_price" placeholder="Min" 
+                                   value="<?= $minPrice > 0 ? $minPrice : '' ?>" min="0" step="0.01">
+                            <span>-</span>
+                            <input type="number" name="max_price" id="max_price" placeholder="Max" 
+                                   value="<?= $maxPrice > 0 ? $maxPrice : '' ?>" min="0" step="0.01">
+                        </div>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Sort By</label>
+                        <select name="sort" id="sort">
+                            <option value="newest" <?= $sortBy == 'newest' ? 'selected' : '' ?>>Newest First</option>
+                            <option value="oldest" <?= $sortBy == 'oldest' ? 'selected' : '' ?>>Oldest First</option>
+                            <option value="price_low" <?= $sortBy == 'price_low' ? 'selected' : '' ?>>Price: Low to High</option>
+                            <option value="price_high" <?= $sortBy == 'price_high' ? 'selected' : '' ?>>Price: High to Low</option>
+                            <option value="name_asc" <?= $sortBy == 'name_asc' ? 'selected' : '' ?>>Name: A to Z</option>
+                            <option value="name_desc" <?= $sortBy == 'name_desc' ? 'selected' : '' ?>>Name: Z to A</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="in_stock" value="1" <?= $inStockOnly ? 'checked' : '' ?>>
+                            <span>In Stock Only</span>
+                        </label>
+                    </div>
+
+                    <div class="filter-actions">
+                        <button type="submit" class="btn-filter">Apply Filters</button>
+                        <?php
+                        // 构建Reset URL，只保留category、sub_category和search参数
+                        $resetParams = [];
+                        if ($categoryId > 0) $resetParams[] = 'category=' . $categoryId;
+                        if ($subCategoryId > 0) $resetParams[] = 'sub_category=' . $subCategoryId;
+                        if ($searchTerm !== '') $resetParams[] = 'search=' . urlencode($searchTerm);
+                        $resetUrl = 'product_listing.php' . (!empty($resetParams) ? '?' . implode('&', $resetParams) : '');
+                        ?>
+                        <a href="<?= $resetUrl ?>" class="btn-reset" id="resetFilterBtn">Reset</a>
+                    </div>
                 </div>
-            <?php endif; ?>
+            </form>
         </div>
 
         <?php if (empty($products)): ?>
@@ -466,6 +769,61 @@ try {
     <?php include '../include/chat_widget.php'; ?>
 
     <script>
+        // === 0. 筛选器功能 ===
+        $(document).ready(function() {
+            // 检查URL参数，如果有show_filter=1则显示筛选器
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('show_filter') === '1') {
+                $('.filter-section').addClass('show');
+                $('#toggleFilterBtn').addClass('active');
+            }
+
+            // 切换筛选器显示/隐藏
+            $('#toggleFilterBtn').on('click', function() {
+                $('.filter-section').toggleClass('show');
+                $(this).toggleClass('active');
+            });
+
+            // Reset 按钮点击时，在URL中添加show_filter=1参数
+            $('#resetFilterBtn').on('click', function(e) {
+                e.preventDefault();
+                let resetUrl = $(this).attr('href');
+                // 如果URL已经有参数，添加&，否则添加?
+                resetUrl += (resetUrl.indexOf('?') > -1 ? '&' : '?') + 'show_filter=1';
+                window.location.href = resetUrl;
+            });
+
+            // 表单提交时，如果筛选器是打开的，添加show_filter=1参数
+            $('#filterForm').on('submit', function(e) {
+                if ($('.filter-section').hasClass('show')) {
+                    // 创建一个隐藏的input来添加show_filter参数
+                    if ($('#show_filter_input').length === 0) {
+                        $(this).append('<input type="hidden" name="show_filter" id="show_filter_input" value="1">');
+                    }
+                }
+            });
+
+            // 排序选择框改变时自动提交
+            $('#sort').on('change', function() {
+                if ($('.filter-section').hasClass('show')) {
+                    if ($('#show_filter_input').length === 0) {
+                        $('#filterForm').append('<input type="hidden" name="show_filter" id="show_filter_input" value="1">');
+                    }
+                }
+                $('#filterForm').submit();
+            });
+
+            // 库存复选框改变时自动提交
+            $('input[name="in_stock"]').on('change', function() {
+                if ($('.filter-section').hasClass('show')) {
+                    if ($('#show_filter_input').length === 0) {
+                        $('#filterForm').append('<input type="hidden" name="show_filter" id="show_filter_input" value="1">');
+                    }
+                }
+                $('#filterForm').submit();
+            });
+        });
+
         // === 1. 加入购物车 (带自动弹出侧边栏) ===
         function addToCart(pid) {
             let $btn = $("button[onclick='addToCart(" + pid + ")']");

@@ -239,7 +239,12 @@ try {
             <style>
                 @media print {
                     body { margin: 0; }
-                    .no-print { display: none; }
+                    .no-print { 
+                        display: none !important; 
+                    }
+                    .no-print * { 
+                        display: none !important; 
+                    }
                 }
                 body {
                     font-family: Arial, sans-serif;
@@ -336,19 +341,19 @@ try {
             </style>
         </head>
         <body>
+            <div class="no-print" style="max-width: 800px; margin: 20px auto; padding: 0 20px; display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                <button onclick="history.back()" class="btn-print" style="background: #FFB774; text-decoration: none; display: inline-block; padding: 12px 24px; border: none; cursor: pointer;">
+                    <img src="../images/back.png" alt="Back" style="width: 18px; height: 18px; margin-right: 8px; vertical-align: middle;"> Back
+                </button>
+                <a href="home.php" class="btn-print" style="background: #6c757d; text-decoration: none; display: inline-block; padding: 12px 24px;">
+                    <img src="../images/shopping-bag.png" alt="Shopping" style="width: 18px; height: 18px; margin-right: 8px; vertical-align: middle;"> Continue Shopping
+                </a>
+                <button class="btn-print" onclick="window.print()">
+                    <img src="../images/pdf.png" alt="PDF" style="width: 18px; height: 18px; margin-right: 8px; vertical-align: middle;"> Download / Save as PDF
+                </button>
+            </div>
+            
             <div class="receipt-container">
-                <div class="no-print" style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
-                 <a href="payment_success.php?order_id=<?= $order_id ?>" class="btn-print" style="background: #FFB774; text-decoration: none; display: inline-block; padding: 12px 24px;">
-                        <img src="../images/back.png" alt="Back" style="width: 18px; height: 18px; margin-right: 8px; vertical-align: middle;"> Back to Payment Success
-                    </a>
-                    <a href="home.php" class="btn-print" style="background: #6c757d; text-decoration: none; display: inline-block; padding: 12px 24px;">
-                        <img src="../images/shopping-bag.png" alt="Shopping" style="width: 18px; height: 18px; margin-right: 8px; vertical-align: middle;"> Continue Shopping
-                    </a>
-                    <button class="btn-print" onclick="window.print()">
-                        <img src="../images/pdf.png" alt="PDF" style="width: 18px; height: 18px; margin-right: 8px; vertical-align: middle;"> Download / Save as PDF
-                    </button>
-                </div>
-                
                 <div class="header">
                     <h1>PetBuddy</h1>
                     <p>E-Receipt</p>
