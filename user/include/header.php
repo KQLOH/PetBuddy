@@ -167,14 +167,11 @@ try {
             text-decoration: none;
         }
 
-        .logo-circle {
-            width: 30px;
-            height: 30px;
-            background: var(--primary-color);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        /* ✨✨✨ 修改部分：Logo 图片样式 ✨✨✨ */
+        .logo-img {
+            width: 40px; /* 设置 Logo 大小 */
+            height: 40px;
+            object-fit: contain;
         }
 
         .nav-links {
@@ -749,14 +746,20 @@ try {
 
     <div class="announcement-bar">
         <div class="marquee-content">
-            ✨ 🐾 🛒 Today's Special Offer: 12% off all pet food! Limited-time promotion! | 🚚 Free Shipping on orders over $50! Shop now!
+            <i class="fas fa-bullhorn" style="color: #FF4D4D; margin-right: 5px;"></i> 
+            <i class="fas fa-paw" style="color: #000000ff; margin-right: 5px;"></i> 
+            <i class="fas fa-shopping-cart" style="color: #28a745; margin-right: 5px;"></i> 
+            Today's Special Offer: 12% off all pet food! Limited-time promotion! 
+            &nbsp;&nbsp;|&nbsp;&nbsp; 
+            <i class="fas fa-truck" style="color: #007bff; margin-right: 5px;"></i> 
+            Free Shipping on orders over RM 50! Shop now!
         </div>
     </div>
 
     <nav class="navbar">
         <div class="navbar-inner">
             <a href="home.php" class="logo">
-                <div class="logo-circle">🐾</div>
+                <img src="../images/logo.png" alt="PetBuddy Logo" class="logo-img">
                 <span>PetBuddy</span>
             </a>
 
