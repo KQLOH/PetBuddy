@@ -28,6 +28,8 @@ $stmt = $pdo->prepare("
         p.price,
         p.stock_qty,
         p.image,
+        p.category_id,
+        p.sub_category_id,
         pc.name AS category_name,
         sc.name AS sub_category_name
     FROM products p
