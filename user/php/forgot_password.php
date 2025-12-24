@@ -2,9 +2,9 @@
 session_start();
 include '../include/db.php';
 
-require '../phpmailer/src/Exception.php';
-require '../phpmailer/src/PHPMailer.php';
-require '../phpmailer/src/SMTP.php';
+require '../PHPMailer/src/Exception.php';
+require '../PHPMailer/src/PHPMailer.php';
+require '../PHPMailer/src/SMTP.php';
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
@@ -32,17 +32,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $_SESSION['reset_otp'] = $otp;
                 $_SESSION['otp_time'] = time();
 
-                try {
-                    $mail = new PHPMailer(true);
-                    $mail->isSMTP();
-                    $mail->Host       = 'smtp.gmail.com';
-                    $mail->SMTPAuth   = true;
-                    $mail->Username   = 'bmit2013isaac@gmail.com';
-                    $mail->Password   = 'frsv oqko xgnl reyb';
-                    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-                    $mail->Port       = 587;
+$mail = new PHPMailer(true);
+try {
+    $mail->isSMTP();
+    $mail->Host       = 'smtp.gmail.com';
+    $mail->SMTPAuth   = true;
+    $mail->Username   = 'BMIT2013IsaacLing@gmail.com';
+    $mail->Password   = 'ndsf gvpz niaw czrk';
+    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+    $mail->Port       = 587;
 
-                    $mail->setFrom('bmit2013isaac@gmail.com', 'PetBuddy Support');
+    $mail->SMTPOptions = array(
+    'ssl' => array(
+        'verify_peer' => false,
+        'verify_peer_name' => false,
+        'allow_self_signed' => true
+    )
+);
+
+                    $mail->setFrom('BMIT2013IsaacLing@gmail.com', 'PetBuddy Support');
                     $mail->addAddress($email);
 
                     $mail->isHTML(true);
