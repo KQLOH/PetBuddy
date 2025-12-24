@@ -11,7 +11,7 @@ if (!isset($_SESSION['member_id'])) {
 }
 $member_id = $_SESSION['member_id'];
 
-// 2. Get User Info (Always fetch this first as fallback)
+// 2. Get User Info
 $stmt_user = $pdo->prepare("SELECT * FROM members WHERE member_id = ?");
 $stmt_user->execute([$member_id]);
 $user = $stmt_user->fetch(PDO::FETCH_ASSOC);
@@ -27,7 +27,8 @@ $saved_addresses = $stmtAddr->fetchAll(PDO::FETCH_ASSOC);
 
 // 4. Determine Initial Field Values
 $prefill = [
-    'first_name' => '', 'last_name' => '', 'phone' => '', 
+    'first_name' => '', // 这里的 key 保持叫 first_name 以兼容后端，但实际上存的是 Full Name
+    'phone' => '', 
     'addr1' => '', 'addr2' => '', 
     'postcode' => '', 'city' => '', 'state' => '', 'email' => $user_email
 ];
@@ -36,14 +37,11 @@ $prefill = [
 if (!empty($saved_addresses)) {
     $def = $saved_addresses[0];
     
-    // ✨ FIX: Check if keys exist, otherwise fallback to User Profile Data
     $r_name = !empty($def['recipient_name']) ? $def['recipient_name'] : $user_full_name;
     $r_phone = !empty($def['recipient_phone']) ? $def['recipient_phone'] : $user_phone;
 
-    // Split Name
-    $names = explode(" ", $r_name, 2);
-    $prefill['first_name'] = $names[0];
-    $prefill['last_name'] = $names[1] ?? '';
+    // ✨ 修改：不再拆分名字，直接使用完整名字
+    $prefill['first_name'] = $r_name; 
     
     $prefill['phone'] = $r_phone;
     $prefill['addr1'] = $def['address_line1'];
@@ -54,9 +52,8 @@ if (!empty($saved_addresses)) {
 } 
 // Fallback to Member Profile Data
 else {
-    $names = explode(" ", $user_full_name, 2);
-    $prefill['first_name'] = $names[0];
-    $prefill['last_name'] = $names[1] ?? '';
+    // ✨ 修改：直接使用用户全名
+    $prefill['first_name'] = $user_full_name;
     $prefill['phone'] = $user_phone;
 }
 
@@ -109,8 +106,7 @@ $total = $checkout_subtotal + $shipping_fee;
     <title>Checkout - PetBuddy</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
     <style>
         /* === Styles (Kept existing styles) === */
         :root { --primary-color: #F4A261; --primary-dark: #E89C55; --bg-sidebar: #fff9f2; --border-focus: #F4A261; --accent-bg: #fffbf6; --text-dark: #2F2F2F; --border-color: #e1e1e1; }
@@ -215,6 +211,8 @@ $total = $checkout_subtotal + $shipping_fee;
                 
                 <input type="hidden" name="selected_products" value="<?= htmlspecialchars($selected_ids_str) ?>">
                 <input type="hidden" name="voucher_code" id="hidden_voucher_code" value="">
+                
+                <input type="hidden" name="shipping_fee" value="<?= htmlspecialchars($shipping_fee) ?>">
 
                 <div class="section-header">
                     <div class="section-title">Contact</div>
@@ -265,14 +263,10 @@ $total = $checkout_subtotal + $shipping_fee;
                 </div>
                 <?php endif; ?>
                 
-                <div class="form-row">
-                    <div class="form-col">
-                        <input type="text" name="first_name" id="f_name" placeholder="First name" value="<?= htmlspecialchars($prefill['first_name']) ?>" required>
-                    </div>
-                    <div class="form-col">
-                        <input type="text" name="last_name" id="l_name" placeholder="Last name" value="<?= htmlspecialchars($prefill['last_name']) ?>" required>
-                    </div>
+                <div class="form-group">
+                    <input type="text" name="first_name" id="f_name" placeholder="Full name" value="<?= htmlspecialchars($prefill['first_name']) ?>" required>
                 </div>
+
                 <div class="form-group">
                     <input type="tel" name="phone" id="phone" placeholder="Phone" value="<?= htmlspecialchars($prefill['phone']) ?>" required>
                 </div>
@@ -599,12 +593,12 @@ $total = $checkout_subtotal + $shipping_fee;
     </div>
 
     <script>
-        // 1. ✨ Address Selector Logic ✨
+        // 1. ✨ Address Selector Logic (Updated to full name) ✨
         function fillAddress(jsonStr) {
             if (jsonStr === 'new') {
                 // Clear all fields
                 document.getElementById('f_name').value = '';
-                document.getElementById('l_name').value = '';
+                // l_name is removed
                 document.getElementById('phone').value = '';
                 document.getElementById('addr1').value = '';
                 document.getElementById('addr2').value = '';
@@ -612,18 +606,11 @@ $total = $checkout_subtotal + $shipping_fee;
                 document.getElementById('billing_city').value = '';
                 document.getElementById('billing_state').value = '';
             } else {
-                // Parse the JSON data from the option value
                 const addr = JSON.parse(jsonStr);
                 
-                // Split Full Name into First/Last
-                const fullName = addr.recipient_name || '';
-                const nameParts = fullName.split(' ');
-                const fName = nameParts[0];
-                const lName = nameParts.slice(1).join(' '); // Join remaining parts as last name
+                // ✨ 修改：直接填入完整名字
+                document.getElementById('f_name').value = addr.recipient_name || '';
                 
-                // Fill fields
-                document.getElementById('f_name').value = fName;
-                document.getElementById('l_name').value = lName;
                 document.getElementById('phone').value = addr.recipient_phone;
                 document.getElementById('addr1').value = addr.address_line1;
                 document.getElementById('addr2').value = addr.address_line2;
