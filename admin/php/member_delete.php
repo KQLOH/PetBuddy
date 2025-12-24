@@ -6,7 +6,7 @@ if (
     empty($_SESSION['role']) ||
     $_SESSION['role'] !== 'super_admin'
 ) {
-    header('Location: members_list.php');
+    header('Location: member_list.php');
     exit;
 }
 
@@ -14,14 +14,14 @@ $adminId = $_SESSION['member_id'] ?? 0;
 
 $memberId = $_POST['id'] ?? null;
 if (!$memberId || !is_numeric($memberId)) {
-    header('Location: members_list.php');
+    header('Location: member_list.php');
     exit;
 }
 
 $memberId = (int)$memberId;
 
 if ($memberId === (int)$adminId) {
-    header('Location: members_list.php');
+    header('Location: member_list.php');
     exit;
 }
 
@@ -29,7 +29,7 @@ try {
     $stmt = $pdo->prepare("SELECT member_id FROM members WHERE member_id = ?");
     $stmt->execute([$memberId]);
     if (!$stmt->fetch()) {
-        header('Location: members_list.php');
+        header('Location: member_list.php');
         exit;
     }
 

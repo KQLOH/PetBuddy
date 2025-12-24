@@ -27,12 +27,12 @@ $stmt->execute([$id]);
 $member = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$member) {
-    header('Location: members_list.php');
+    header('Location: member_list.php');
     exit;
 }
 
 $imagePath = !empty($member['image'])
-    ? '../../user/php/' . ltrim($member['image'], '/')
+    ? '../../user/' . ltrim($member['image'], '/')
     : 'https://via.placeholder.com/120?text=User';
 ?>
 <!DOCTYPE html>
