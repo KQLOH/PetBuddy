@@ -291,19 +291,25 @@ include '../include/header.php';
         
         /* 标题：限制 3 行 + 对齐 */
         .p-title {
-            font-size: 1.1rem;
+            font-size: 15px;
             font-weight: 600;
             color: #222;
-            text-decoration: none;
             margin-bottom: 8px;
-            
-            display: -webkit-box;
-            -webkit-line-clamp: 3;        /* 限制显示 3 行 */
-            -webkit-box-orient: vertical; /* 垂直排列 */
-            overflow: hidden;             /* 隐藏多余字 */
-            
-            line-height: 1.4;             
-            min-height: calc(1.1rem * 1.4 * 3); /* 高度对齐公式 */
+            line-height: 1.4;
+            text-decoration: none;
+
+            /* ✨ 标准无黄线写法 (只显示 1 行) ✨ */
+            white-space: nowrap;
+            /* 强制在一行显示 */
+            overflow: hidden;
+            /* 隐藏超出的文字 */
+            text-overflow: ellipsis;
+            /* 超出的部分变成 ... */
+            display: block;
+            /* 确保它是块级元素 */
+
+            /*以此保持卡片对齐，但我把高度稍微改小了一点，因为现在只有1行了 */
+            min-height: 22px;
         }
         .p-title:hover { color: #FFB774; }
 
