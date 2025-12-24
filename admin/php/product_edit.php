@@ -3,9 +3,9 @@ session_start();
 require_once '../../user/include/db.php';
 header('Content-Type: application/json');
 
-if (!in_array($_SESSION['role'] ?? '', ['admin','super_admin'])) {
+if (!in_array($_SESSION['role'] ?? '', ['admin', 'super_admin'])) {
     http_response_code(401);
-    exit(json_encode(['error'=>'Unauthorized']));
+    exit(json_encode(['error' => 'Unauthorized']));
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -46,66 +46,55 @@ if ($stock < 0) {
     exit;
 }
 
-/* ===== IMAGE UPLOAD ===== */
 $imagePath = null;
 $updateImage = false;
 
 if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-    $allowed = ['image/jpeg', 'image/png', 'image/webp'];
+
+    $allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
     if (!in_array($_FILES['image']['type'], $allowed, true)) {
         http_response_code(400);
         echo json_encode(['error' => 'Invalid image format']);
         exit;
     }
-    
+
     $ext = pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION);
     $newName = 'product_' . time() . '_' . rand(1000, 9999) . '.' . $ext;
-    
-    // Build folder path based on category and subcategory
-    $folderPath = '../../user/images/product/';
-    $relativePath = 'images/product/';
-    $catFolder = null;
-    $subFolder = null;
-    
+    $baseFolder = '../../user/images/product/';
+    $dbPath = '../images/product/';
+
     if ($cat) {
-        // Get category name
-        $catStmt = $pdo->prepare("SELECT name FROM product_categories WHERE category_id = ?");
+        $catStmt = $pdo->prepare("SELECT name FROM product_categories WHERE category_id=?");
         $catStmt->execute([$cat]);
         $catName = $catStmt->fetchColumn();
-        
+
         if ($catName) {
-            // Sanitize folder name (remove special characters, spaces)
-            $catFolder = preg_replace('/[^a-zA-Z0-9_-]/', '_', strtolower($catName));
-            $folderPath .= $catFolder . '/';
-            $relativePath .= $catFolder . '/';
-            
+            $baseFolder .= $catName . '/';
+            $dbPath     .= $catName . '/';
+
             if ($sub) {
-                // Get subcategory name
-                $subStmt = $pdo->prepare("SELECT name FROM sub_categories WHERE sub_category_id = ?");
+                $subStmt = $pdo->prepare("SELECT name FROM sub_categories WHERE sub_category_id=?");
                 $subStmt->execute([$sub]);
                 $subName = $subStmt->fetchColumn();
-                
+
                 if ($subName) {
-                    // Sanitize folder name
-                    $subFolder = preg_replace('/[^a-zA-Z0-9_-]/', '_', strtolower($subName));
-                    $folderPath .= $subFolder . '/';
-                    $relativePath .= $subFolder . '/';
+                    $baseFolder .= $subName . '/';
+                    $dbPath     .= $subName . '/';
                 }
             }
         }
     }
-    
-    // Create directory if it doesn't exist
-    if (!is_dir($folderPath)) {
-        mkdir($folderPath, 0777, true);
+
+    if (!is_dir($baseFolder)) {
+        mkdir($baseFolder, 0777, true);
     }
-    
-    move_uploaded_file($_FILES['image']['tmp_name'], $folderPath . $newName);
-    $imagePath = $relativePath . $newName;
+
+    move_uploaded_file($_FILES['image']['tmp_name'], $baseFolder . $newName);
+
+    $imagePath = $dbPath . $newName;
     $updateImage = true;
 }
 
-/* ===== UPDATE ===== */
 try {
     if ($updateImage) {
         $pdo->prepare("
@@ -120,7 +109,7 @@ try {
             WHERE product_id=?
         ")->execute([$name, $price, $stock, $desc, $cat, $sub, $id]);
     }
-    
+
     echo json_encode(['success' => true, 'message' => 'Product updated successfully.']);
 } catch (Exception $e) {
     http_response_code(500);
