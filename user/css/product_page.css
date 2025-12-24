@@ -558,26 +558,11 @@ body:has(.hp-hero) {
     transition: color 0.3s ease;
 }
 
-.product-title {
-    /* --- 您的修改：新的字体大小 --- */
-    font-size: 1.3rem; 
-    
-    /* --- 解决“整齐”的关键代码：限制行数 --- */
-    /* 强制 Flex 布局来启用 -webkit-line-clamp */
-    display: -webkit-box;
-    /* 限制显示行数为 3 行 */
-    -webkit-line-clamp: 3; 
-    /* 垂直排列 */
-    -webkit-box-orient: vertical;
-    /* 隐藏超出部分 */
-    overflow: hidden; 
-    
-    /* 确保即使是短标题也能占据三行的高度，保持卡片统一 */
-    line-height: 1.3; /* 设定行高 */
-    min-height: calc(1.3rem * 1.3 * 3); /* 确保高度能够容纳 3 行文本 (font-size * line-height * 3) */
-    
-    font-weight: bold;
-    margin-bottom: 5px;
+
+
+/* 鼠标悬停变色 */
+.p-title:hover {
+    color: #FFB774;
 }
 
 .product-card:hover .product-info h3,
