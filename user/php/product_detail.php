@@ -4,12 +4,14 @@ session_start();
 require_once '../include/db.php';
 require_once '../include/product_utils.php';
 
+// 1. 获取商品 ID
 $productId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 if ($productId <= 0) {
     header('Location: product_listing.php');
     exit;
 }
 
+// 2. 数据库查询函数
 function fetchProductDetail(PDO $pdo, int $productId): ?array
 {
     $sql = "SELECT p.product_id, p.category_id, p.name, p.description, p.price, p.stock_qty, p.image, c.name AS category_name
@@ -28,7 +30,6 @@ function fetchProductDetail(PDO $pdo, int $productId): ?array
 
 function fetchRelated(PDO $pdo, int $categoryId, int $productId, int $limit = 3): array
 {
-    $related = [];
     $sql = "SELECT product_id, name, price, image FROM products
             WHERE category_id = :cat_id AND product_id <> :prod_id
             ORDER BY RAND() LIMIT :limit";
@@ -47,18 +48,15 @@ function fetchRelated(PDO $pdo, int $categoryId, int $productId, int $limit = 3)
 function fetchProductReviews(PDO $pdo, int $productId): array
 {
     $reviews = [];
-
     $sql = "SELECT r.rating, r.comment, r.review_date, m.full_name AS reviewer
             FROM product_reviews r
             JOIN members m ON r.member_id = m.member_id
             WHERE r.product_id = :pid
             ORDER BY r.review_date DESC";
-
     try {
         $stmt = $pdo->prepare($sql);
         $stmt->execute(['pid' => $productId]);
         $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
         foreach ($results as $row) {
             $reviews[] = [
                 'rating'   => (int)$row['rating'],
@@ -69,27 +67,19 @@ function fetchProductReviews(PDO $pdo, int $productId): array
         }
     } catch (PDOException $e) {
     }
-
     return $reviews;
 }
 
 function calculateReviewStats(array $reviews): array
 {
-    if (empty($reviews)) return ['average' => 0, 'total' => 0, 'distribution' => [5 => 0, 4 => 0, 3 => 0, 2 => 0, 1 => 0], 'percentages' => [5 => 0, 4 => 0, 3 => 0, 2 => 0, 1 => 0]];
+    if (empty($reviews)) return ['average' => 0, 'total' => 0];
     $total = count($reviews);
     $sum = 0;
-    $distribution = [5 => 0, 4 => 0, 3 => 0, 2 => 0, 1 => 0];
     foreach ($reviews as $review) {
-        $rating = (int)$review['rating'];
-        $sum += $rating;
-        if (isset($distribution[$rating])) $distribution[$rating]++;
+        $sum += (int)$review['rating'];
     }
     $average = $total > 0 ? round($sum / $total, 1) : 0;
-    $percentages = [];
-    foreach ($distribution as $star => $count) {
-        $percentages[$star] = $total > 0 ? round(($count / $total) * 100, 0) : 0;
-    }
-    return ['average' => $average, 'total' => $total, 'distribution' => $distribution, 'percentages' => $percentages];
+    return ['average' => $average, 'total' => $total];
 }
 
 function generateStars(int $rating): string
@@ -97,15 +87,21 @@ function generateStars(int $rating): string
     $html = '';
     $fullStars = floor($rating);
     $hasHalfStar = ($rating - $fullStars) >= 0.5;
-    for ($i = 0; $i < $fullStars; $i++) $html .= '<span class="icon-star"></span>';
+    
+    for ($i = 0; $i < $fullStars; $i++) {
+        $html .= '<i class="fas fa-star" style="color: #FFB774;"></i> ';
+    }
     if ($hasHalfStar) {
-        $html .= '<span class="icon-star-half"></span>';
+        $html .= '<i class="fas fa-star-half-alt" style="color: #FFB774;"></i> ';
         $fullStars++;
     }
-    for ($i = 0; $i < 5 - $fullStars; $i++) $html .= '<span class="icon-star-empty"></span>';
+    for ($i = 0; $i < 5 - $fullStars; $i++) {
+        $html .= '<i class="far fa-star" style="color: #ddd;"></i> ';
+    }
     return $html;
 }
 
+// 3. 执行数据获取
 $product = fetchProductDetail($pdo, $productId);
 if (!$product) {
     header('Location: product_listing.php');
@@ -120,6 +116,7 @@ $mainImage = productImageUrl($product['image']);
 $categoryName = $product['category_name'] ?: 'All Products';
 $productDescription = trim((string)$product['description']) !== '' ? $product['description'] : 'No product description available';
 
+// 4. 检查是否在愿望清单
 $wishlistIds = [];
 if (isset($_SESSION['member_id'])) {
     try {
@@ -138,51 +135,228 @@ if (isset($_SESSION['member_id'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($product['name']); ?> - PetBuddy</title>
-    <link rel="stylesheet" href="../css/product_page.css">
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
+        /* ======================== */
+        /* Product Page CSS       */
+        /* ======================== */
+        
+        :root {
+            --primary-color: #FFB774;
+            --primary-dark: #E89C55;
+            --text-dark: #2F2F2F;
+            --text-light: #666;
+            --border-color: #e1e1e1;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        /* --- 主布局 --- */
+        .pd-product-detail {
+            display: flex;
+            gap: 50px;
+            margin-bottom: 60px;
+            align-items: flex-start;
+        }
+
+        .pd-product-images {
+            flex: 1;
+            position: relative;
+        }
+
+        .pd-main-image {
+            width: 100%;
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid #eee;
+            background: #fff;
+        }
+
+        .pd-main-image img {
+            width: 100%;
+            height: auto;
+            display: block;
+            object-fit: cover;
+        }
+
+        .pd-product-info {
+            flex: 1;
+        }
+
+        /* --- 文本信息 --- */
+        .pd-product-tag {
+            display: inline-block;
+            background: #FFF5EB;
+            color: var(--primary-dark);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+        }
+
+        .pd-product-title {
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--text-dark);
+            margin: 0 0 15px 0;
+            line-height: 1.2;
+        }
+
+        .pd-product-rating {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        .pd-rating-count {
+            color: var(--text-light);
+            font-size: 14px;
+        }
+
+        .pd-product-price {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 30px;
+        }
+
+        .pd-current-price {
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--primary-dark);
+        }
+
+        .pd-stock-info {
+            background: #E8F5E9;
+            color: #2E7D32;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        /* --- 购买控制 --- */
+        .pd-purchase-options {
+            margin-bottom: 30px;
+        }
+
+        .pd-quantity-selector {
+            margin-bottom: 25px;
+        }
+
+        .pd-quantity-label {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--text-dark);
+        }
+
+        .pd-quantity-controls {
+            display: flex;
+            align-items: center;
+            border: 2px solid #eee;
+            border-radius: 8px;
+            width: fit-content;
+            overflow: hidden;
+        }
+
+        .pd-quantity-btn {
+            background: #fff;
+            border: none;
+            width: 40px;
+            height: 40px;
+            font-size: 18px;
+            cursor: pointer;
+            color: var(--text-dark);
+            transition: 0.2s;
+        }
+
+        .pd-quantity-btn:hover {
+            background: #f9f9f9;
+        }
+
+        .pd-quantity-input {
+            width: 50px;
+            height: 40px;
+            border: none;
+            text-align: center;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-dark);
+            -moz-appearance: textfield;
+        }
+        .pd-quantity-input::-webkit-outer-spin-button,
+        .pd-quantity-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        /* --- 按钮 --- */
         .pd-action-buttons {
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 15px;
-            margin-top: 20px;
             width: 100%;
         }
 
         .pd-btn-row {
             display: flex;
-            gap: 10px;
+            gap: 12px;
             width: 100%;
+        }
+
+        .pd-btn {
+            height: 50px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
 
         .pd-btn-primary {
             flex: 1;
-            justify-content: center;
+            background: var(--text-dark);
+            color: white;
+            border: none;
+        }
+
+        .pd-btn-primary:hover {
+            background: #000;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
 
         .pd-btn-secondary {
-            background: #fff;
-            border: 1px solid #ddd;
-            color: #ccc;
-            cursor: pointer;
-            transition: all 0.3s;
-            border-radius: 8px;
             width: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0;
+            background: #fff;
+            border: 2px solid #eee;
+            color: #ccc;
         }
 
         .pd-btn-secondary:hover {
-            border-color: #FFB774;
-            color: #FFB774;
-            background: #fff9f4;
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+            background: #FFF9F5;
         }
 
         .pd-btn-secondary.active {
@@ -191,20 +365,13 @@ if (isset($_SESSION['member_id'])) {
             background: #fff0f0;
         }
 
+        /* 爱心动画 */
         .wishlist-btn.animating i {
             animation: heartPop 0.3s ease-in-out;
         }
-
         @keyframes heartPop {
-
-            0%,
-            100% {
-                transform: scale(1);
-            }
-
-            50% {
-                transform: scale(1.3);
-            }
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.3); }
         }
 
         .continue-link {
@@ -217,14 +384,188 @@ if (isset($_SESSION['member_id'])) {
         }
 
         .continue-link:hover {
-            color: #FFB774;
-            border-bottom: 1px solid #FFB774;
+            color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        /* --- Tabs --- */
+        .pd-product-tabs {
+            margin-bottom: 60px;
+        }
+
+        .pd-tabs-header {
+            display: flex;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 30px;
+        }
+
+        .pd-tab {
+            padding: 15px 30px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #888;
+            position: relative;
+            transition: 0.3s;
+        }
+
+        .pd-tab:hover {
+            color: var(--text-dark);
+        }
+
+        .pd-tab.active {
+            color: var(--primary-dark);
+        }
+
+        .pd-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: var(--primary-color);
+        }
+
+        .pd-tab-content {
+            display: none;
+            line-height: 1.8;
+            color: #555;
+        }
+
+        .pd-tab-content.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .pd-specs-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .pd-specs-table td {
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .pd-specs-table td:first-child {
+            font-weight: 600;
+            width: 200px;
+            color: var(--text-dark);
+        }
+
+        /* --- Reviews --- */
+        .pd-review-item {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 20px;
+            margin-bottom: 20px;
+        }
+
+        .pd-review-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .pd-reviewer {
+            font-weight: 700;
+            color: var(--text-dark);
+        }
+
+        .pd-review-date {
+            font-size: 13px;
+            color: #999;
+        }
+
+        .pd-rating-stars {
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+
+        /* --- Related Products --- */
+        .pd-section-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 25px;
+            color: var(--text-dark);
+        }
+
+        .pd-products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 25px;
+        }
+
+        .pd-product-card {
+            display: block;
+            text-decoration: none;
+            background: #fff;
+            border: 1px solid #eee;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: 0.3s;
+        }
+
+        .pd-product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+            border-color: var(--primary-color);
+        }
+
+        .pd-product-card-img {
+            width: 100%;
+            height: 200px;
+            background: #f9f9f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pd-product-card-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .pd-product-card-info {
+            padding: 15px;
+        }
+
+        .pd-product-card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin: 0 0 8px 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .pd-product-card-price {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary-dark);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .pd-product-detail {
+                flex-direction: column;
+            }
+            .pd-btn-row {
+                width: 100%;
+            }
         }
     </style>
 </head>
 
 <body>
     <?php include_once '../include/header.php'; ?>
+    
     <div class="container">
         <div class="pd-product-detail">
             <div class="pd-product-images">
@@ -246,8 +587,6 @@ if (isset($_SESSION['member_id'])) {
                     <span class="pd-current-price"><?php echo formatPrice((float)$product['price']); ?></span>
                     <span class="pd-stock-info">Stock: <?php echo (int)$product['stock_qty']; ?> items</span>
                 </div>
-
-
 
                 <div class="pd-purchase-options">
                     <div class="pd-quantity-selector">
@@ -295,48 +634,39 @@ if (isset($_SESSION['member_id'])) {
 
             <div class="pd-tab-content" id="specs">
                 <table class="pd-specs-table">
-                    <tr>
-                        <td>Product Name</td>
-                        <td><?php echo htmlspecialchars($product['name']); ?></td>
-                    </tr>
-                    <tr>
-                        <td>Category</td>
-                        <td><?php echo htmlspecialchars($categoryName); ?></td>
-                    </tr>
-                    <tr>
-                        <td>Stock</td>
-                        <td><?php echo (int)$product['stock_qty'] > 0 ? 'In Stock' : 'Out of Stock'; ?></td>
-                    </tr>
+                    <tr><td>Product Name</td><td><?php echo htmlspecialchars($product['name']); ?></td></tr>
+                    <tr><td>Category</td><td><?php echo htmlspecialchars($categoryName); ?></td></tr>
+                    <tr><td>Stock</td><td><?php echo (int)$product['stock_qty'] > 0 ? 'In Stock' : 'Out of Stock'; ?></td></tr>
                 </table>
             </div>
 
-            <div class="pd-review-list">
-                <?php if (!empty($reviews)): ?>
-                    <?php foreach ($reviews as $review): ?>
-                        <div class="pd-review-item">
-                            <div class="pd-review-header">
-                                <div class="pd-reviewer">
-                                    <strong><?php echo htmlspecialchars($review['reviewer']); ?></strong>
+            <div class="pd-tab-content" id="reviews">
+                <div class="pd-review-list">
+                    <?php if (!empty($reviews)): ?>
+                        <?php foreach ($reviews as $review): ?>
+                            <div class="pd-review-item">
+                                <div class="pd-review-header">
+                                    <div class="pd-reviewer">
+                                        <strong><?php echo htmlspecialchars($review['reviewer']); ?></strong>
+                                    </div>
+                                    <div class="pd-review-date">
+                                        <?php echo date('d M Y', strtotime($review['date'])); ?>
+                                    </div>
                                 </div>
-                                <div class="pd-review-date">
-                                    <?php echo date('d M Y', strtotime($review['date'])); ?>
+                                <div class="pd-rating-stars">
+                                    <?php echo generateStars($review['rating']); ?>
+                                </div>
+                                <div class="pd-review-content">
+                                    <?php echo nl2br(htmlspecialchars($review['comment'])); ?>
                                 </div>
                             </div>
-
-                            <div class="pd-rating-stars">
-                                <?php echo generateStars($review['rating']); ?>
-                            </div>
-
-                            <div class="pd-review-content">
-                                <?php echo nl2br(htmlspecialchars($review['comment'])); ?>
-                            </div>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <div style="text-align:center; padding:40px; color:#666;">
+                            No reviews yet. Be the first to review!
                         </div>
-                    <?php endforeach; ?>
-                <?php else: ?>
-                    <div class="review-item" style="text-align:center; padding:40px; color:#666;">
-                        No reviews yet. Be the first to review!
-                    </div>
-                <?php endif; ?>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
 
@@ -365,6 +695,7 @@ if (isset($_SESSION['member_id'])) {
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Tab 切换逻辑
             document.querySelectorAll('.pd-tab').forEach(tab => {
                 tab.addEventListener('click', function() {
                     document.querySelectorAll('.pd-tab').forEach(t => t.classList.remove('active'));
@@ -375,6 +706,7 @@ if (isset($_SESSION['member_id'])) {
                 });
             });
 
+            // 数量加减逻辑
             const qtyInput = document.querySelector('.pd-quantity-input');
             const maxStock = qtyInput ? parseInt(qtyInput.getAttribute('data-stock')) : 999;
 
@@ -389,6 +721,7 @@ if (isset($_SESSION['member_id'])) {
         });
 
         $(document).ready(function() {
+            // 加入购物车 AJAX
             $('#pd-add-to-cart').click(function(e) {
                 e.preventDefault();
                 var $btn = $(this);
@@ -401,58 +734,34 @@ if (isset($_SESSION['member_id'])) {
                 $.ajax({
                     url: "add_to_cart.php",
                     type: "POST",
-                    data: {
-                        product_id: pid,
-                        quantity: qty
-                    },
+                    data: { product_id: pid, quantity: qty },
                     success: function(response) {
                         $btn.prop('disabled', false);
                         var res = response.trim();
 
                         if (res.includes("added") || res.includes("increased") || res.includes("success")) {
-
                             const Toast = Swal.mixin({
-                                toast: true,
-                                position: 'top-end',
-                                showConfirmButton: false,
-                                timer: 2000,
-                                timerProgressBar: true
+                                toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true
                             });
-                            Toast.fire({
-                                icon: 'success',
-                                title: 'Added to Cart!'
-                            });
+                            Toast.fire({ icon: 'success', title: 'Added to Cart!' });
 
-                            if (typeof refreshCartSidebar === 'function') {
-                                refreshCartSidebar();
-                            }
-
-                            setTimeout(() => {
-                                if (typeof openCart === 'function') {
-                                    openCart();
-                                }
-                            }, 300);
+                            if (typeof refreshCartSidebar === 'function') refreshCartSidebar();
+                            setTimeout(() => { if (typeof openCart === 'function') openCart(); }, 300);
 
                         } else if (res.includes("login")) {
                             Swal.fire({
-                                title: "Please Login",
-                                text: "Login to shop.",
-                                icon: "warning",
-                                confirmButtonText: "Login"
-                            }).then((r) => {
-                                if (r.isConfirmed) window.location.href = "login.php";
-                            });
+                                title: "Please Login", text: "Login to shop.", icon: "warning", confirmButtonText: "Login"
+                            }).then((r) => { if (r.isConfirmed) window.location.href = "login.php"; });
                         } else {
                             Swal.fire("Error", "Could not add item.", "error");
                         }
                     },
-                    error: function() {
-                        $btn.prop('disabled', false);
-                    }
+                    error: function() { $btn.prop('disabled', false); }
                 });
             });
         });
 
+        // 收藏功能 AJAX
         function toggleWishlistDetail(btn, pid) {
             let $btn = $(btn);
             let $icon = $btn.find("i");
@@ -462,34 +771,19 @@ if (isset($_SESSION['member_id'])) {
             $.ajax({
                 url: 'wishlist_action.php',
                 type: 'POST',
-                data: {
-                    product_id: pid
-                },
+                data: { product_id: pid },
                 dataType: 'json',
                 success: function(res) {
                     if (res.status === 'login_required') {
                         Swal.fire({
-                            title: 'Login Required',
-                            text: 'Please login to save items.',
-                            icon: 'warning',
-                            confirmButtonText: 'Login',
-                            confirmButtonColor: '#2F2F2F'
-                        }).then((r) => {
-                            if (r.isConfirmed) window.location.href = 'login.php';
-                        });
+                            title: 'Login Required', text: 'Please login to save items.', icon: 'warning',
+                            confirmButtonText: 'Login', confirmButtonColor: '#2F2F2F'
+                        }).then((r) => { if (r.isConfirmed) window.location.href = 'login.php'; });
                     } else if (res.status === 'added') {
                         $btn.addClass('active');
                         $icon.removeClass('far').addClass('fas');
-                        const Toast = Swal.mixin({
-                            toast: true,
-                            position: 'top-end',
-                            showConfirmButton: false,
-                            timer: 1500
-                        });
-                        Toast.fire({
-                            icon: 'success',
-                            title: 'Saved to Wishlist'
-                        });
+                        const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+                        Toast.fire({ icon: 'success', title: 'Saved to Wishlist' });
                     } else if (res.status === 'removed') {
                         $btn.removeClass('active');
                         $icon.removeClass('fas').addClass('far');
@@ -499,5 +793,4 @@ if (isset($_SESSION['member_id'])) {
         }
     </script>
 </body>
-
 </html>
