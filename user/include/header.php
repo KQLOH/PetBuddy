@@ -1,13 +1,39 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) {
-    // lifetime => 0 意味着只要浏览器进程完全关闭，Cookie 就失效
-    session_set_cookie_params(['lifetime' => 0, 'path' => '/']);
+    session_set_cookie_params(0, '/');
     session_start();
 }
 
-// 2. Database Connection
-require_once 'db.php';
+require_once 'db.php'; 
 
+if (!isset($_SESSION['member_id']) && isset($_COOKIE['remember_token'])) {
+    if (isset($pdo)) {
+        $token = $_COOKIE['remember_token'];
+        $stmt = $pdo->prepare("SELECT member_id, full_name, role, image FROM members WHERE remember_token = ?");
+        $stmt->execute([$token]);
+        $user = $stmt->fetch();
+        if ($user) {
+            $_SESSION['member_id'] = $user['member_id'];
+            $_SESSION['full_name'] = $user['full_name'];
+            $_SESSION['role'] = $user['role'];
+            $_SESSION['user_image'] = !empty($user['image']) ? $user['image'] : '../images/default-avatar.png';
+        }
+    }
+}
+?>
+
+<?php if (isset($_SESSION['member_id']) && !isset($_COOKIE['remember_token'])): ?>
+<script>
+    if (!sessionStorage.getItem('session_alive')) {
+        window.location.replace("logout.php");
+    }
+</script>
+<?php endif; ?>
+
+<script>
+    sessionStorage.setItem('session_alive', 'true');
+</script>
+<?php
 // 3. Cart Functions (Path Check)
 if (file_exists(__DIR__ . "/../php/cart_function.php")) {
     require_once __DIR__ . "/../php/cart_function.php";
@@ -30,7 +56,7 @@ if (file_exists(__DIR__ . "/product_utils.php")) {
 // 5. User State Initialization
 $loggedIn = isset($_SESSION['member_id']);
 $member_id = $loggedIn ? $_SESSION['member_id'] : null;
-$userAvatar = '../images/default-avatar.png'; // 注意路径，Header通常被php文件夹内的文件引用
+$userAvatar = '../images/default-avatar.png';
 $total_price = 0;
 $cart_item_count = 0;
 
@@ -41,28 +67,24 @@ if ($loggedIn) {
         $stmt->execute([$member_id]);
         $row = $stmt->fetch();
         if ($row && !empty($row['image'])) {
-            $userAvatar = '../' . $row['image'];
+            $userAvatar = $row['image'];
         }
     } catch (PDOException $e) { /* Ignore */
     }
 }
 
-// 7. ✨✨✨ Fetch Categories & Sub-Categories (新逻辑) ✨✨✨
 $categories = [];
 $grouped_subs = [];
 
 try {
-    // A. 获取主分类
     $stmt_cat = $pdo->prepare("SELECT * FROM product_categories ORDER BY category_id ASC");
     $stmt_cat->execute();
     $categories = $stmt_cat->fetchAll(PDO::FETCH_ASSOC);
 
-    // B. 获取所有子分类
     $stmt_sub = $pdo->prepare("SELECT * FROM sub_categories ORDER BY category_id ASC, name ASC");
     $stmt_sub->execute();
     $all_subs = $stmt_sub->fetchAll(PDO::FETCH_ASSOC);
 
-    // C. 整理子分类
     foreach ($all_subs as $sub) {
         $parent_id = $sub['category_id'];
         $grouped_subs[$parent_id][] = $sub;
@@ -167,11 +189,14 @@ try {
             text-decoration: none;
         }
 
-        /* ✨✨✨ 修改部分：Logo 图片样式 ✨✨✨ */
-        .logo-img {
-            width: 40px; /* 设置 Logo 大小 */
-            height: 40px;
-            object-fit: contain;
+        .logo-circle {
+            width: 30px;
+            height: 30px;
+            background: var(--primary-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .nav-links {
@@ -746,20 +771,14 @@ try {
 
     <div class="announcement-bar">
         <div class="marquee-content">
-            <i class="fas fa-bullhorn" style="color: #FF4D4D; margin-right: 5px;"></i> 
-            <i class="fas fa-paw" style="color: #000000ff; margin-right: 5px;"></i> 
-            <i class="fas fa-shopping-cart" style="color: #28a745; margin-right: 5px;"></i> 
-            Today's Special Offer: 12% off all pet food! Limited-time promotion! 
-            &nbsp;&nbsp;|&nbsp;&nbsp; 
-            <i class="fas fa-truck" style="color: #007bff; margin-right: 5px;"></i> 
-            Free Shipping on orders over RM 50! Shop now!
+            ✨ 🐾 🛒 Today's Special Offer: 12% off all pet food! Limited-time promotion! | 🚚 Free Shipping on orders over $50! Shop now!
         </div>
     </div>
 
     <nav class="navbar">
         <div class="navbar-inner">
             <a href="home.php" class="logo">
-                <img src="../images/logo.png" alt="PetBuddy Logo" class="logo-img">
+                <div class="logo-circle">🐾</div>
                 <span>PetBuddy</span>
             </a>
 
@@ -1100,25 +1119,7 @@ try {
             }
         });
 
-        window.onload = function() {
-            if (!sessionStorage.getItem('tab_active')) {
-                <?php if ($loggedIn): ?>
-                    window.location.href = 'logout.php';
-                <?php endif; ?>
-            }
-            sessionStorage.setItem('tab_active', 'true');
-        };
-
-    if (!sessionStorage.getItem('tab_active')) {
-        <?php if ($loggedIn): ?>
-            window.location.replace('logout.php'); 
-        <?php else: ?>
-            document.documentElement.style.opacity = "1";
-        <?php endif; ?>
-    } else {
-        document.documentElement.style.opacity = "1";
-    }
-    sessionStorage.setItem('tab_active', 'true');
+    document.documentElement.style.opacity = "1";
     </script>
 
 </body>
