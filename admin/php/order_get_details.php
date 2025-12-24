@@ -54,7 +54,13 @@ try {
     $items = $stmtItems->fetchAll(PDO::FETCH_ASSOC);
 
     foreach ($items as &$item) {
-        $item['image'] = productImageUrl($item['image']);
+        $img = productImageUrl($item['image']);
+        
+        if (strpos($img, 'http') === 0) {
+            $item['image'] = $img;
+        } else {
+            $item['image'] = '../../user/php/' . ltrim($img, '/');
+        }
     }
 
     echo json_encode([
