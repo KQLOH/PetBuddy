@@ -126,16 +126,20 @@ $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 </td>
 
                                 <td class="actions">
-                                    <a href="member_detail.php?id=<?= $m['member_id'] ?>"
-                                        class="btn-action btn-view">
+                                    <button type="button"
+                                        class="btn-action btn-view"
+                                        data-id="<?= $m['member_id'] ?>"
+                                        onclick="openViewModal(<?= $m['member_id'] ?>)">
                                         View
-                                    </a>
+                                    </button>
 
                                     <?php if ($adminRole === 'super_admin'): ?>
-                                        <a href="member_edit.php?id=<?= $m['member_id'] ?>"
-                                            class="btn-action btn-edit">
+                                        <button type="button"
+                                            class="btn-action btn-edit"
+                                            data-id="<?= $m['member_id'] ?>"
+                                            onclick="openEditModal(<?= $m['member_id'] ?>)">
                                             Edit
-                                        </a>
+                                        </button>
 
                                         <button
                                             type="button"
@@ -160,6 +164,33 @@ $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </main>
     </div>
 
+    <!-- View Modal -->
+    <div id="viewModal" class="modal hidden">
+        <div class="modal-box modal-large">
+            <div class="modal-header">
+                <h3>Member Details</h3>
+                <button type="button" class="modal-close" onclick="closeViewModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="viewModalContent">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="editModal" class="modal hidden">
+        <div class="modal-box modal-large">
+            <div class="modal-header">
+                <h3>Edit Member</h3>
+                <button type="button" class="modal-close" onclick="closeEditModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="editModalContent">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Modal -->
     <div id="deleteModal" class="modal hidden">
         <div class="modal-box">
             <h3 id="modalTitle"></h3>
@@ -181,6 +212,228 @@ $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
         document.getElementById('sidebarToggle').onclick = () =>
             document.body.classList.toggle('sidebar-collapsed');
 
+        // View Modal Functions
+        function openViewModal(memberId) {
+            const modal = document.getElementById('viewModal');
+            const content = document.getElementById('viewModalContent');
+            modal.classList.remove('hidden');
+            content.innerHTML = '<div class="loading">Loading...</div>';
+
+            fetch(`get_member.php?id=${memberId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const member = data.member;
+                        content.innerHTML = `
+                            <div class="member-detail-modal">
+                                <div class="member-header">
+                                    <img src="${member.image_path}" class="member-avatar-lg" alt="Profile">
+                                    <div>
+                                        <h2>${escapeHtml(member.full_name)}</h2>
+                                        ${getRoleBadge(member.role)}
+                                    </div>
+                                </div>
+                                <div class="member-info-grid">
+                                    <div>
+                                        <label>Member ID</label>
+                                        <p>${escapeHtml(member.member_id)}</p>
+                                    </div>
+                                    <div>
+                                        <label>Full Name</label>
+                                        <p>${escapeHtml(member.full_name)}</p>
+                                    </div>
+                                    <div>
+                                        <label>Email</label>
+                                        <p>${escapeHtml(member.email)}</p>
+                                    </div>
+                                    <div>
+                                        <label>Phone</label>
+                                        <p>${member.phone || '-'}</p>
+                                    </div>
+                                    <div>
+                                        <label>Address</label>
+                                        <p>${member.address ? escapeHtml(member.address).replace(/\n/g, '<br>') : '-'}</p>
+                                    </div>
+                                    <div>
+                                        <label>Gender</label>
+                                        <p>${member.gender ? member.gender.charAt(0).toUpperCase() + member.gender.slice(1) : '-'}</p>
+                                    </div>
+                                    <div>
+                                        <label>Date of Birth</label>
+                                        <p>${member.dob || '-'}</p>
+                                    </div>
+                                    <div>
+                                        <label>Role</label>
+                                        <p>${member.role.replace('_', ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        content.innerHTML = `<div class="error">Error: ${data.error || 'Failed to load member data'}</div>`;
+                    }
+                })
+                .catch(error => {
+                    content.innerHTML = `<div class="error">Error loading member data: ${error.message}</div>`;
+                });
+        }
+
+        function closeViewModal() {
+            document.getElementById('viewModal').classList.add('hidden');
+        }
+
+        // Edit Modal Functions
+        function openEditModal(memberId) {
+            const modal = document.getElementById('editModal');
+            const content = document.getElementById('editModalContent');
+            modal.classList.remove('hidden');
+            content.innerHTML = '<div class="loading">Loading...</div>';
+
+            fetch(`get_member.php?id=${memberId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const member = data.member;
+                        const isSuperAdmin = <?= $adminRole === 'super_admin' ? 'true' : 'false' ?>;
+                        content.innerHTML = `
+                            <form id="editMemberForm" onsubmit="saveMember(event, ${memberId})">
+                                <div class="member-edit-header">
+                                    <img src="${member.image_path}" class="member-edit-avatar" alt="Avatar">
+                                    <div class="member-edit-title">
+                                        <h2>${escapeHtml(member.full_name)}</h2>
+                                        ${getRoleBadge(member.role)}
+                                    </div>
+                                </div>
+                                <div class="form-grid">
+                                    <div>
+                                        <label>Full Name *</label>
+                                        <input type="text" name="full_name" value="${escapeHtml(member.full_name)}" required>
+                                    </div>
+                                    <div>
+                                        <label>Email *</label>
+                                        <input type="email" name="email" value="${escapeHtml(member.email)}" required>
+                                    </div>
+                                    <div>
+                                        <label>Phone</label>
+                                        <input type="text" name="phone" value="${escapeHtml(member.phone || '')}">
+                                    </div>
+                                    <div>
+                                        <label>Date of Birth</label>
+                                        <input type="date" name="dob" value="${member.dob || ''}">
+                                    </div>
+                                    <div class="full">
+                                        <label>Address</label>
+                                        <textarea name="address">${escapeHtml(member.address || '')}</textarea>
+                                    </div>
+                                    <div>
+                                        <label>Gender</label>
+                                        <select name="gender">
+                                            <option value="">-- Select --</option>
+                                            <option value="male" ${member.gender === 'male' ? 'selected' : ''}>Male</option>
+                                            <option value="female" ${member.gender === 'female' ? 'selected' : ''}>Female</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label>Role</label>
+                                        <input type="text" value="${member.role.replace('_', ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}" readonly style="background-color: #f5f5f5; cursor: not-allowed;">
+                                    </div>
+                                    <div class="full form-section">Security</div>
+                                    <div class="full">
+                                        <label>Reset Password (optional)</label>
+                                        <input type="password" name="password" placeholder="Min 6 characters">
+                                    </div>
+                                </div>
+                                <div class="modal-actions">
+                                    <button type="button" class="btn-secondary" onclick="closeEditModal()">Cancel</button>
+                                    <button type="submit" class="btn-primary">Save Changes</button>
+                                </div>
+                            </form>
+                        `;
+                    } else {
+                        content.innerHTML = `<div class="error">Error: ${data.error || 'Failed to load member data'}</div>`;
+                    }
+                })
+                .catch(error => {
+                    content.innerHTML = `<div class="error">Error loading member data: ${error.message}</div>`;
+                });
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').classList.add('hidden');
+        }
+
+        function saveMember(event, memberId) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            formData.append('id', memberId);
+            
+            // Disable submit button
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Saving...';
+
+            fetch('update_member.php', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast(data.message, 'success');
+                        setTimeout(() => {
+                            closeEditModal();
+                            location.reload();
+                        }, 1500);
+                    } else {
+                        showToast(data.error || 'Failed to update member', 'error');
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = originalText;
+                    }
+                })
+                .catch(error => {
+                    showToast('Error: ' + error.message, 'error');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
+                });
+        }
+
+        // Toast Notification Functions
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            // Trigger animation
+            setTimeout(() => toast.classList.add('show'), 10);
+
+            // Remove after 3 seconds
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Helper Functions
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function getRoleBadge(role) {
+            if (role === 'super_admin') {
+                return '<span class="role-super-admin">Super Admin</span>';
+            } else if (role === 'admin') {
+                return '<span class="role-admin">Admin</span>';
+            } else {
+                return '<span class="role-member">Member</span>';
+            }
+        }
+
+        // Delete Modal
         const modal = document.getElementById('deleteModal');
         const title = document.getElementById('modalTitle');
         const message = document.getElementById('modalMessage');
@@ -216,6 +469,15 @@ $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
             modal.classList.add('hidden');
             confirmBtn.style.display = 'inline-block';
         };
+
+        // Close modals when clicking outside
+        document.getElementById('viewModal').addEventListener('click', function(e) {
+            if (e.target === this) closeViewModal();
+        });
+
+        document.getElementById('editModal').addEventListener('click', function(e) {
+            if (e.target === this) closeEditModal();
+        });
     </script>
 
 </body>
