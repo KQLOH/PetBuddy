@@ -253,6 +253,113 @@ if (isset($_GET['field'])) {
         border-color: #ef4444 !important;
         background-color: #fffafb;
     }
+
+    /* Google Maps Section Styles */
+    .map-section {
+        margin-top: 3rem;
+        margin-bottom: 3rem;
+    }
+
+    .map-layout {
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+    }
+
+    @media (min-width: 768px) {
+        .map-layout {
+            flex-direction: row;
+        }
+
+        .map-left {
+            width: 60%;
+        }
+
+        .address-right {
+            width: 40%;
+        }
+    }
+
+    .map-container {
+        width: 100%;
+        height: 450px;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e5e7eb;
+    }
+
+    .map-container iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+    }
+
+    .address-info {
+        background-color: #fff7ed;
+        padding: 2rem;
+        border-radius: 0.75rem;
+        border: 1px solid #FFB774;
+        height: fit-content;
+    }
+
+    .address-info h3 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #E89C55;
+        margin-bottom: 1.5rem;
+    }
+
+    .address-details {
+        color: #1f2937;
+        line-height: 1.8;
+    }
+
+    .address-details p {
+        margin-bottom: 1rem;
+        font-size: 1rem;
+    }
+
+    .address-details strong {
+        display: block;
+        font-weight: 600;
+        color: #E89C55;
+        margin-bottom: 0.5rem;
+        font-size: 1.1rem;
+    }
+
+    .address-details .address-text {
+        color: #4b5563;
+        font-size: 1rem;
+    }
+
+    .map-link {
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #fed7aa;
+    }
+
+    .map-link a {
+        color: #E89C55;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.95rem;
+        transition: color 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .map-link a:hover {
+        color: #d97706;
+        text-decoration: underline;
+    }
+
+    @media (max-width: 767px) {
+        .map-container {
+            height: 350px;
+        }
+    }
 </style>
 
 <div class="container-wrapper">
@@ -283,7 +390,7 @@ if (isset($_GET['field'])) {
                 <img src="../images/store.png" alt="Location" class="contact-icon-img">
                 <div class="info-text">
                     <strong>Flagship Store Address</strong>
-                    <span>12A, Jalan Setiawangsa, Setapak, 53300 Kuala Lumpur, Malaysia</span>
+                    <span>Arena, TAR UMT, Jalan Genting Kelang, Setapak, 53100 Kuala Lumpur, Malaysia</span>
                 </div>
             </div>
 
@@ -342,6 +449,45 @@ if (isset($_GET['field'])) {
 
                 <button type="submit" class="btn-submit">Send Message</button>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Google Maps Section -->
+<div class="map-section">
+    <div class="map-layout">
+        <!-- Left: Map (60%) -->
+        <div class="map-left">
+            <div class="map-container">
+                <iframe 
+                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1991.7660979083544!2d101.72661575660737!3d3.2166928771711074!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31cc39003e2819bb%3A0xccb90e34ef34e052!2sTAR%20UMT%20Arena!5e0!3m2!1szh-CN!2smy!4v1766559255079!5m2!1szh-CN!2smy" 
+                    width="600" 
+                    height="450" 
+                    style="border:0;" 
+                    allowfullscreen="" 
+                    loading="lazy" 
+                    referrerpolicy="no-referrer-when-downgrade">
+                </iframe>
+            </div>
+        </div>
+
+        <!-- Right: Address Information (40%) -->
+        <div class="address-right">
+            <div class="address-info">
+                <h3>📍 Store Location</h3>
+                <div class="address-details">
+                    <p>
+                        <strong>Address</strong>
+                        <span class="address-text">Arena, TAR UMT, Jalan Genting Kelang, Setapak, 53100 Kuala Lumpur, Malaysia</span>
+                    </p>
+                </div>
+                <div class="map-link">
+                    <a href="https://www.google.com/maps/place/TAR+UMT+Arena/@3.2158164,101.7273638,18z/data=!3m1!4b1!4m6!3m5!1s0x31cc39003e2819bb:0xccb90e34ef34e052!8m2!3d3.2158137!4d101.7286539!16s%2Fg%2F11x7q7wxk3?entry=ttu&g_ep=EgoyMDI1MTIwOS4wIKXMDSoASAFQAw%3D%3D" 
+                       target="_blank">
+                        Open in Google Maps →
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
 </div>
