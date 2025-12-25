@@ -1,0 +1,267 @@
+:root {
+    --primary-color: #F4A261;
+    --primary-dark: #E68E3F;
+    --info: #1976d2;
+    --warn: #e68e3f;
+    --danger: #d32f2f;
+    --success: #2e7d32;
+}
+
+.btn-search,
+.btn-reset,
+.btn-create,
+.btn-action,
+.btn-primary,
+.btn-secondary,
+.btn-danger,
+.btn-alert {
+    padding: 8px 18px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all .2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid transparent;
+    font-family: inherit;
+    gap: 6px;
+    height: 38px;
+    /* 统一高度 */
+}
+
+/* --- 顶部工具栏按钮 (Filter Bar) --- */
+.btn-search {
+    background: rgba(25, 118, 210, .08);
+    color: var(--info);
+    border-color: rgba(25, 118, 210, .25);
+}
+
+.btn-search:hover {
+    background: var(--info);
+    color: #fff;
+}
+
+.btn-reset {
+    background: rgba(119, 119, 119, .08);
+    color: #555;
+    border-color: rgba(119, 119, 119, .25);
+}
+
+.btn-reset:hover {
+    background: #555;
+    color: #fff;
+}
+
+.btn-create {
+    margin-left: auto;
+    background: rgba(46, 125, 50, .10);
+    color: var(--success);
+    border-color: rgba(46, 125, 50, .30);
+}
+
+.btn-create:hover {
+    background: var(--success);
+    color: #fff;
+}
+
+/* --- 表格操作按钮 (Table Actions) --- */
+.btn-action {
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    height: 30px;
+    /* 操作按钮稍矮一点 */
+}
+
+.btn-view {
+    background: rgba(25, 118, 210, .08);
+    color: var(--info);
+    border-color: rgba(25, 118, 210, .25);
+}
+
+.btn-view:hover {
+    background: var(--info);
+    color: #fff;
+}
+
+.btn-edit {
+    background: rgba(230, 142, 63, .12);
+    color: var(--warn);
+    border-color: rgba(230, 142, 63, .28);
+}
+
+.btn-edit:hover {
+    background: var(--warn);
+    color: #fff;
+}
+
+.btn-delete {
+    background: rgba(211, 47, 47, .10);
+    color: var(--danger);
+    border-color: rgba(211, 47, 47, .25);
+}
+
+.btn-delete:hover {
+    background: var(--danger);
+    color: #fff;
+}
+
+/* --- 表单与模态框按钮 (Modal/Form) --- */
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    color: #fff;
+    padding: 10px 26px;
+    height: 42px;
+}
+
+.btn-primary:hover {
+    opacity: .9;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(244, 162, 97, .3);
+}
+
+.btn-secondary {
+    background: #fff;
+    border: 1px solid #ddd;
+    color: #555;
+}
+
+.btn-secondary:hover {
+    border-color: var(--primary-color);
+    background: #fffaf4;
+    color: var(--primary-dark);
+}
+
+.btn-secondary img {
+    width: 16px;
+    height: 16px;
+    vertical-align: middle;
+}
+
+.btn-danger {
+    background: var(--danger);
+    color: #fff;
+    font-weight: 800;
+}
+
+/* --- 弹窗专用按钮 (Custom Alert) --- */
+.btn-alert {
+    padding: 10px 20px;
+    border-radius: 6px;
+    /* 弹窗内通常使用方圆角 */
+    height: auto;
+}
+
+.btn-alert-confirm {
+    background: #F4A261;
+    color: white;
+}
+
+.btn-alert-cancel {
+    background: #F2F4F7;
+    color: #333;
+}
+
+/* --- 上传按钮 --- */
+.upload-btn {
+    padding: 8px 18px;
+    border-radius: 999px;
+    border: 1px solid var(--primary-color);
+    background: rgba(244, 162, 97, .1);
+    color: var(--primary-dark);
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 13px;
+    display: inline-block;
+    transition: all .2s ease;
+}
+
+.upload-btn:hover {
+    background: var(--primary-color);
+    color: #fff;
+}
+
+/* --- 分页按钮 (Pagination) --- */
+.pagination {
+    margin-top: 18px;
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    align-items: center;
+    font-size: 13px;
+}
+
+.pagination a,
+.pagination span {
+    padding: 7px 10px;
+    border-radius: 10px;
+    border: 1px solid #e0e0e0;
+    text-decoration: none;
+    color: #555;
+    background: #fff;
+    transition: .2s ease;
+}
+
+.pagination a:hover {
+    border-color: var(--primary-color);
+    background: #fffaf4;
+    color: var(--primary-dark);
+}
+
+.pagination .current {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: #fff;
+    font-weight: 800;
+}
+
+.pagination .disabled {
+    opacity: .55;
+    cursor: not-allowed;
+}
+
+.pagination .dots {
+    border: none;
+    background: transparent;
+}
+
+/* --- 侧边栏切换按钮 --- */
+.sidebar-toggle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid #e0e0e0;
+    background: #fff;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all .2s ease;
+}
+
+.sidebar-toggle:hover {
+    background: rgba(244, 162, 97, .15);
+    border-color: var(--primary-color);
+}
+
+.sidebar-toggle img {
+    height: 15px;
+    width: 15px;
+}
+
+#btn-error {
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 0;
+}
+
+#btn-error img {
+    width: 16px;
+    height: 16px;
+    vertical-align: middle;
+}
