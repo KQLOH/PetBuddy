@@ -553,7 +553,6 @@ function sortLink($columnKey, $label)
             if (errorDiv) errorDiv.textContent = '';
 
             if (file) {
-                // Validate file type
                 const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
                 if (!allowedTypes.includes(file.type)) {
                     if (errorDiv) errorDiv.textContent = 'Please upload JPG, PNG, or GIF files only.';
@@ -561,14 +560,12 @@ function sortLink($columnKey, $label)
                     return;
                 }
 
-                // Validate file size (5MB)
                 if (file.size > 5000000) {
                     if (errorDiv) errorDiv.textContent = 'Image file is too large. Maximum size is 5MB.';
                     input.value = '';
                     return;
                 }
 
-                // Show preview
                 previewImg.src = URL.createObjectURL(file);
             }
         }
@@ -576,11 +573,8 @@ function sortLink($columnKey, $label)
         function openAddAdminModal() {
             const modal = document.getElementById('addAdminModal');
             modal.classList.remove('hidden');
-            // Reset form
             document.getElementById('addAdminForm').reset();
-            // Reset image preview
             document.getElementById('admin-preview-img').src = '../images/default_product.jpg';
-            // Clear error messages
             document.getElementById('password-error').textContent = '';
             document.getElementById('confirm-password-error').textContent = '';
             document.getElementById('admin-image-error').textContent = '';
@@ -588,11 +582,8 @@ function sortLink($columnKey, $label)
 
         function closeAddAdminModal() {
             document.getElementById('addAdminModal').classList.add('hidden');
-            // Reset form
             document.getElementById('addAdminForm').reset();
-            // Reset image preview
             document.getElementById('admin-preview-img').src = '../images/default_product.jpg';
-            // Clear error messages
             document.getElementById('password-error').textContent = '';
             document.getElementById('confirm-password-error').textContent = '';
             document.getElementById('admin-image-error').textContent = '';
@@ -606,7 +597,6 @@ function sortLink($columnKey, $label)
             errorDiv.textContent = '';
 
             if (file) {
-                // Validate file type
                 const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
                 if (!allowedTypes.includes(file.type)) {
                     errorDiv.textContent = 'Please upload JPG, PNG, or GIF files only.';
@@ -615,7 +605,6 @@ function sortLink($columnKey, $label)
                     return;
                 }
 
-                // Validate file size (5MB)
                 if (file.size > 5000000) {
                     errorDiv.textContent = 'Image file is too large. Maximum size is 5MB.';
                     input.value = '';
@@ -623,7 +612,6 @@ function sortLink($columnKey, $label)
                     return;
                 }
 
-                // Show preview
                 previewImg.src = URL.createObjectURL(file);
             } else {
                 previewImg.src = '../images/default-avatar.png';
@@ -644,7 +632,6 @@ function sortLink($columnKey, $label)
                 return false;
             }
 
-            // Validate password requirements: uppercase, lowercase, number, special character
             const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
             if (!passwordRegex.test(password)) {
                 errorDiv.textContent = 'Password must contain: uppercase, lowercase, number, and special character.';
@@ -679,7 +666,6 @@ function sortLink($columnKey, $label)
             event.preventDefault();
             const form = event.target;
             
-            // Validate password before submission
             if (!validatePassword()) {
                 showCustomAlert('error', 'Validation Error', 'Please fix password errors before submitting.');
                 return;
@@ -729,7 +715,6 @@ function sortLink($columnKey, $label)
 
             const password = passwordInput.value;
 
-            // 如果密码为空，不需要验证（因为是可选的）
             if (password === '') {
                 errorDiv.textContent = '';
                 return true;
@@ -740,7 +725,6 @@ function sortLink($columnKey, $label)
                 return false;
             }
 
-            // Validate password requirements: uppercase, lowercase, number, special character
             const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
             if (!passwordRegex.test(password)) {
                 errorDiv.textContent = 'Password must contain: uppercase, lowercase, number, and special character.';
@@ -762,13 +746,11 @@ function sortLink($columnKey, $label)
             const password = passwordInput.value;
             const confirmPassword = confirmPasswordInput.value;
 
-            // 如果两个字段都为空，不需要验证
             if (password === '' && confirmPassword === '') {
                 errorDiv.textContent = '';
                 return true;
             }
 
-            // 如果只填写了其中一个，需要提示
             if (password !== '' && confirmPassword === '') {
                 errorDiv.textContent = 'Please confirm your password.';
                 return false;
@@ -792,7 +774,6 @@ function sortLink($columnKey, $label)
             event.preventDefault();
             const form = event.target;
             
-            // 验证密码（如果提供了）
             const passwordInput = document.getElementById('edit_member_password');
             const confirmPasswordInput = document.getElementById('edit_member_confirm_password');
             
@@ -807,7 +788,6 @@ function sortLink($columnKey, $label)
                     return;
                 }
             } else if (confirmPasswordInput && confirmPasswordInput.value !== '') {
-                // 如果只填写了确认密码但没有填写密码
                 showCustomAlert('error', 'Validation Error', 'Please enter password first.');
                 return;
             }
@@ -907,20 +887,17 @@ function sortLink($columnKey, $label)
         }
 
         function removeMemberRow(memberId) {
-            // 找到对应的 table row
             const row = document.querySelector(`tr[data-member-id="${memberId}"]`);
             if (row) {
                 row.style.transition = 'opacity 0.3s ease';
                 row.style.opacity = '0';
                 setTimeout(() => {
                     row.remove();
-                    // 检查是否还有成员
                     const tbody = document.querySelector('table tbody');
                     const remainingRows = tbody.querySelectorAll('tr[data-member-id]');
                     if (remainingRows.length === 0) {
                         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No members found</td></tr>';
                     }
-                    // 更新总数
                     updateMemberCount();
                 }, 300);
             }
@@ -980,7 +957,6 @@ function sortLink($columnKey, $label)
             });
         }
 
-        // 初始化删除按钮
         setupDeleteButtons();
 
         document.getElementById('viewModal').addEventListener('click', function(e) {
@@ -994,6 +970,175 @@ function sortLink($columnKey, $label)
         document.getElementById('addAdminModal').addEventListener('click', function(e) {
             if (e.target === this) closeAddAdminModal();
         });
+
+        function setStatus(input, isValid, msg) {
+            const $input = $(input);
+            $input.next('.validation-msg').remove(); 
+
+            if (!isValid) {
+                $input.addClass('input-error');
+                $input.after('<span class="validation-msg">' + msg + '</span>');
+            } else {
+                $input.removeClass('input-error');
+            }
+            return isValid;
+        }
+
+        function validateEmail(email) {
+            const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return re.test(email);
+        }
+
+        function validatePassword(password) {
+            const re = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+            return re.test(password);
+        }
+
+        $(document).ready(function() {
+
+            $('#addAdminForm input').on('input blur', function() {
+                const name = $(this).attr('name');
+                const val = $(this).val().trim();
+
+                if (name === 'full_name') setStatus(this, val !== '', 'Full name is required');
+                
+                if (name === 'email') setStatus(this, validateEmail(val), 'Invalid email format');
+                
+                if (name === 'password') {
+                    setStatus(this, validatePassword(val), 'Weak password (Min 8, Upper, Lower, Number, Special)');
+                    const confirmVal = $('#admin_confirm_password').val();
+                    if(confirmVal !== '') setStatus($('#admin_confirm_password'), confirmVal === val, 'Passwords do not match');
+                }
+                
+                if (name === 'confirm_password') {
+                    const original = $('#admin_password').val();
+                    setStatus(this, val === original, 'Passwords do not match');
+                }
+            });
+
+            $('#addAdminForm').on('submit', function(e) {
+                e.preventDefault(); 
+                let valid = true;
+
+                const $name = $(this).find('input[name="full_name"]');
+                if (!setStatus($name, $name.val().trim() !== '', 'Full name is required')) valid = false;
+
+                const $email = $(this).find('input[name="email"]');
+                if (!setStatus($email, validateEmail($email.val().trim()), 'Invalid email format')) valid = false;
+
+                const $pass = $('#admin_password');
+                const passVal = $pass.val();
+                if (!setStatus($pass, validatePassword(passVal), 'Weak password')) valid = false;
+
+                const $confirm = $('#admin_confirm_password');
+                if (!setStatus($confirm, $confirm.val() === passVal && passVal !== '', 'Passwords do not match')) valid = false;
+
+                if (valid) {
+                    performAjaxSaveAdmin(this);
+                }
+            });
+
+            $(document).on('input blur', '#editMemberForm input', function() {
+                const name = $(this).attr('name');
+                const val = $(this).val().trim();
+
+                if (name === 'full_name') setStatus(this, val !== '', 'Full name is required');
+                if (name === 'email') setStatus(this, validateEmail(val), 'Invalid email format');
+                
+                if (name === 'password' || name === 'confirm_password') {
+                    const $pass = $('#edit_member_password');
+                    const $confirm = $('#edit_member_confirm_password');
+                    const pVal = $pass.val();
+                    const cVal = $confirm.val();
+
+                    if (pVal !== '') {
+                        if(name === 'password') setStatus($pass, validatePassword(pVal), 'Weak password');
+                        if (cVal !== '') setStatus($confirm, cVal === pVal, 'Mismatch');
+                    } else {
+                        $pass.removeClass('input-error').next('.validation-msg').remove();
+                        $confirm.removeClass('input-error').next('.validation-msg').remove();
+                    }
+                }
+            });
+
+            $(document).on('submit', '#editMemberForm', function(e) {
+                e.preventDefault();
+                let valid = true;
+                const form = this;
+                const memberId = $(form).data('id');
+
+                const $name = $(form).find('input[name="full_name"]');
+                if (!setStatus($name, $name.val().trim() !== '', 'Full name is required')) valid = false;
+
+                const $email = $(form).find('input[name="email"]');
+                if (!setStatus($email, validateEmail($email.val().trim()), 'Invalid email format')) valid = false;
+
+                const $pass = $('#edit_member_password');
+                const $confirm = $('#edit_member_confirm_password');
+                const pVal = $pass.val();
+                const cVal = $confirm.val();
+
+                if (pVal !== '') {
+                    if (!setStatus($pass, validatePassword(pVal), 'Weak password')) valid = false;
+                    if (!setStatus($confirm, cVal === pVal, 'Passwords do not match')) valid = false;
+                } else if (cVal !== '') {
+                    setStatus($pass, false, 'Enter password first');
+                    valid = false;
+                }
+
+                if (valid) {
+                    performAjaxSaveMember(form, memberId);
+                }
+            });
+
+        });
+
+        function performAjaxSaveAdmin(form) {
+            const formData = new FormData(form);
+            const $btn = $(form).find('button[type="submit"]');
+            const originalText = $btn.text();
+            $btn.prop('disabled', true).text('Saving...');
+
+            fetch('admin_add.php', { method: 'POST', body: formData })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        closeAddAdminModal();
+                        showCustomAlert('success', 'Success!', 'New admin added.', () => window.location.reload());
+                    } else {
+                        showCustomAlert('error', 'Error', data.error || 'Failed');
+                        $btn.prop('disabled', false).text(originalText);
+                    }
+                })
+                .catch(() => {
+                    showCustomAlert('error', 'System Error', 'Connection failed');
+                    $btn.prop('disabled', false).text(originalText);
+                });
+        }
+
+        function performAjaxSaveMember(form, memberId) {
+            const formData = new FormData(form);
+            formData.append('id', memberId);
+            const $btn = $(form).find('button[type="submit"]');
+            const originalText = $btn.text();
+            $btn.prop('disabled', true).text('Saving...');
+
+            fetch('member_edit.php', { method: 'POST', body: formData })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        closeEditModal();
+                        showCustomAlert('success', 'Updated!', 'Details saved.', () => window.location.reload());
+                    } else {
+                        showCustomAlert('error', 'Error', data.error || 'Failed');
+                        $btn.prop('disabled', false).text(originalText);
+                    }
+                })
+                .catch(() => {
+                    showCustomAlert('error', 'System Error', 'Connection failed');
+                    $btn.prop('disabled', false).text(originalText);
+                });
+        }
     </script>
 </body>
 

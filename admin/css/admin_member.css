@@ -861,3 +861,15 @@ input[readonly] {
         align-items: flex-start;
     }
 }
+
+.input-error {
+    border-color: #dc2626 !important;
+    background-color: #fef2f2 !important;
+}
+
+.validation-msg {
+    color: #dc2626;
+    font-size: 12px;
+    margin-top: 4px;
+    display: block;
+}
