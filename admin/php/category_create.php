@@ -24,8 +24,29 @@ try {
         exit;
     }
 
-    $stmt = $pdo->prepare("INSERT INTO product_categories (name, description) VALUES (?, ?)");
-    $stmt->execute([$name, $desc]);
+    $imagePath = null;
+
+    if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+        $allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+        if (in_array($_FILES['image']['type'], $allowed)) {
+            $ext = pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION);
+            $newName = 'category_' . time() . '_' . rand(1000, 9999) . '.' . $ext;
+            
+            $baseFolder = '../../user/images/category/';
+            $dbPath = '../images/category/';
+            
+            if (!is_dir($baseFolder)) {
+                mkdir($baseFolder, 0777, true);
+            }
+            
+            if (move_uploaded_file($_FILES['image']['tmp_name'], $baseFolder . $newName)) {
+                $imagePath = $dbPath . $newName;
+            }
+        }
+    }
+
+    $stmt = $pdo->prepare("INSERT INTO product_categories (name, description, image) VALUES (?, ?, ?)");
+    $stmt->execute([$name, $desc, $imagePath]);
 
     echo json_encode(['success' => true]);
 } catch (Exception $e) {

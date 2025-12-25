@@ -260,17 +260,25 @@
     background: none;
     border: 1px dashed #ccc;
     color: #666;
-    padding: 2px 8px;
+    padding: 8px 16px;
     border-radius: 12px;
-    font-size: 11px;
+    font-size: 13px;
+    font-weight: 500;
     cursor: pointer;
     margin-left: 5px;
+    margin-top: 4px;
     transition: all 0.2s;
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .btn-add-sub:hover {
     border-color: var(--primary-color);
     color: var(--primary-color);
+    background-color: rgba(244, 162, 97, 0.05);
+    border-style: solid;
 }
 
 .custom-alert-overlay {
