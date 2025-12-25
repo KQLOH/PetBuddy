@@ -251,7 +251,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         Forgot Password?
                     </a>
                     <a href="home.php" class="footer-link muted-link">
-                        <span class="icon-arrow">←</span> Back to Home
+                        <span class="icon-arrow"><</span> Back to Home
                     </a>
                 </div>
             </div>
