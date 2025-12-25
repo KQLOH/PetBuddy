@@ -533,3 +533,11 @@ tbody tr:hover {
 .sub-tag .remove-sub:hover {
     color: #D92D20;
 }
+
+.tag-pill {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background-color: rgba(244, 162, 97, 0.12);
+    color: var(--primary-dark);
+}

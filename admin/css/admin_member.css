@@ -527,7 +527,7 @@ tbody tr:hover {
     gap: 20px;
 }
 
-.member-detail-modal .member-info-grid > div {
+.member-detail-modal .member-info-grid>div {
     display: flex;
     flex-direction: column;
 }
@@ -577,7 +577,7 @@ tbody tr:hover {
     gap: 20px;
 }
 
-.form-grid > div {
+.form-grid>div {
     display: flex;
     flex-direction: column;
 }
@@ -717,4 +717,12 @@ input[readonly] {
         min-width: auto;
         max-width: none;
     }
+}
+
+.tag-pill {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background-color: rgba(244, 162, 97, 0.12);
+    color: var(--primary-dark);
 }

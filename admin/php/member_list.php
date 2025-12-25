@@ -52,6 +52,7 @@ $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <meta charset="UTF-8">
     <title>Members</title>
     <link rel="stylesheet" href="../css/admin_member.css">
+    <link rel="stylesheet" href="../css/admin_btn.css">
 </head>
 
 <body>
@@ -61,9 +62,10 @@ $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <div class="main">
         <header class="topbar">
             <div class="topbar-left">
-                <button id="sidebarToggle" class="sidebar-toggle">☰</button>
+                <button id="sidebarToggle" class="sidebar-toggle"><img src="../images/menu.png"></button>
                 <div class="topbar-title">Members</div>
             </div>
+            <span class="tag-pill" style="margin-right: 20px;">Admin: <?= htmlspecialchars($adminName) ?></span>
         </header>
 
         <main class="content">
@@ -167,7 +169,9 @@ $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <div class="modal-box modal-large">
             <div class="modal-header">
                 <h3>Member Details</h3>
-                <button type="button" class="modal-close" onclick="closeViewModal()">&times;</button>
+                <button type="button" class="modal-close" id="btn-error" onclick="closeViewModal()">
+                    <img src="../images/error.png">
+                </button>
             </div>
             <div class="modal-body" id="viewModalContent">
                 <div class="loading">Loading...</div>
@@ -179,7 +183,9 @@ $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <div class="modal-box modal-large">
             <div class="modal-header">
                 <h3>Edit Member</h3>
-                <button type="button" class="modal-close" onclick="closeEditModal()">&times;</button>
+                <button type="button" class="modal-close" id="btn-error" onclick="closeEditModal()">
+                    <img src="../images/error.png">
+                </button>
             </div>
             <div class="modal-body" id="editModalContent">
                 <div class="loading">Loading...</div>
@@ -187,19 +193,15 @@ $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </div>
 
-    <div id="deleteModal" class="modal hidden">
-        <div class="modal-box">
-            <h3 id="modalTitle"></h3>
-            <p id="modalMessage"></p>
 
-            <div class="modal-actions">
-                <button id="modalCancel" class="btn-secondary">Cancel</button>
-                <form method="post" action="member_delete.php">
-                    <input type="hidden" name="id" id="deleteId">
-                    <button type="submit" class="btn-danger" id="modalConfirm">
-                        Delete
-                    </button>
-                </form>
+    <div id="customAlert" class="custom-alert-overlay">
+        <div class="custom-alert-box">
+            <div id="customAlertIcon" class="custom-alert-icon"></div>
+            <h3 id="customAlertTitle" class="custom-alert-title"></h3>
+            <p id="customAlertText" class="custom-alert-text"></p>
+            <div id="customAlertButtons" class="custom-alert-buttons">
+                <button id="customAlertCancel" class="btn-alert btn-alert-cancel" style="display:none">Cancel</button>
+                <button id="customAlertConfirm" class="btn-alert btn-alert-confirm">OK</button>
             </div>
         </div>
     </div>
@@ -374,35 +376,67 @@ $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        showToast(data.message, 'success');
-                        setTimeout(() => {
-                            closeEditModal();
-                            location.reload();
-                        }, 1500);
+                        closeEditModal();
+                        showCustomAlert('success', 'Updated!', 'Member details saved successfully.', () => {
+                            window.location.reload();
+                        });
                     } else {
-                        showToast(data.error || 'Failed to update member', 'error');
+                        showCustomAlert('error', 'Error', data.error || 'Failed to update member');
                         submitBtn.disabled = false;
                         submitBtn.textContent = originalText;
                     }
                 })
                 .catch(error => {
-                    showToast('Error: ' + error.message, 'error');
+                    showCustomAlert('error', 'System Error', 'Could not connect to the server.');
                     submitBtn.disabled = false;
                     submitBtn.textContent = originalText;
                 });
         }
 
-        function showToast(message, type = 'success') {
-            const toast = document.createElement('div');
-            toast.className = `toast toast-${type}`;
-            toast.textContent = message;
-            document.body.appendChild(toast);
+        function showCustomAlert(type, title, text, callback = null) {
+            const overlay = document.getElementById('customAlert');
+            const iconContainer = document.getElementById('customAlertIcon');
+            const btnCancel = document.getElementById('customAlertCancel');
+            const btnConfirm = document.getElementById('customAlertConfirm');
 
-            setTimeout(() => toast.classList.add('show'), 10);
-            setTimeout(() => {
-                toast.classList.remove('show');
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
+            document.getElementById('customAlertTitle').innerText = title;
+            document.getElementById('customAlertText').innerText = text;
+
+            iconContainer.innerHTML = '';
+            const img = document.createElement('img');
+            if (type === 'success') {
+                img.src = '../images/success.png';
+            } else if (type === 'error') {
+                img.src = '../images/error.png';
+            } else {
+                img.src = '../images/warning.png';
+            }
+            iconContainer.appendChild(img);
+
+            if (type === 'confirm') {
+                btnCancel.style.display = 'block';
+                btnConfirm.innerText = 'Yes, Delete';
+                btnConfirm.style.backgroundColor = '#D92D20';
+            } else {
+                btnCancel.style.display = 'none';
+                btnConfirm.innerText = 'OK';
+                btnConfirm.style.backgroundColor = '#F4A261';
+            }
+
+            btnConfirm.onclick = () => {
+                closeCustomAlert();
+                if (callback) callback();
+            };
+            btnCancel.onclick = closeCustomAlert;
+
+            overlay.style.display = 'flex';
+            setTimeout(() => overlay.classList.add('show'), 10);
+        }
+
+        function closeCustomAlert() {
+            const overlay = document.getElementById('customAlert');
+            overlay.classList.remove('show');
+            setTimeout(() => overlay.style.display = 'none', 300);
         }
 
         function escapeHtml(text) {
@@ -421,41 +455,48 @@ $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
             }
         }
 
-        const modal = document.getElementById('deleteModal');
-        const title = document.getElementById('modalTitle');
-        const message = document.getElementById('modalMessage');
-        const confirmBtn = document.getElementById('modalConfirm');
-        const cancelBtn = document.getElementById('modalCancel');
-        const deleteId = document.getElementById('deleteId');
-
         document.querySelectorAll('.btn-delete').forEach(btn => {
             btn.onclick = () => {
+                const memberId = btn.dataset.id;
+                const memberName = btn.dataset.name;
                 const isSelf = btn.dataset.self === '1';
                 const hasOrder = btn.dataset.hasOrder === '1';
 
-                modal.classList.remove('hidden');
-
                 if (isSelf) {
-                    title.textContent = 'Action not allowed';
-                    message.textContent = 'You cannot delete your own account.';
-                    confirmBtn.style.display = 'none';
+                    showCustomAlert('error', 'Action not allowed', 'You cannot delete your own account.');
                 } else if (hasOrder) {
-                    title.textContent = 'Cannot delete member';
-                    message.textContent = 'This member has existing orders and cannot be deleted.';
-                    confirmBtn.style.display = 'none';
+                    showCustomAlert('error', 'Cannot delete member', 'This member has existing orders and cannot be deleted.');
                 } else {
-                    title.textContent = 'Confirm deletion';
-                    message.textContent = `Are you sure you want to delete "${btn.dataset.name}"?`;
-                    confirmBtn.style.display = 'inline-block';
-                    deleteId.value = btn.dataset.id;
+                    showCustomAlert('confirm', 'Delete Member?', `Are you sure you want to delete "${memberName}"?`, () => {
+                        const params = new URLSearchParams();
+                        params.append('id', memberId);
+
+                        fetch('member_delete.php', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/x-www-form-urlencoded',
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                },
+                                body: params
+                            })
+                            .then(res => res.json())
+                            .then(data => {
+                                if (data.success) {
+                                    showCustomAlert('success', 'Deleted!', 'The member has been removed.', () => {
+                                        window.location.reload();
+                                    });
+                                } else {
+                                    showCustomAlert('error', 'Error', data.error || 'Delete failed.');
+                                }
+                            })
+                            .catch(err => {
+                                console.error('Error:', err);
+                                showCustomAlert('error', 'System Error', 'Could not connect to the server.');
+                            });
+                    });
                 }
             };
         });
-
-        cancelBtn.onclick = () => {
-            modal.classList.add('hidden');
-            confirmBtn.style.display = 'inline-block';
-        };
 
         document.getElementById('viewModal').addEventListener('click', function(e) {
             if (e.target === this) closeViewModal();
