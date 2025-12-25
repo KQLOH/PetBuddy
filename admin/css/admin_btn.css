@@ -379,3 +379,38 @@
 .btn-alert-cancel:hover {
     background: #E4E7EC;
 }
+
+.btn-pill-add {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    background-color: #E8F5E9;
+    color: #2E7D32;
+    padding: 10px 24px;
+    border-radius: 50px;
+    text-decoration: none;
+    font-size: 15px;
+    font-weight: 600;
+    border: 1.5px solid #C8E6C9;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+}
+
+.btn-pill-add:hover {
+    background-color: #C8E6C9;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+    color: #1B5E20;
+}
+
+.btn-pill-add .icon {
+    font-size: 18px;
+    margin-right: 2px;
+}
+
+.filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
