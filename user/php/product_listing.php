@@ -198,11 +198,14 @@ function getQueryString($newPage)
         }
 
         .clear-search {
-            color: #ff4d4d;
-            text-decoration: underline;
+            color: white;
+            text-decoration: none;
             margin-left: 5px;
+            background: #FFB774;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin: 0 5px;
         }
-
 
         .btn-filter-toggle {
             background: linear-gradient(135deg, #FFB774, #E89C55);
