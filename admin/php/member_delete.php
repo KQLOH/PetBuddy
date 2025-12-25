@@ -2,11 +2,13 @@
 session_start();
 require_once '../../user/include/db.php';
 
+header('Content-Type: application/json');
+
 if (
     empty($_SESSION['role']) ||
     $_SESSION['role'] !== 'super_admin'
 ) {
-    header('Location: member_list.php');
+    echo json_encode(['success' => false, 'error' => 'Unauthorized access']);
     exit;
 }
 
@@ -14,14 +16,14 @@ $adminId = $_SESSION['member_id'] ?? 0;
 
 $memberId = $_POST['id'] ?? null;
 if (!$memberId || !is_numeric($memberId)) {
-    header('Location: member_list.php');
+    echo json_encode(['success' => false, 'error' => 'Invalid member ID']);
     exit;
 }
 
 $memberId = (int)$memberId;
 
 if ($memberId === (int)$adminId) {
-    header('Location: member_list.php');
+    echo json_encode(['success' => false, 'error' => 'You cannot delete your own account']);
     exit;
 }
 
@@ -29,7 +31,7 @@ try {
     $stmt = $pdo->prepare("SELECT member_id FROM members WHERE member_id = ?");
     $stmt->execute([$memberId]);
     if (!$stmt->fetch()) {
-        header('Location: member_list.php');
+        echo json_encode(['success' => false, 'error' => 'Member not found']);
         exit;
     }
 
@@ -42,7 +44,7 @@ try {
     $orderCount = (int)$stmt->fetchColumn();
 
     if ($orderCount > 0) {
-        header('Location: member_list.php');
+        echo json_encode(['success' => false, 'error' => 'This member has existing orders and cannot be deleted']);
         exit;
     }
 
@@ -59,14 +61,13 @@ try {
         ->execute([$memberId]);
     $pdo->commit();
 
-    header('Location: member_list.php');
+    echo json_encode(['success' => true]);
     exit;
 } catch (Exception $e) {
-
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
 
-    header('Location: member_list.php');
+    echo json_encode(['success' => false, 'error' => 'Database error: ' . $e->getMessage()]);
     exit;
 }

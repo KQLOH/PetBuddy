@@ -300,6 +300,7 @@
 
 .custom-alert-overlay.show {
     opacity: 1;
+    display: flex;
 }
 
 .custom-alert-box {
@@ -340,6 +341,7 @@
     margin: 0 0 10px;
     font-size: 1.25rem;
     color: #333;
+    font-weight: 700;
 }
 
 .custom-alert-text {

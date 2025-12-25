@@ -112,250 +112,8 @@ $allStatuses = ['pending', 'paid', 'shipped', 'completed', 'cancelled', 'return_
     <meta charset="UTF-8">
     <title>Orders - PetBuddy Admin</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="../css/admin_product.css">
-    <style>
-        .sort-link {
-            text-decoration: none;
-            color: inherit;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            user-select: none;
-            cursor: pointer;
-        }
-
-        .sort-link:hover {
-            color: var(--primary-color);
-        }
-
-        .sort-icon {
-            width: 12px;
-            height: auto;
-            opacity: 0.7;
-            vertical-align: middle;
-            margin-top: -2px;
-        }
-
-        .search-wrapper-list {
-            position: relative;
-            display: inline-block;
-        }
-
-        .search-icon-list {
-            position: absolute;
-            left: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 14px;
-            height: 14px;
-            opacity: 0.5;
-        }
-
-        .filter-bar input[type="text"] {
-            padding-left: 34px !important;
-        }
-
-        .status-pill {
-            padding: 4px 12px;
-            border-radius: 999px;
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            display: inline-block;
-        }
-
-        .status-pending {
-            background-color: #FFF4E5;
-            color: #B54708;
-            border: 1px solid #FEDF89;
-        }
-
-        .status-paid {
-            background-color: #ECFDF3;
-            color: #027A48;
-            border: 1px solid #A6F4C5;
-        }
-
-        .status-shipped {
-            background-color: #F0F9FF;
-            color: #026AA2;
-            border: 1px solid #B9E6FE;
-        }
-
-        .status-completed {
-            background-color: #EDF7ED;
-            color: #1E4620;
-            border: 1px solid #C8E6C9;
-        }
-
-        .status-cancelled {
-            background-color: #FEF3F2;
-            color: #B42318;
-            border: 1px solid #FECDCA;
-        }
-
-        .status-return_requested,
-        .status-returned {
-            background-color: #F8F9FA;
-            color: #344054;
-            border: 1px solid #D0D5DD;
-        }
-
-        .item-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
-        }
-
-        .item-table th {
-            background: #F9FAFB;
-            text-align: left;
-            padding: 12px;
-            color: #475467;
-            font-weight: 600;
-            border-bottom: 1px solid #EAECF0;
-        }
-
-        .item-table td {
-            border-bottom: 1px solid #EAECF0;
-            padding: 12px;
-            vertical-align: middle;
-            color: #344054;
-        }
-
-        .item-thumb {
-            width: 40px;
-            height: 40px;
-            border-radius: 6px;
-            object-fit: cover;
-            margin-right: 12px;
-            border: 1px solid #EAECF0;
-            vertical-align: middle;
-        }
-
-        .info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 24px;
-            margin-bottom: 24px;
-            padding-bottom: 24px;
-            border-bottom: 1px solid #eee;
-        }
-
-        .info-group h4 {
-            font-size: 11px;
-            color: #667085;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-        }
-
-        .info-group p {
-            margin: 4px 0;
-            font-size: 14px;
-            color: #101828;
-            line-height: 1.5;
-        }
-
-        .custom-alert-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 9999;
-            display: none;
-            justify-content: center;
-            align-items: center;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .custom-alert-overlay.show {
-            opacity: 1;
-        }
-
-        .custom-alert-box {
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 400px;
-            text-align: center;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-            transform: scale(0.8);
-            transition: transform 0.3s ease;
-        }
-
-        .custom-alert-overlay.show .custom-alert-box {
-            transform: scale(1);
-        }
-
-        .custom-alert-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            margin: 0 auto 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #f9fafb;
-            border: 2px solid #eee;
-        }
-
-        .custom-alert-icon img {
-            width: 30px;
-            height: 30px;
-            object-fit: contain;
-        }
-
-        .custom-alert-title {
-            margin: 0 0 10px;
-            font-size: 1.25rem;
-            color: #333;
-        }
-
-        .custom-alert-text {
-            color: #666;
-            margin-bottom: 20px;
-            line-height: 1.5;
-        }
-
-        .custom-alert-buttons {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-        }
-
-        .btn-alert {
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            border: none;
-            font-weight: 600;
-        }
-
-        .btn-alert-confirm {
-            background: #F4A261;
-            color: white;
-        }
-
-        .btn-alert-confirm:hover {
-            background: #E68E3F;
-        }
-
-        .btn-alert-cancel {
-            background: #F2F4F7;
-            color: #333;
-        }
-
-        .btn-alert-cancel:hover {
-            background: #E4E7EC;
-        }
-    </style>
+    <link rel="stylesheet" href="../css/admin_orders_list.css">
+    <link rel="stylesheet" href="../css/admin_btn.css">
 </head>
 
 <body>
@@ -366,7 +124,7 @@ $allStatuses = ['pending', 'paid', 'shipped', 'completed', 'cancelled', 'return_
 
         <header class="topbar">
             <div class="topbar-left">
-                <button id="sidebarToggle" class="sidebar-toggle">☰</button>
+                <button id="sidebarToggle" class="sidebar-toggle"><img src="../images/menu.png"></button>
                 <div class="topbar-title">Orders</div>
             </div>
             <span class="tag-pill" style="margin-right: 20px;">Admin: <?= htmlspecialchars($adminName) ?></span>
@@ -505,10 +263,10 @@ $allStatuses = ['pending', 'paid', 'shipped', 'completed', 'cancelled', 'return_
 
     <div id="viewModal" class="modal hidden">
         <div class="modal-box modal-large">
-            <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                <h3 style="font-size:18px; font-weight:700;">Order Details <span id="viewOrderId" style="color:#888; font-weight:400;"></span></h3>
-                <button type="button" class="btn-secondary" onclick="closeModal('viewModal')" style="border:none; background:none; cursor:pointer; padding:0;">
-                    <img src="../images/error.png" style="width:16px; height:16px; vertical-align:middle;">
+            <div class="modal-header">
+                <h3>Order Details <span id="viewOrderId" style="color:#888; font-weight:400;"></span></h3>
+                <button type="button" class="modal-close" id="btn-error" onclick="closeModal('viewModal')">
+                    <img src="../images/error.png">
                 </button>
             </div>
 
@@ -516,7 +274,7 @@ $allStatuses = ['pending', 'paid', 'shipped', 'completed', 'cancelled', 'return_
                 <div style="text-align:center; padding:40px; color:#888;">Loading...</div>
             </div>
 
-            <div class="modal-actions" style="margin-top:20px; text-align:right;">
+            <div class="modal-actions">
                 <button class="btn-secondary" onclick="closeModal('viewModal')">Close</button>
             </div>
         </div>
@@ -524,7 +282,12 @@ $allStatuses = ['pending', 'paid', 'shipped', 'completed', 'cancelled', 'return_
 
     <div id="statusModal" class="modal hidden">
         <div class="modal-box">
-            <h3 style="margin-bottom:20px; font-size:18px; font-weight:700; color:#333;">Update Order Status</h3>
+            <div class="modal-header">
+                <h3>Update Order Status</h3>
+                <button type="button" class="modal-close" id="btn-error" onclick="closeModal('statusModal')">
+                    <img src="../images/error.png">
+                </button>
+            </div>
             <form id="statusForm" onsubmit="submitStatusUpdate(event)">
                 <input type="hidden" name="order_id" id="statusOrderId">
                 <div style="margin-bottom: 25px;">
@@ -537,7 +300,7 @@ $allStatuses = ['pending', 'paid', 'shipped', 'completed', 'cancelled', 'return_
                 </div>
                 <div class="modal-actions">
                     <button type="button" class="btn-secondary" onclick="closeModal('statusModal')">Cancel</button>
-                    <button type="submit" class="btn-primary" style="border:none; cursor:pointer;">Save Changes</button>
+                    <button type="submit" class="btn-primary">Save Changes</button>
                 </div>
             </form>
         </div>
@@ -556,9 +319,7 @@ $allStatuses = ['pending', 'paid', 'shipped', 'completed', 'cancelled', 'return_
     </div>
 
     <script>
-        document.getElementById('sidebarToggle').addEventListener('click', function() {
-            document.body.classList.toggle('sidebar-collapsed');
-        });
+        document.getElementById('sidebarToggle').onclick = () => document.body.classList.toggle('sidebar-collapsed');
 
         function closeModal(id) {
             document.getElementById(id).classList.add('hidden');
