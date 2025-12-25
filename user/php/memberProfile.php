@@ -815,6 +815,8 @@ if (isset($pdo)) {
         </div>
     </div>
 
+    <?php include '../include/footer.php'; ?>
+
     <script>
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
