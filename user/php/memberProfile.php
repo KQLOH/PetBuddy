@@ -216,19 +216,23 @@ if (isset($pdo)) {
             $active_tab = 'addresses';
             $addr_id = $_POST['address_id'];
             try {
-                $stmt = $pdo->prepare("DELETE FROM member_addresses WHERE address_id = ? AND member_id = ?");
+                $stmt = $pdo->prepare("UPDATE member_addresses SET is_deleted = 1, is_default = 0 WHERE address_id = ? AND member_id = ?");
+
                 if ($stmt->execute([$addr_id, $member_id])) {
-                    $_SESSION['flash_msg'] = "Address deleted successfully.";
+                    $checkDefault = $pdo->prepare("SELECT COUNT(*) FROM member_addresses WHERE member_id = ? AND is_default = 1 AND is_deleted = 0");
+                    $checkDefault->execute([$member_id]);
+
+                    if ($checkDefault->fetchColumn() == 0) {
+                        $pdo->prepare("UPDATE member_addresses SET is_default = 1 WHERE member_id = ? AND is_deleted = 0 ORDER BY created_at DESC LIMIT 1")->execute([$member_id]);
+                    }
+
+                    $_SESSION['flash_msg'] = "Address removed successfully.";
                     $_SESSION['flash_type'] = "success";
                     $_SESSION['flash_tab'] = "addresses";
                     $redirect_needed = true;
                 }
             } catch (PDOException $e) {
-                if ($e->getCode() == '23000') {
-                    $message = "Cannot delete this address because it is used in past orders.";
-                } else {
-                    $message = "System error: " . $e->getMessage();
-                }
+                $message = "System error: " . $e->getMessage();
                 $msg_type = "error";
             }
         } else if (isset($_POST['action']) && in_array($_POST['action'], ['cancel_order', 'complete_order', 'request_return'])) {
@@ -310,7 +314,7 @@ if (isset($pdo)) {
         $my_vouchers = $vStmt->fetchAll(PDO::FETCH_ASSOC);
         $voucher_count = count($my_vouchers);
 
-        $addrSql = "SELECT * FROM member_addresses WHERE member_id = ? ORDER BY is_default DESC, created_at DESC";
+        $addrSql = "SELECT * FROM member_addresses WHERE member_id = ? AND is_deleted = 0 ORDER BY is_default DESC, created_at DESC";
         $stmtAddr = $pdo->prepare($addrSql);
         $stmtAddr->execute([$member_id]);
         $addresses = $stmtAddr->fetchAll();
@@ -738,20 +742,28 @@ if (isset($pdo)) {
             </div>
 
             <div class="modal-body" style="padding-top: 0;">
-                <div style="display:flex; justify-content:space-between; margin-bottom: 20px; background:#f9fafb; padding:15px; border-radius:8px;">
+                <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:15px; margin-bottom: 20px; background:#f9fafb; padding:15px; border-radius:8px;">
                     <div>
-                        <div style="font-size:0.85rem; color:#666;">Order Date</div><strong id="modal_order_date" style="color:#333;"></strong>
+                        <div style="font-size:0.85rem; color:#666;">Order Date</div>
+                        <strong id="modal_order_date" style="color:#333;"></strong>
                     </div>
                     <div>
-                        <div style="font-size:0.85rem; color:#666;">Status</div><span id="modal_order_status" class="order-status-badge"></span>
+                        <div style="font-size:0.85rem; color:#666;">Status</div>
+                        <span id="modal_order_status" class="order-status-badge"></span>
+                    </div>
+                    <div>
+                        <div style="font-size:0.85rem; color:#666;">Shipping Method</div>
+                        <strong id="modal_shipping_method" style="color:#333;"></strong>
                     </div>
                     <div style="text-align:right;">
-                        <div style="font-size:0.85rem; color:#666;">Total Amount</div><strong id="modal_order_total" style="color:var(--primary-color); font-size:1.1rem;"></strong>
+                        <div style="font-size:0.85rem; color:#666;">Total Amount</div>
+                        <strong id="modal_order_total" style="color:var(--primary-color); font-size:1.1rem;"></strong>
                     </div>
                 </div>
+
                 <div style="margin-bottom: 20px;">
                     <h4 style="font-size:0.95rem; margin-bottom:8px; color:#333;">Shipping Address</h4>
-                    <p id="modal_shipping_info" style="font-size:0.9rem; color:#555; line-height:1.5;"></p>
+                    <p id="modal_shipping_info" style="font-size:0.9rem; color:#555; line-height:1.5; background:#fff; border:1px solid #eee; padding:10px; border-radius:6px;"></p>
                 </div>
                 <div style="max-height: 300px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px;">
                     <table style="width:100%; border-collapse: collapse;">
@@ -1091,6 +1103,8 @@ if (isset($pdo)) {
 
         function viewOrderDetails(orderId) {
             document.getElementById('modal_order_items_body').innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px;">Loading...</td></tr>';
+            document.getElementById('modal_shipping_method').innerText = '-';
+            document.getElementById('modal_shipping_info').innerText = 'Loading address...';
             toggleModal('orderModal');
 
             $.ajax({
@@ -1119,8 +1133,10 @@ if (isset($pdo)) {
                         statusSpan.innerText = order.status.charAt(0).toUpperCase() + order.status.slice(1);
                         statusSpan.className = 'order-status-badge status-' + order.status.toLowerCase();
 
+                        document.getElementById('modal_shipping_method').innerText = order.shipping_method ? order.shipping_method : 'Standard Delivery';
+
                         document.getElementById('modal_shipping_info').innerHTML =
-                            `<strong>${order.shipping_name}</strong> (${order.shipping_phone})<br>${order.shipping_address}`;
+                            `<strong>${order.recipient_name}</strong> (${order.recipient_phone})<br>${order.full_shipping_address}`;
 
                         let rows = '';
                         let subtotal = 0;
@@ -1131,7 +1147,9 @@ if (isset($pdo)) {
                                 <tr style="border-bottom:1px solid #eee;">
                                     <td style="padding:10px; display:flex; align-items:center; gap:10px;">
                                         <img src="${item.image_url}" style="width:40px; height:40px; border-radius:4px; object-fit:cover; border:1px solid #eee;">
-                                        <span style="font-size:0.9rem; color:#333;">${item.name}</span>
+                                        <div>
+                                            <span style="font-size:0.9rem; color:#333; font-weight:500; display:block;">${item.name}</span>
+                                        </div>
                                     </td>
                                     <td style="padding:10px; text-align:center; font-size:0.9rem;">x${item.quantity}</td>
                                     <td style="padding:10px; text-align:right; font-size:0.9rem; font-weight:600;">RM ${parseFloat(item.unit_price).toFixed(2)}</td>
@@ -1140,9 +1158,12 @@ if (isset($pdo)) {
                         });
                         document.getElementById('modal_order_items_body').innerHTML = rows;
 
+                        let shipFee = order.shipping_fee ? parseFloat(order.shipping_fee) : 0;
+                        let discount = order.discount_amount ? parseFloat(order.discount_amount) : 0;
+
                         document.getElementById('modal_subtotal').innerText = 'RM ' + subtotal.toFixed(2);
-                        document.getElementById('modal_shipping').innerText = 'RM ' + parseFloat(order.shipping_fee).toFixed(2);
-                        document.getElementById('modal_discount').innerText = '- RM ' + parseFloat(order.discount_amount).toFixed(2);
+                        document.getElementById('modal_shipping').innerText = 'RM ' + shipFee.toFixed(2);
+                        document.getElementById('modal_discount').innerText = '- RM ' + discount.toFixed(2);
 
                     } else {
                         alert("Error: " + res.message);
