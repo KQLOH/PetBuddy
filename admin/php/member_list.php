@@ -12,6 +12,7 @@ if (
 
 $adminRole = $_SESSION['role'];
 $adminId   = $_SESSION['member_id'] ?? 0;
+$adminName = $_SESSION['full_name'] ?? 'Admin';
 $roleFilter = $_GET['role'] ?? 'all';
 $search     = trim($_GET['search'] ?? '');
 $sql = "

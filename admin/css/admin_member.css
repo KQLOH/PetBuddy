@@ -37,6 +37,14 @@ body.sidebar-collapsed {
     flex-direction: column;
 }
 
+.tag-pill {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background-color: rgba(244, 162, 97, 0.12);
+    color: var(--primary-dark);
+}
+
 .topbar {
     height: 56px;
     background: var(--bg-white);
@@ -164,7 +172,6 @@ body.sidebar-collapsed {
     transform: translateY(-1px);
 }
 
-/* Reset button */
 .btn-reset {
     padding: 8px 18px;
     border-radius: 999px;
@@ -494,7 +501,6 @@ tbody tr:hover {
     margin: 15px 0;
 }
 
-/* Member Detail Modal Styles */
 .member-detail-modal {
     padding: 10px 0;
 }
@@ -548,7 +554,6 @@ tbody tr:hover {
     word-break: break-word;
 }
 
-/* Edit Modal Styles */
 .member-edit-header {
     display: flex;
     align-items: center;
@@ -652,7 +657,6 @@ tbody tr:hover {
     border-top: 1px solid var(--border-color);
 }
 
-/* Toast Notification Styles */
 .toast {
     position: fixed;
     top: 20px;
@@ -690,7 +694,6 @@ tbody tr:hover {
     color: white;
 }
 
-/* Readonly input style */
 input[readonly] {
     background-color: #f5f5f5 !important;
     cursor: not-allowed !important;
@@ -717,12 +720,4 @@ input[readonly] {
         min-width: auto;
         max-width: none;
     }
-}
-
-.tag-pill {
-    font-size: 11px;
-    padding: 3px 8px;
-    border-radius: 999px;
-    background-color: rgba(244, 162, 97, 0.12);
-    color: var(--primary-dark);
 }

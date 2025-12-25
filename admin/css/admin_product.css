@@ -41,6 +41,14 @@ body.sidebar-collapsed {
     flex-direction: column;
 }
 
+.tag-pill {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background-color: rgba(244, 162, 97, 0.12);
+    color: var(--primary-dark);
+}
+
 .topbar {
     height: 56px;
     background: var(--bg-white);
