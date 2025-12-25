@@ -221,6 +221,12 @@ th {
     color: #555;
 }
 
+.sort-icon {
+    width: 12px;
+    height: auto;
+    opacity: 0.7;
+}
+
 tbody tr:hover {
     background-color: #fffaf4;
 }

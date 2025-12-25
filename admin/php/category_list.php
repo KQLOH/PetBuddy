@@ -48,7 +48,7 @@ if ($totalPages > 0 && $page > $totalPages) {
 }
 
 $sql = "
-    SELECT category_id, name, description
+    SELECT category_id, name, description, COALESCE(image, '') as image
     FROM product_categories
     {$whereSql}
     ORDER BY {$sort} {$dir}
@@ -102,6 +102,49 @@ function sortLink($columnKey, $label)
 
     $url = '?' . q(['sort' => $columnKey, 'dir' => $newDir, 'p' => 1]);
     return '<a href="' . htmlspecialchars($url) . '" class="sort-link">' . $label . $iconHtml . '</a>';
+}
+
+function categoryImageUrl(?string $dbPath, ?string $categoryName = null): string {
+
+    if ($dbPath && trim($dbPath) !== '') {
+        if (strpos($dbPath, '../images/') === 0) {
+
+            return '../../user/' . substr($dbPath, 3);
+        }
+
+        if (strpos($dbPath, '/images/') === 0) {
+            return '../../user' . $dbPath;
+        }
+
+        if (strpos($dbPath, 'images/') === 0) {
+            return '../../user/' . $dbPath;
+        }
+
+        return '../../user/images/' . $dbPath;
+    }
+    
+
+    if ($categoryName) {
+        $name = strtolower($categoryName);
+        $imageMap = [
+            'dog' => 'dog.png',
+            'cat' => 'munchkin.png',
+            'rabbit' => 'rabbit.png',
+            'bird' => 'bird.png',
+            'fish' => 'clown-fish.png',
+            'grooming' => 'pet-spa.png',
+            'accessory' => 'home-accessory.png',
+            'food' => 'pet-food.png',
+        ];
+        
+        foreach ($imageMap as $keyword => $image) {
+            if (strpos($name, $keyword) !== false) {
+                return '../../user/images/' . $image;
+            }
+        }
+    }
+    
+    return '../images/default_product.jpg';
 }
 ?>
 
@@ -160,21 +203,34 @@ function sortLink($columnKey, $label)
                     <thead>
                         <tr>
                             <th style="width: 50px;"><?= sortLink('category_id', 'ID') ?></th>
-                            <th style="width: 200px;"><?= sortLink('name', 'Category Name') ?></th>
-                            <th><?= sortLink('description', 'Description') ?></th>
-                            <th>Subcategories</th>
+                            <th style="width: 80px;">Photo</th>
+                            <th style="width: 180px;"><?= sortLink('name', 'Category Name') ?></th>
+                            <th style="min-width: 200px;"><?= sortLink('description', 'Description') ?></th>
+                            <th style="min-width: 200px;">Subcategories</th>
                             <th style="width: 160px; text-align:center;">Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (empty($categories)): ?>
                             <tr>
-                                <td colspan="5" class="no-data">No categories found.</td>
+                                <td colspan="6" class="no-data">No categories found.</td>
                             </tr>
                         <?php else: ?>
                             <?php foreach ($categories as $c): ?>
                                 <tr>
                                     <td style="color:#666;">#<?= $c['category_id'] ?></td>
+
+                                    <td>
+                                        <?php 
+                                        $imgSrc = categoryImageUrl($c['image'] ?? null, $c['name'] ?? null);
+                                        // echo "<!-- Image: " . htmlspecialchars($c['image'] ?? 'NULL') . " | Name: " . htmlspecialchars($c['name'] ?? 'NULL') . " | Src: " . htmlspecialchars($imgSrc) . " -->";
+                                        ?>
+                                        <img class="product-thumb"
+                                            src="<?= htmlspecialchars($imgSrc) ?>"
+                                            alt="<?= htmlspecialchars($c['name']) ?>"
+                                            style="display: block;"
+                                            onerror="this.onerror=null; this.src='../images/default_product.jpg';">
+                                    </td>
 
                                     <td style="font-weight:600; color:#344054;">
                                         <?= htmlspecialchars($c['name']) ?>
@@ -232,12 +288,21 @@ function sortLink($columnKey, $label)
     </div>
 
     <div id="catModal" class="modal hidden">
-        <div class="modal-box">
+        <div class="modal-box modal-large">
             <div class="modal-header">
                 <h3 id="catModalTitle" style="margin:0; font-weight:700;">Category</h3>
-                <button class="modal-close" onclick="closeModal('catModal')">&times;</button>
+                <button class="modal-close" id="btn-error" onclick="closeModal('catModal')">
+                    <img src="../../user/images/error.png">
+                </button>
             </div>
-            <form id="catForm">
+            <form id="catForm" enctype="multipart/form-data">
+                <div class="modal-image-section">
+                    <img id="catPreview" src="../images/default_product.jpg" alt="Preview">
+                    <label class="upload-btn">
+                        Upload Image
+                        <input type="file" name="image" accept="image/*" hidden onchange="previewCatImage(event)">
+                    </label>
+                </div>
                 <div class="modal-body" style="padding:20px 0;">
                     <input type="hidden" name="category_id" id="catId">
                     <div style="margin-bottom:15px;">
@@ -261,7 +326,9 @@ function sortLink($columnKey, $label)
         <div class="modal-box">
             <div class="modal-header">
                 <h3 style="margin:0; font-weight:700;">Add Subcategory</h3>
-                <button class="modal-close" onclick="closeModal('subModal')">&times;</button>
+                <button class="modal-close" id="btn-error" onclick="closeModal('subModal')">
+                    <img src="../../user/images/error.png">
+                </button>
             </div>
             <form id="subForm">
                 <div class="modal-body" style="padding:20px 0;">
@@ -350,9 +417,16 @@ function sortLink($columnKey, $label)
             setTimeout(() => overlay.style.display = 'none', 300);
         }
 
+        function previewCatImage(e) {
+            if (e.target.files && e.target.files[0]) {
+                document.getElementById('catPreview').src = URL.createObjectURL(e.target.files[0]);
+            }
+        }
+
         function openCatModal(id = null) {
             document.getElementById('catForm').reset();
             document.getElementById('catId').value = '';
+            document.getElementById('catPreview').src = '../images/default_product.jpg';
             document.getElementById('catModalTitle').textContent = id ? 'Edit Category' : 'New Category';
 
             if (id) {
@@ -365,6 +439,24 @@ function sortLink($columnKey, $label)
                             document.getElementById('catId').value = data.category_id;
                             document.getElementById('catName').value = data.name;
                             document.getElementById('catDesc').value = data.description || '';
+                            
+                            if (data.image && data.image.trim() !== '' && data.image !== null) {
+                                let imageUrl = '';
+                                if (data.image.indexOf('../images/') === 0) {
+                                    imageUrl = '../../user/' + data.image.substring(3);
+                                } else if (data.image.indexOf('/images/') === 0) {
+                                    imageUrl = '../../user' + data.image;
+                                } else if (data.image.indexOf('images/') === 0) {
+                                    imageUrl = '../../user/' + data.image;
+                                } else {
+                                    imageUrl = '../../user/images/' + data.image;
+                                }
+                                document.getElementById('catPreview').src = imageUrl;
+                            } else {
+                                const autoImage = getCategoryImageUrl(null, data.name);
+                                document.getElementById('catPreview').src = autoImage;
+                            }
+                            
                             openModal('catModal');
                         }
                     })
@@ -372,6 +464,43 @@ function sortLink($columnKey, $label)
             } else {
                 openModal('catModal');
             }
+        }
+
+        function getCategoryImageUrl(dbPath, categoryName) {
+            if (dbPath && dbPath.trim() !== '') {
+                if (dbPath.indexOf('../images/') === 0) {
+                    return '../../user/' + dbPath.substring(3);
+                }
+                if (dbPath.indexOf('/images/') === 0) {
+                    return '../../user' + dbPath;
+                }
+                if (dbPath.indexOf('images/') === 0) {
+                    return '../../user/' + dbPath;
+                }
+                return '../../user/images/' + dbPath;
+            }
+            
+            if (categoryName) {
+                const name = categoryName.toLowerCase();
+                const imageMap = {
+                    'dog': 'dog.png',
+                    'cat': 'munchkin.png',
+                    'rabbit': 'rabbit.png',
+                    'bird': 'bird.png',
+                    'fish': 'clown-fish.png',
+                    'grooming': 'pet-spa.png',
+                    'accessory': 'home-accessory.png',
+                    'food': 'pet-food.png'
+                };
+                
+                for (const [keyword, image] of Object.entries(imageMap)) {
+                    if (name.indexOf(keyword) !== -1) {
+                        return '../../user/images/' + image;
+                    }
+                }
+            }
+            
+            return '../images/default_product.jpg';
         }
 
         document.getElementById('catForm').onsubmit = function(e) {

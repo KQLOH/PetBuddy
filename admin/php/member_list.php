@@ -15,6 +15,63 @@ $adminId   = $_SESSION['member_id'] ?? 0;
 $adminName = $_SESSION['full_name'] ?? 'Admin';
 $roleFilter = $_GET['role'] ?? 'all';
 $search     = trim($_GET['search'] ?? '');
+
+$sort = $_GET['sort'] ?? 'member_id';
+$dir  = $_GET['dir'] ?? 'DESC';
+
+$allowedSorts = [
+    'member_id'   => 'm.member_id',
+    'full_name'   => 'm.full_name',
+    'email'       => 'm.email',
+    'phone'       => 'm.phone',
+    'role'        => 'm.role'
+];
+
+if (!array_key_exists($sort, $allowedSorts)) {
+    $sort = 'member_id';
+}
+$sortSqlColumn = $allowedSorts[$sort];
+
+$dir = strtoupper($dir);
+if (!in_array($dir, ['ASC', 'DESC'])) {
+    $dir = 'DESC';
+}
+
+$limit = 12;
+$page  = max(1, (int)($_GET['p'] ?? 1));
+$offset = ($page - 1) * $limit;
+
+$where = [];
+$params = [];
+
+if ($roleFilter !== 'all') {
+    $where[] = "m.role = ?";
+    $params[] = $roleFilter;
+}
+
+if ($search !== '') {
+    $where[] = "(m.full_name LIKE ? OR m.email LIKE ? OR m.phone LIKE ?)";
+    $like = "%$search%";
+    array_push($params, $like, $like, $like);
+}
+
+$whereSql = $where ? ("WHERE " . implode(" AND ", $where)) : "";
+
+$countSql = "
+    SELECT COUNT(DISTINCT m.member_id)
+    FROM members m
+    LEFT JOIN orders o ON o.member_id = m.member_id
+    {$whereSql}
+";
+$countStmt = $pdo->prepare($countSql);
+$countStmt->execute($params);
+$total = (int)$countStmt->fetchColumn();
+$totalPages = (int)ceil($total / $limit);
+if ($totalPages > 0 && $page > $totalPages) {
+    $page = $totalPages;
+    $offset = ($page - 1) * $limit;
+}
+
 $sql = "
     SELECT 
         m.member_id,
@@ -25,26 +82,35 @@ $sql = "
         COUNT(o.order_id) AS order_count
     FROM members m
     LEFT JOIN orders o ON o.member_id = m.member_id
-    WHERE 1
+    {$whereSql}
+    GROUP BY m.member_id
+    ORDER BY {$sortSqlColumn} {$dir}
+    LIMIT {$limit} OFFSET {$offset}
 ";
-$params = [];
-
-if ($roleFilter !== 'all') {
-    $sql .= " AND m.role = ?";
-    $params[] = $roleFilter;
-}
-
-if ($search !== '') {
-    $sql .= " AND (m.full_name LIKE ? OR m.email LIKE ? OR m.phone LIKE ?)";
-    $like = "%$search%";
-    array_push($params, $like, $like, $like);
-}
-
-$sql .= " GROUP BY m.member_id ORDER BY m.member_id DESC";
 
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+function q(array $extra = []) {
+    $base = $_GET;
+    foreach ($extra as $k => $v) $base[$k] = $v;
+    return http_build_query($base);
+}
+
+function sortLink($columnKey, $label) {
+    global $sort, $dir;
+    $newDir = ($sort === $columnKey && $dir === 'ASC') ? 'DESC' : 'ASC';
+    
+    $iconHtml = '';
+    if ($sort === $columnKey) {
+        $iconPath = ($dir === 'ASC') ? "../images/up.png" : "../images/down.png";
+        $iconHtml = ' <img src="' . $iconPath . '" class="sort-icon" alt="sort">';
+    }
+    
+    $url = '?' . q(['sort' => $columnKey, 'dir' => $newDir, 'p' => 1]);
+    return '<a href="' . htmlspecialchars($url) . '" style="text-decoration:none; color:inherit; font-weight:bold; display:inline-flex; align-items:center; gap:4px;">' . $label . $iconHtml . '</a>';
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -71,12 +137,15 @@ $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         <main class="content">
             <div class="page-header">
-                <div class="page-title">Member List (<?= count($members) ?>)</div>
+                <div class="page-title">Member List (<?= (int)$total ?>)</div>
                 <div class="page-subtitle">Manage registered users</div>
             </div>
 
             <form class="filter-bar" method="get">
-                <select name="role">
+                <input type="hidden" name="sort" value="<?= htmlspecialchars($sort) ?>">
+                <input type="hidden" name="dir" value="<?= htmlspecialchars($dir) ?>">
+
+                <select name="role" onchange="this.form.submit()">
                     <option value="all">All Roles</option>
                     <option value="super_admin" <?= $roleFilter === 'super_admin' ? 'selected' : '' ?>>Super Admin</option>
                     <option value="admin" <?= $roleFilter === 'admin' ? 'selected' : '' ?>>Admin</option>
@@ -88,7 +157,7 @@ $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     placeholder="Search name / email / phone"
                     value="<?= htmlspecialchars($search) ?>">
 
-                <button class="btn-search">Search</button>
+                <button class="btn-search" type="submit">Search</button>
                 <a href="member_list.php" class="btn-reset">Reset</a>
             </form>
 
@@ -96,11 +165,11 @@ $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <table>
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>Name</th>
-                            <th>Email</th>
-                            <th>Phone</th>
-                            <th>Role</th>
+                            <th><?= sortLink('member_id', 'ID') ?></th>
+                            <th><?= sortLink('full_name', 'Name') ?></th>
+                            <th><?= sortLink('email', 'Email') ?></th>
+                            <th><?= sortLink('phone', 'Phone') ?></th>
+                            <th><?= sortLink('role', 'Role') ?></th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -162,6 +231,34 @@ $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
                     </tbody>
                 </table>
+
+                <?php if ($totalPages > 1): ?>
+                    <div class="pagination">
+                        <?php if ($page > 1): ?>
+                            <a href="?<?= q(['p' => $page - 1]) ?>">
+                                << Prev</a>
+                                <?php else: ?>
+                                    <span class="disabled">
+                                        << Prev</span>
+                                        <?php endif; ?>
+
+                                        <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                                            <?php if ($i == 1 || $i == $totalPages || ($i >= $page - 2 && $i <= $page + 2)): ?>
+                                                <a class="<?= $i == $page ? 'current' : '' ?>" href="?<?= q(['p' => $i]) ?>">
+                                                    <?= $i ?>
+                                                </a>
+                                            <?php elseif (($i == $page - 3 && $page - 3 > 1) || ($i == $page + 3 && $page + 3 < $totalPages)): ?>
+                                                <span class="dots">...</span>
+                                            <?php endif; ?>
+                                        <?php endfor; ?>
+
+                                        <?php if ($page < $totalPages): ?>
+                                            <a href="?<?= q(['p' => $page + 1]) ?>">Next >></a>
+                                        <?php else: ?>
+                                            <span class="disabled">Next >></span>
+                                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
             </div>
         </main>
     </div>

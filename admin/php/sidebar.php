@@ -12,7 +12,7 @@ function isActive(string $file, string $currentPage): string
 
 <aside class="sidebar">
     <div class="sidebar-logo">
-        <div class="logo-circle">🐾</div>
+        <div class="logo-circle"><img src="../../user/images/logo.png" alt="PetBuddy Logo"></div>
         <div>
             <div class="sidebar-title">PetBuddy</div>
             <div class="sidebar-subtitle">Admin Panel</div>
