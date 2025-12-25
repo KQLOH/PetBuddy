@@ -616,7 +616,6 @@ if (isset($_SESSION['member_id'])) {
         }
 
 
-        /* Toast Styles (for success messages) */
         #custom-toast {
             visibility: hidden;
             min-width: 200px;
@@ -651,7 +650,6 @@ if (isset($_SESSION['member_id'])) {
             height: 20px;
         }
 
-        /* Modal Prompt Styles (for login required) */
         #custom-modal-overlay {
             display: none;
             position: fixed;
@@ -684,8 +682,13 @@ if (isset($_SESSION['member_id'])) {
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
         }
 
         @keyframes slideUp {
@@ -693,6 +696,7 @@ if (isset($_SESSION['member_id'])) {
                 opacity: 0;
                 transform: translateY(20px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -914,13 +918,11 @@ if (isset($_SESSION['member_id'])) {
         </div>
     </div>
 
-    <!-- Toast Notification -->
     <div id="custom-toast">
         <img src="../images/success.png" alt="" class="toast-icon">
         <span id="custom-toast-msg">Added to cart!</span>
     </div>
 
-    <!-- Modal Prompt (for login required) -->
     <div id="custom-modal-overlay">
         <div id="custom-modal">
             <div class="modal-icon" id="modal-icon">
@@ -939,7 +941,6 @@ if (isset($_SESSION['member_id'])) {
     <?php include '../include/chat_widget.php'; ?>
 
     <script>
-        // Close modal when clicking overlay
         document.addEventListener('DOMContentLoaded', function() {
             const overlay = document.getElementById('custom-modal-overlay');
             if (overlay) {
@@ -952,7 +953,6 @@ if (isset($_SESSION['member_id'])) {
         });
 
         function safeToast(message, showLoginBtn = false) {
-            // If login required, show modal
             if (showLoginBtn) {
                 const overlay = document.getElementById('custom-modal-overlay');
                 const modal = document.getElementById('custom-modal');
@@ -989,7 +989,6 @@ if (isset($_SESSION['member_id'])) {
                 return;
             }
 
-            // Otherwise, show toast (bottom notification)
             const toast = document.getElementById('custom-toast');
             const msgSpan = document.getElementById('custom-toast-msg');
             const img = toast.querySelector('img');
@@ -1058,15 +1057,11 @@ if (isset($_SESSION['member_id'])) {
                     },
                     success: function(response) {
                         $btn.prop('disabled', false);
-                        var resString = "";
-                        if (typeof response === 'object') {
-                            resString = JSON.stringify(response).toLowerCase();
-                        } else {
-                            resString = response.toString().toLowerCase();
-                        }
 
-                        if (resString.includes("added") || resString.includes("increased") || resString.includes("success")) {
-                            safeToast('Added to Cart!');
+                        let res = (typeof response === 'object') ? response : JSON.parse(response);
+
+                        if (res.status === 'success') {
+                            safeToast(res.message);
                             if (typeof refreshCartSidebar === 'function') refreshCartSidebar();
                             else setTimeout(function() {
                                 location.reload();
@@ -1074,10 +1069,11 @@ if (isset($_SESSION['member_id'])) {
                             setTimeout(() => {
                                 if (typeof openCart === 'function') openCart();
                             }, 500);
-                        } else if (resString.includes("login")) {
-                            safeToast("Please login first to add items to cart.", true);
+
+                        } else if (res.status === 'login_required') {
+                            safeToast(res.message, true);
                         } else {
-                            safeToast("Could not add item. Out of stock?");
+                            safeToast(res.message);
                         }
                     },
                     error: function() {
