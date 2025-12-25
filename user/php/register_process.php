@@ -17,13 +17,13 @@ if (empty($name) || empty($email) || empty($password)) {
     exit;
 }
 
-// Enhanced Email Validation
+
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     echo "<script>alert(' Invalid email format. Please enter a valid email address.'); window.history.back();</script>";
     exit;
 }
 
-// Additional email validation checks
+
 $emailParts = explode('@', $email);
 if (count($emailParts) !== 2) {
     echo "<script>alert(' Invalid email format. Please check your email address.'); window.history.back();</script>";
@@ -33,39 +33,39 @@ if (count($emailParts) !== 2) {
 $localPart = $emailParts[0];
 $domain = strtolower($emailParts[1]);
 
-// Check local part length (max 64 characters)
+
 if (strlen($localPart) > 64) {
     echo "<script>alert(' Email username is too long. Maximum length is 64 characters.'); window.history.back();</script>";
     exit;
 }
 
-// Check for consecutive dots
+
 if (strpos($email, '..') !== false) {
     echo "<script>alert(' Invalid email format. Cannot have consecutive dots.'); window.history.back();</script>";
     exit;
 }
 
-// Check for dot at start or end of local part
+
 if (substr($localPart, 0, 1) === '.' || substr($localPart, -1) === '.') {
     echo "<script>alert(' Invalid email format. Email cannot start or end with a dot.'); window.history.back();</script>";
     exit;
 }
 
-// Check domain format
+
 $domainParts = explode('.', $domain);
 if (count($domainParts) < 2) {
     echo "<script>alert(' Invalid email domain. Please check your email address.'); window.history.back();</script>";
     exit;
 }
 
-// Check TLD (should be at least 2 characters and only letters)
+
 $tld = end($domainParts);
 if (strlen($tld) < 2 || !preg_match('/^[a-zA-Z]+$/', $tld)) {
     echo "<script>alert(' Invalid email domain. Please check your email address.'); window.history.back();</script>";
     exit;
 }
 
-// Check total email length (max 254 characters)
+
 if (strlen($email) > 254) {
     echo "<script>alert(' Email address is too long. Maximum length is 254 characters.'); window.history.back();</script>";
     exit;

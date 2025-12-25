@@ -1,17 +1,15 @@
 <?php
-// 引入 PDO 连接 ($pdo)
+
 require_once '../include/db.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
-/**
- * 使用 PDO 搜索商品和分类
- */
+
 function searchCatalog(PDO $pdo, string $term, int $limit = 10): array {
     $likeTerm = '%' . $term . '%';
     $results = [];
 
-    // 1. 搜索商品
+   
     $productSql = "SELECT p.product_id, p.name, p.description, p.price, p.image AS photo, c.name AS category_name
                    FROM products p
                    LEFT JOIN product_categories c ON p.category_id = c.category_id
@@ -21,7 +19,7 @@ function searchCatalog(PDO $pdo, string $term, int $limit = 10): array {
 
     try {
         $stmt = $pdo->prepare($productSql);
-        // 绑定参数
+        
         $stmt->bindValue(':term', $likeTerm, PDO::PARAM_STR);
         $stmt->bindValue(':term2', $likeTerm, PDO::PARAM_STR);
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
@@ -37,15 +35,15 @@ function searchCatalog(PDO $pdo, string $term, int $limit = 10): array {
                 'description' => $row['description'],
                 'category' => $row['category_name'],
                 'price' => $row['price'],
-                'photo' => $row['photo'], // 注意：前端可能需要处理这个路径
+                'photo' => $row['photo'], 
                 'url' => 'product_detail.php?id=' . (int)$row['product_id'],
             ];
         }
     } catch (PDOException $e) {
-        // 记录错误或忽略
+        
     }
 
-    // 2. 搜索分类
+    
     $categorySql = "SELECT category_id, name, description
                     FROM product_categories
                     WHERE name LIKE :term OR description LIKE :term2
@@ -71,13 +69,13 @@ function searchCatalog(PDO $pdo, string $term, int $limit = 10): array {
             ];
         }
     } catch (PDOException $e) {
-        // 记录错误或忽略
+        
     }
 
     return $results;
 }
 
-// 获取参数
+
 $term = trim($_GET['term'] ?? '');
 
 if ($term === '') {
@@ -90,7 +88,7 @@ if ($term === '') {
 }
 
 try {
-    // 这里的 $pdo 来自 require_once '../include/db.php'
+    
     $data = searchCatalog($pdo, $term);
     echo json_encode([
         'success' => true,
