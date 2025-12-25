@@ -1076,7 +1076,7 @@ $total = $checkout_subtotal + $shipping_fee;
                             <div class="custom-radio"></div>
                             <span class="payment-label">Pay with Stripe (Secure)</span>
                             <div class="payment-icons">
-                                <img src="../images/stripe.png" alt="Stripe">
+                                <img src="../images/stripe.jpeg" alt="Stripe">
                             </div>
                         </label>
                         <div class="payment-details">
