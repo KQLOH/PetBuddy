@@ -33,6 +33,7 @@ function isActive(string $file, string $currentPage): string
         <li><a href="category_list.php" class="<?= isActive('category_list.php', $currentPage); ?>">Categories</a></li>
         <li><a href="product_list.php" class="<?= isActive('product_list.php', $currentPage); ?>">Products</a></li>
         <li><a href="chat.php" class="<?= isActive('chat.php', $currentPage); ?>">Chat</a></li>
+        <li><a href="admin_voucher.php" class="<?= isActive('admin_voucher.php', $currentPage); ?>">Voucher</a></li>
     </ul>
 
     <div class="menu-group-title">Other</div>
