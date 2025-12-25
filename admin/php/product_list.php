@@ -149,6 +149,7 @@ function productImageUrl(?string $dbPath): string
     <meta charset="UTF-8">
     <title>Products</title>
     <link rel="stylesheet" href="../css/admin_product.css">
+    <link rel="stylesheet" href="../css/admin_btn.css">
 </head>
 
 <body>
@@ -159,7 +160,7 @@ function productImageUrl(?string $dbPath): string
 
         <header class="topbar">
             <div class="topbar-left">
-                <button id="sidebarToggle" class="sidebar-toggle">☰</button>
+                <button id="sidebarToggle" class="sidebar-toggle"><img src="../images/menu.png"></button>
                 <div class="topbar-title">Products</div>
             </div>
         </header>
@@ -213,13 +214,13 @@ function productImageUrl(?string $dbPath): string
                 <table>
                     <thead>
                         <tr>
-                            <th style="text-align:left;"><?= sortLink('product_id', 'ID') ?></th>
-                            <th style="text-align:left;">Photo</th>
-                            <th style="text-align:left;"><?= sortLink('name', 'Name') ?></th>
-                            <th style="text-align:left;"><?= sortLink('category', 'Category') ?></th>
-                            <th style="text-align:left;"><?= sortLink('price', 'Price (RM)') ?></th>
-                            <th style="text-align:left;"><?= sortLink('stock_qty', 'Stock') ?></th>
-                            <th style="text-align:left;">Action</th>
+                            <th><?= sortLink('product_id', 'ID') ?></th>
+                            <th>Photo</th>
+                            <th><?= sortLink('name', 'Name') ?></th>
+                            <th><?= sortLink('category', 'Category') ?></th>
+                            <th><?= sortLink('price', 'Price (RM)') ?></th>
+                            <th><?= sortLink('stock_qty', 'Stock') ?></th>
+                            <th>Action</th>
                         </tr>
                     </thead>
 
@@ -284,26 +285,28 @@ function productImageUrl(?string $dbPath): string
                 <?php if ($totalPages > 1): ?>
                     <div class="pagination">
                         <?php if ($page > 1): ?>
-                            <a href="?<?= q(['p' => $page - 1]) ?>">« Prev</a>
-                        <?php else: ?>
-                            <span class="disabled">« Prev</span>
-                        <?php endif; ?>
+                            <a href="?<?= q(['p' => $page - 1]) ?>">
+                                << Prev</a>
+                                <?php else: ?>
+                                    <span class="disabled">
+                                        << Prev</span>
+                                        <?php endif; ?>
 
-                        <?php for ($i = 1; $i <= $totalPages; $i++): ?>
-                            <?php if ($i == 1 || $i == $totalPages || ($i >= $page - 2 && $i <= $page + 2)): ?>
-                                <a class="<?= $i == $page ? 'current' : '' ?>" href="?<?= q(['p' => $i]) ?>">
-                                    <?= $i ?>
-                                </a>
-                            <?php elseif (($i == $page - 3 && $page - 3 > 1) || ($i == $page + 3 && $page + 3 < $totalPages)): ?>
-                                <span class="dots">...</span>
-                            <?php endif; ?>
-                        <?php endfor; ?>
+                                        <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                                            <?php if ($i == 1 || $i == $totalPages || ($i >= $page - 2 && $i <= $page + 2)): ?>
+                                                <a class="<?= $i == $page ? 'current' : '' ?>" href="?<?= q(['p' => $i]) ?>">
+                                                    <?= $i ?>
+                                                </a>
+                                            <?php elseif (($i == $page - 3 && $page - 3 > 1) || ($i == $page + 3 && $page + 3 < $totalPages)): ?>
+                                                <span class="dots">...</span>
+                                            <?php endif; ?>
+                                        <?php endfor; ?>
 
-                        <?php if ($page < $totalPages): ?>
-                            <a href="?<?= q(['p' => $page + 1]) ?>">Next »</a>
-                        <?php else: ?>
-                            <span class="disabled">Next »</span>
-                        <?php endif; ?>
+                                        <?php if ($page < $totalPages): ?>
+                                            <a href="?<?= q(['p' => $page + 1]) ?>">Next >></a>
+                                        <?php else: ?>
+                                            <span class="disabled">Next >></span>
+                                        <?php endif; ?>
                     </div>
                 <?php endif; ?>
 
@@ -314,7 +317,8 @@ function productImageUrl(?string $dbPath): string
         <div class="modal-box modal-large">
             <div class="modal-header">
                 <h3>Create New Product</h3>
-                <button class="modal-close" onclick="closeCreateModal()">&times;</button>
+                <button class="modal-close" id="btn-error" onclick="closeCreateModal()"><img src="../images/error.png">
+                </button>
             </div>
             <form id="createForm" enctype="multipart/form-data">
                 <div class="modal-image-section">
@@ -377,7 +381,9 @@ function productImageUrl(?string $dbPath): string
         <div class="modal-box modal-large">
             <div class="modal-header">
                 <h3>Product Details</h3>
-                <button class="modal-close" onclick="closeViewModal()">&times;</button>
+                <button type="button" id="btn-error" onclick="closeViewModal('viewModal')">
+                    <img src="../images/error.png">
+                </button>
             </div>
             <div id="viewContent" class="modal-view-content">
                 <div class="loading">Loading...</div>
@@ -392,8 +398,11 @@ function productImageUrl(?string $dbPath): string
         <div class="modal-box modal-large">
             <div class="modal-header">
                 <h3>Edit Product</h3>
-                <button class="modal-close" onclick="closeEditModal()">&times;</button>
+                <button type="button" id="btn-error" onclick="closeEditModal()">
+                    <img src="../images/error.png">
+                </button>
             </div>
+
             <form id="editForm" enctype="multipart/form-data">
                 <input type="hidden" name="id" id="editProductId">
                 <div class="modal-image-section">
@@ -636,12 +645,16 @@ function productImageUrl(?string $dbPath): string
                 const data = await res.json();
                 if (data.success) {
                     const p = data.product;
+
                     document.getElementById('editProductId').value = p.product_id;
                     document.getElementById('editName').value = p.name;
                     document.getElementById('editPrice').value = p.price;
                     document.getElementById('editStock').value = p.stock_qty;
                     document.getElementById('editDescription').value = p.description;
-                    document.getElementById('editPreview').src = p.image_path;
+                    document.getElementById('editPreview').src = p.image_path ? p.image_path : '../images/default_product.png';
+                    document.getElementById('editCategory').value = p.category_id || "";
+                    document.getElementById('editSubCategory').value = p.sub_category_id || "";
+
                 }
             } catch (err) {
                 alert('Error loading product data');
