@@ -106,7 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </form>
 
             <div class="back-to-site">
-                ← <a href="../../home.php">Back to PetBuddy Shop</a>
+                <a href="back_to_home.php">< Back to PetBuddy Shop</a>
             </div>
 
         </div>
