@@ -11,6 +11,7 @@ if (
 }
 
 $adminRole = $_SESSION['role'];
+$adminName = $_SESSION['full_name'] ?? 'Admin';
 $search = trim($_GET['search'] ?? '');
 $categoryFilter = $_GET['category_id'] ?? 'all';
 $subCategoryFilter = $_GET['sub_category_id'] ?? 'all';
@@ -163,6 +164,7 @@ function productImageUrl(?string $dbPath): string
                 <button id="sidebarToggle" class="sidebar-toggle"><img src="../images/menu.png"></button>
                 <div class="topbar-title">Products</div>
             </div>
+            <span class="tag-pill" style="margin-right: 20px;">Admin: <?= htmlspecialchars($adminName) ?></span>
         </header>
 
         <main class="content">

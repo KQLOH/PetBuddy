@@ -29,10 +29,8 @@
     font-family: inherit;
     gap: 6px;
     height: 38px;
-    /* 统一高度 */
 }
 
-/* --- 顶部工具栏按钮 (Filter Bar) --- */
 .btn-search {
     background: rgba(25, 118, 210, .08);
     color: var(--info);
@@ -67,13 +65,11 @@
     color: #fff;
 }
 
-/* --- 表格操作按钮 (Table Actions) --- */
 .btn-action {
     padding: 6px 14px;
     font-size: 12px;
     font-weight: 700;
     height: 30px;
-    /* 操作按钮稍矮一点 */
 }
 
 .btn-view {
@@ -109,7 +105,6 @@
     color: #fff;
 }
 
-/* --- 表单与模态框按钮 (Modal/Form) --- */
 .btn-primary {
     background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
     color: #fff;
@@ -147,11 +142,9 @@
     font-weight: 800;
 }
 
-/* --- 弹窗专用按钮 (Custom Alert) --- */
 .btn-alert {
     padding: 10px 20px;
     border-radius: 6px;
-    /* 弹窗内通常使用方圆角 */
     height: auto;
 }
 
@@ -165,7 +158,6 @@
     color: #333;
 }
 
-/* --- 上传按钮 --- */
 .upload-btn {
     padding: 8px 18px;
     border-radius: 999px;
@@ -184,7 +176,6 @@
     color: #fff;
 }
 
-/* --- 分页按钮 (Pagination) --- */
 .pagination {
     margin-top: 18px;
     display: flex;
@@ -228,7 +219,6 @@
     background: transparent;
 }
 
-/* --- 侧边栏切换按钮 --- */
 .sidebar-toggle {
     width: 32px;
     height: 32px;
