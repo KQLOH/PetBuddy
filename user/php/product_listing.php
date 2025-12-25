@@ -104,15 +104,15 @@ try {
             LEFT JOIN product_categories c ON p.category_id = c.category_id
             $whereSQL
             $orderSQL
-            LIMIT :limit OFFSET :offset";
+            LIMIT ? OFFSET ?";
 
     $stmt = $pdo->prepare($sql);
 
     foreach ($params as $key => $val) {
         $stmt->bindValue($key + 1, $val);
     }
-    $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
-    $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
+    $stmt->bindValue(count($params) + 1, (int)$limit, PDO::PARAM_INT);
+    $stmt->bindValue(count($params) + 2, (int)$offset, PDO::PARAM_INT);
 
     $stmt->execute();
     $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -788,7 +788,7 @@ function getQueryString($newPage)
 
         <?php if (empty($products)): ?>
             <div class="empty-state">
-                <img src="../images/box.png" style="width:50px; opacity:0.3; margin-bottom:15px;" alt="Empty">
+                <img src="../images/package.png" style="width:50px; opacity:0.3; margin-bottom:15px;" alt="Empty">
                 <p>No products found.</p>
                 <a href="product_listing.php" style="color: #FFB774; margin-top:10px; display:inline-block;">View All</a>
             </div>
