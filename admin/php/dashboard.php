@@ -102,27 +102,17 @@ try {
             <section class="greeting-card">
                 <div>
                     <div class="greeting-title">
-                        Welcome back, <?= htmlspecialchars($adminName) ?> 👋
+                        Welcome back, <?= htmlspecialchars($adminName) ?> 
                     </div>
                     <div class="greeting-text">
                         Manage products, orders, members and reviews here.
                     </div>
                 </div>
-                <section class="greeting-card">
-                    <div>
-                        <div class="greeting-title">
-                            Welcome back, <?= htmlspecialchars($adminName) ?> 👋
-                        </div>
-                        <div class="greeting-text">
-                            Manage products, orders, members and reviews here.
-                        </div>
-                    </div>
                     <div class="greeting-icon">
                         <img src="<?= $adminImg ?>"
                             alt="Profile"
                             style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
                     </div>
-                </section>
             </section>
 
             <section class="cards-grid">
