@@ -2,46 +2,42 @@
 session_start();
 require_once "../include/db.php"; 
 
-if (!isset($_SESSION['member_id']) || !isset($_POST['product_id']) || !isset($_POST['action'])) {
-    echo "error";
+header('Content-Type: application/json');
+
+if (!isset($_POST['product_id']) || !isset($_POST['quantity'])) {
+    echo json_encode(['status' => 'error', 'message' => 'Missing parameters']);
     exit;
 }
 
-$member_id = $_SESSION['member_id'];
 $product_id = intval($_POST['product_id']);
-$action = $_POST['action']; 
+$quantity = intval($_POST['quantity']);
 
-try {
-    
-    $sql = "SELECT quantity FROM cart_items WHERE member_id = :member_id AND product_id = :product_id";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute(['member_id' => $member_id, 'product_id' => $product_id]);
-    $item = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if ($item) {
-        $current_qty = intval($item['quantity']);
-        $new_qty = $current_qty;
-
-        if ($action === 'increase') {
-            $new_qty++;
-        } elseif ($action === 'decrease') {
-            $new_qty--;
-        }
-
-       
-        if ($new_qty < 1) {
-            echo "min_limit"; 
-            exit;
-        }
-
-       
-        $update_sql = "UPDATE cart_items SET quantity = :qty WHERE member_id = :member_id AND product_id = :product_id";
-        $update_stmt = $pdo->prepare($update_sql);
-        $update_stmt->execute(['qty' => $new_qty, 'member_id' => $member_id, 'product_id' => $product_id]);
-
-        echo "success";
-    }
-} catch (PDOException $e) {
-    echo "error";
+if ($quantity < 1) {
+    echo json_encode(['status' => 'error', 'message' => 'Quantity cannot be less than 1']);
+    exit;
 }
+
+if (isset($_SESSION['cart'][$product_id])) {
+    $_SESSION['cart'][$product_id] = $quantity;
+}
+
+if (isset($_SESSION['member_id'])) {
+    $member_id = $_SESSION['member_id'];
+    try {
+        $checkSql = "SELECT cart_item_id FROM cart_items WHERE member_id = ? AND product_id = ?";
+        $checkStmt = $pdo->prepare($checkSql);
+        $checkStmt->execute([$member_id, $product_id]);
+        
+        if ($checkStmt->rowCount() > 0) {
+            $sql = "UPDATE cart_items SET quantity = ? WHERE member_id = ? AND product_id = ?";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([$quantity, $member_id, $product_id]);
+        }
+    } catch (PDOException $e) {
+        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()]);
+        exit;
+    }
+}
+
+echo json_encode(['status' => 'success']);
 ?>
