@@ -1,13 +1,12 @@
 <?php
 session_start();
-// 调整这里以匹配你的数据库连接文件路径
+
 require_once "../include/db.php";
 require_once "../include/product_utils.php";
-// 1. 获取当前日期
+
 $today = date('Y-m-d');
 
-// 2. 查询有效的 Voucher
-// 条件：开始时间 <= 今天 且 结束时间 >= 今天
+
 $sql = "SELECT * FROM vouchers 
         WHERE start_date <= ? AND end_date >= ? 
         ORDER BY end_date ASC";
@@ -24,10 +23,10 @@ $vouchers = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <meta charset="UTF-8">
     <title>PetBuddy | Exclusive Vouchers</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+   
 
     <style>
-        /* === 页面基础样式 === */
+        
         body {
             background-color: #f9f9f9;
             font-family: "Inter", sans-serif;
@@ -54,14 +53,14 @@ $vouchers = $stmt->fetchAll(PDO::FETCH_ASSOC);
             color: #666;
         }
 
-        /* === 优惠券网格布局 === */
+        
         .voucher-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
             gap: 25px;
         }
 
-        /* === 优惠券卡片设计 === */
+        
         .coupon-card {
             background: #fff;
             border-radius: 12px;
@@ -78,7 +77,7 @@ $vouchers = $stmt->fetchAll(PDO::FETCH_ASSOC);
             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
         }
 
-        /* 左侧：金额区域 */
+       
         .coupon-left {
             background: linear-gradient(135deg, #FFB774 0%, #ff8e26 100%);
             width: 35%;
@@ -109,7 +108,7 @@ $vouchers = $stmt->fetchAll(PDO::FETCH_ASSOC);
             opacity: 0.9;
         }
 
-        /* 右侧：详情区域 */
+        
         .coupon-right {
             flex: 1;
             padding: 20px;
@@ -142,7 +141,7 @@ $vouchers = $stmt->fetchAll(PDO::FETCH_ASSOC);
             color: #999;
         }
 
-        /* 复制按钮样式 */
+        
         .btn-copy {
             background: #fff;
             border: 1px solid #FFB774;
@@ -169,17 +168,17 @@ $vouchers = $stmt->fetchAll(PDO::FETCH_ASSOC);
             color: #fff;
         }
 
-        /* === 装饰用的小圆圈（做成撕票的效果） === */
+        
         .circle-top,
         .circle-bottom {
             position: absolute;
             width: 20px;
             height: 20px;
             background-color: #f9f9f9;
-            /* 跟背景色一样 */
+            
             border-radius: 50%;
             left: 35%;
-            /* 必须跟左侧宽度的百分比一致 */
+            
             transform: translateX(-50%);
             z-index: 2;
         }
@@ -192,7 +191,7 @@ $vouchers = $stmt->fetchAll(PDO::FETCH_ASSOC);
             bottom: -10px;
         }
 
-        /* 空状态 */
+        
         .no-vouchers {
             text-align: center;
             grid-column: 1 / -1;
@@ -210,7 +209,7 @@ $vouchers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 <body>
 
-    <?php include "../include/header.php"; // 引入你的 Header 
+    <?php include "../include/header.php"; 
     ?>
 
     <div class="voucher-page-container">
@@ -271,21 +270,21 @@ $vouchers = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </div>
 
-    <?php include "../include/footer.php"; // 引入你的 Footer 
+    <?php include "../include/footer.php"; 
     ?>
 
     <script>
-        // === 复制功能 ===
+        
         function copyToClipboard(code, btn) {
-            // 使用现代 API 复制
+            
             navigator.clipboard.writeText(code).then(function() {
-                // 复制成功后的视觉反馈
+                
                 let originalContent = btn.innerHTML;
 
                 btn.classList.add('copied');
                 btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
 
-                // 2秒后恢复原状
+                
                 setTimeout(function() {
                     btn.classList.remove('copied');
                     btn.innerHTML = originalContent;
