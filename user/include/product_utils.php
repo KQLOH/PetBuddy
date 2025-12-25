@@ -1,7 +1,5 @@
 <?php
-/**
- * Product Utility Functions
- */
+
 
 function formatPrice(?float $price): string {
     if ($price === null || $price < 0) {
@@ -17,35 +15,32 @@ function truncateText(?string $text, int $limit = 90): string {
     return substr($text, 0, $limit) . '...';
 }
 
-/**
- * ✨✨✨ 修复版：移除了内部的 htmlspecialchars ✨✨✨
- * 只负责逻辑判断和路径拼接，不修改字符
- */
+
 function productImageUrl(?string $imagePath): string {
     $imagePath = trim((string)$imagePath);
     
-    // 1. 空值检查
+  
     if ($imagePath === '') {
         return '../images/dog1.jpg'; 
     }
     
-    // 2. HTTP 链接检查
+    
     if (strpos($imagePath, 'http') === 0) {
-        return $imagePath; // 移除 htmlspecialchars
+        return $imagePath; 
     }
     
-    // 3. 旧数据兼容 (../ 开头)
+    
     if (strpos($imagePath, '../') === 0) {
-        return $imagePath; // 移除 htmlspecialchars
+        return $imagePath; 
     }
 
-    // 4. 旧数据兼容 (images/ 开头)
+    
     if (strpos($imagePath, 'images/') === 0 || strpos($imagePath, 'image/') === 0) {
-        return '../' . $imagePath; // 移除 htmlspecialchars
+        return '../' . $imagePath; 
     }
     
-    // 5. 新数据 (uploads)
-    return '../../uploads/products/' . $imagePath; // 移除 htmlspecialchars
+    
+    return '../../uploads/products/' . $imagePath; 
 }
 
 function formatReviewDate(?string $dateString): string {
