@@ -110,49 +110,8 @@ function sortLink($columnKey, $label) {
     <title>Categories - PetBuddy Admin</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
-    <link rel="stylesheet" href="../css/admin_product.css">
-    
-    <style>
-        .sort-link { text-decoration: none; color: inherit; display: inline-flex; align-items: center; gap: 6px; user-select: none; cursor: pointer; }
-        .sort-link:hover { color: var(--primary-color); }
-        .sort-icon { width: 12px; height: auto; opacity: 0.7; vertical-align: middle; margin-top: -2px; }
-
-        .search-wrapper-list { position: relative; display: inline-block; }
-        .search-icon-list { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; opacity: 0.5; }
-        .filter-bar input[type="text"] { padding-left: 34px !important; }
-
-        .sub-tag {
-            display: inline-flex; align-items: center;
-            background: #F9F5FF; color: #6941C6; border: 1px solid #E9D7FE;
-            padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500; margin: 2px;
-        }
-        .sub-tag .remove-sub {
-            margin-left: 6px; color: #9E77ED; cursor: pointer; font-weight: bold; font-size: 14px; line-height: 1;
-        }
-        .sub-tag .remove-sub:hover { color: #D92D20; }
-        
-        .btn-add-sub {
-            background: none; border: 1px dashed #ccc; color: #666;
-            padding: 2px 8px; border-radius: 12px; font-size: 11px; cursor: pointer;
-            margin-left: 5px; transition: all 0.2s;
-        }
-        .btn-add-sub:hover { border-color: var(--primary-color); color: var(--primary-color); }
-
-        .custom-alert-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; display: none; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s ease; }
-        .custom-alert-overlay.show { opacity: 1; }
-        .custom-alert-box { background: white; padding: 30px; border-radius: 12px; width: 90%; max-width: 400px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.1); transform: scale(0.8); transition: transform 0.3s ease; }
-        .custom-alert-overlay.show .custom-alert-box { transform: scale(1); }
-        .custom-alert-icon { width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; background: #f9fafb; border: 2px solid #eee; }
-        .custom-alert-icon img { width: 30px; height: 30px; object-fit: contain; }
-        .custom-alert-title { margin: 0 0 10px; font-size: 1.25rem; color: #333; }
-        .custom-alert-text { color: #666; margin-bottom: 20px; line-height: 1.5; }
-        .custom-alert-buttons { display: flex; justify-content: center; gap: 10px; }
-        .btn-alert { padding: 10px 20px; border-radius: 6px; cursor: pointer; border: none; font-weight: 600; }
-        .btn-alert-confirm { background: #F4A261; color: white; }
-        .btn-alert-confirm:hover { background: #E68E3F; }
-        .btn-alert-cancel { background: #F2F4F7; color: #333; }
-        .btn-alert-cancel:hover { background: #E4E7EC; }
-    </style>
+    <link rel="stylesheet" href="../css/admin_category.css">
+    <link rel="stylesheet" href="../css/admin_btn.css">
 </head>
 
 <body>
@@ -163,7 +122,7 @@ function sortLink($columnKey, $label) {
 
         <header class="topbar">
             <div class="topbar-left">
-                <button id="sidebarToggle" class="sidebar-toggle">☰</button>
+                <button id="sidebarToggle" class="sidebar-toggle"><img src="../images/menu.png"></button>
                 <div class="topbar-title">Categories</div>
             </div>
             <span class="tag-pill" style="margin-right: 20px;">Admin: <?= htmlspecialchars($adminName) ?></span>
@@ -188,7 +147,7 @@ function sortLink($columnKey, $label) {
                 </div>
 
                 <button class="btn-search" type="submit">Search</button>
-                <a class="btn-reset" href="categories_list.php">Reset</a>
+                <a class="btn-reset" href="category_list.php">Reset</a>
 
                 <button type="button" class="btn-create" onclick="openCatModal()" style="margin-left: auto;">+ New Category</button>
             </form>
@@ -271,7 +230,7 @@ function sortLink($columnKey, $label) {
         <div class="modal-box">
             <div class="modal-header">
                 <h3 id="catModalTitle" style="margin:0; font-weight:700;">Category</h3>
-                <button class="btn-secondary" style="border:none; background:none; font-size:24px; cursor:pointer;" onclick="closeModal('catModal')">&times;</button>
+                <button class="modal-close" onclick="closeModal('catModal')">&times;</button>
             </div>
             <form id="catForm">
                 <div class="modal-body" style="padding:20px 0;">
@@ -287,7 +246,7 @@ function sortLink($columnKey, $label) {
                 </div>
                 <div class="modal-actions" style="text-align:right;">
                     <button type="button" class="btn-secondary" onclick="closeModal('catModal')">Cancel</button>
-                    <button type="submit" class="btn-create" style="border:none;">Save Changes</button>
+                    <button type="submit" class="btn-primary">Save Changes</button>
                 </div>
             </form>
         </div>
@@ -297,7 +256,7 @@ function sortLink($columnKey, $label) {
         <div class="modal-box">
             <div class="modal-header">
                 <h3 style="margin:0; font-weight:700;">Add Subcategory</h3>
-                <button class="btn-secondary" style="border:none; background:none; font-size:24px; cursor:pointer;" onclick="closeModal('subModal')">&times;</button>
+                <button class="modal-close" onclick="closeModal('subModal')">&times;</button>
             </div>
             <form id="subForm">
                 <div class="modal-body" style="padding:20px 0;">
@@ -308,7 +267,7 @@ function sortLink($columnKey, $label) {
                 </div>
                 <div class="modal-actions" style="text-align:right;">
                     <button type="button" class="btn-secondary" onclick="closeModal('subModal')">Cancel</button>
-                    <button type="submit" class="btn-create" style="border:none;">Add Subcategory</button>
+                    <button type="submit" class="btn-primary">Add Subcategory</button>
                 </div>
             </form>
         </div>
