@@ -692,8 +692,13 @@ function getQueryString($newPage)
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
         }
 
         @keyframes slideUp {
@@ -701,6 +706,7 @@ function getQueryString($newPage)
                 opacity: 0;
                 transform: translateY(20px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -958,45 +964,49 @@ function getQueryString($newPage)
         <?php endif; ?>
 
         <?php if ($totalPages > 1): ?>
-        <div class="pagination-container">
-            <ul class="pagination">
-                
-                <?php if ($page > 1): ?>
-                    <li><a href="?<?= getQueryString($page - 1) ?>" class="page-link">< Prev</a></li>
-                <?php else: ?>
-                    <li><span class="page-link disabled">< Prev</span></li>
-                <?php endif; ?>
+            <div class="pagination-container">
+                <ul class="pagination">
 
-                <?php
-                $start = max(1, $page - 2);
-                $end = min($totalPages, $page + 2);
-                
-                if ($start > 1) { 
-                    echo '<li><a href="?'.getQueryString(1).'" class="page-link">1</a></li>';
-                    if ($start > 2) echo '<li><span class="page-link disabled">...</span></li>';
-                }
+                    <?php if ($page > 1): ?>
+                        <li><a href="?<?= getQueryString($page - 1) ?>" class="page-link">
+                                < Prev</a>
+                        </li>
+                    <?php else: ?>
+                        <li><span class="page-link disabled">
+                                < Prev</span>
+                        </li>
+                    <?php endif; ?>
 
-                for ($i = $start; $i <= $end; $i++): 
-                    $activeClass = ($i == $page) ? 'active' : '';
-                ?>
-                    <li><a href="?<?= getQueryString($i) ?>" class="page-link <?= $activeClass ?>"><?= $i ?></a></li>
-                <?php endfor; ?>
+                    <?php
+                    $start = max(1, $page - 2);
+                    $end = min($totalPages, $page + 2);
 
-                <?php 
-                if ($end < $totalPages) {
-                    if ($end < $totalPages - 1) echo '<li><span class="page-link disabled">...</span></li>';
-                    echo '<li><a href="?'.getQueryString($totalPages).'" class="page-link">'.$totalPages.'</a></li>';
-                }
-                ?>
+                    if ($start > 1) {
+                        echo '<li><a href="?' . getQueryString(1) . '" class="page-link">1</a></li>';
+                        if ($start > 2) echo '<li><span class="page-link disabled">...</span></li>';
+                    }
 
-                <?php if ($page < $totalPages): ?>
-                    <li><a href="?<?= getQueryString($page + 1) ?>" class="page-link">Next ></a></li>
-                <?php else: ?>
-                    <li><span class="page-link disabled">Next ></span></li>
-                <?php endif; ?>
+                    for ($i = $start; $i <= $end; $i++):
+                        $activeClass = ($i == $page) ? 'active' : '';
+                    ?>
+                        <li><a href="?<?= getQueryString($i) ?>" class="page-link <?= $activeClass ?>"><?= $i ?></a></li>
+                    <?php endfor; ?>
 
-            </ul>
-        </div>
+                    <?php
+                    if ($end < $totalPages) {
+                        if ($end < $totalPages - 1) echo '<li><span class="page-link disabled">...</span></li>';
+                        echo '<li><a href="?' . getQueryString($totalPages) . '" class="page-link">' . $totalPages . '</a></li>';
+                    }
+                    ?>
+
+                    <?php if ($page < $totalPages): ?>
+                        <li><a href="?<?= getQueryString($page + 1) ?>" class="page-link">Next ></a></li>
+                    <?php else: ?>
+                        <li><span class="page-link disabled">Next ></span></li>
+                    <?php endif; ?>
+
+                </ul>
+            </div>
         <?php endif; ?>
 
     </div>
@@ -1159,23 +1169,32 @@ function getQueryString($newPage)
                     quantity: 1
                 },
                 success: function(response) {
-                    let res = response.trim();
                     $btn.prop('disabled', false).css('opacity', '1');
 
-                    if (res === "login_required") {
-                        safeToast("Please login first to add items to cart.", true);
-                    } else if (res === "added" || res === "quantity increased") {
+                    let res = "";
+                    if (typeof response === 'string') {
+                        res = response.trim();
+                    } else if (typeof response === 'object' && response.status) {
+                        res = response.status;
+                    } else if (typeof response === 'object') {
+                        res = JSON.stringify(response);
+                    }
+
+                    if (res.includes("added") || res.includes("increased") || res.includes("success")) {
                         safeToast("Added to Cart!");
                         refreshCartSidebar();
                         setTimeout(() => {
                             if (typeof openCart === 'function') openCart();
                         }, 500);
+                    } else if (res.includes("login")) {
+                        safeToast("Please login first to add items to cart.", true);
                     } else {
                         safeToast("Failed to add item. Out of stock?");
                     }
                 },
                 error: function() {
                     $btn.prop('disabled', false).css('opacity', '1');
+                    console.error("Add to cart failed.");
                 }
             });
         }

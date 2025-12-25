@@ -1515,37 +1515,46 @@ include '../include/header.php';
 
 
         function addToCart(pid) {
-            let $btn = $("button[onclick='addToCart(" + pid + ")']");
-            $btn.prop('disabled', true).css('opacity', '0.7');
+    let $btn = $("button[onclick='addToCart(" + pid + ")']");
+    $btn.prop('disabled', true).css('opacity', '0.7');
 
-            $.ajax({
-                url: "add_to_cart.php",
-                type: "POST",
-                data: {
-                    product_id: pid,
-                    quantity: 1
-                },
-                success: function(response) {
-                    let res = response.trim();
-                    $btn.prop('disabled', false).css('opacity', '1');
+    $.ajax({
+        url: "add_to_cart.php",
+        type: "POST",
+        data: {
+            product_id: pid,
+            quantity: 1
+        },
+        success: function(response) {
+            $btn.prop('disabled', false).css('opacity', '1');
+            
+            let res = "";
+            if (typeof response === 'string') {
+                res = response.trim();
+            } else if (typeof response === 'object' && response.status) {
+                res = response.status;
+            } else if (typeof response === 'object') {
+                res = JSON.stringify(response);
+            }
 
-                    if (res === "login_required") {
-                        safeToast("Please login first to add items to cart.", true);
-                    } else if (res === "added" || res === "quantity increased") {
-                        safeToast("Added to Cart!");
-                        refreshCartSidebar();
-                        setTimeout(() => {
-                            if (typeof openCart === 'function') openCart();
-                        }, 500);
-                    } else {
-                        safeToast("Failed to add item. Out of stock?");
-                    }
-                },
-                error: function() {
-                    $btn.prop('disabled', false).css('opacity', '1');
-                }
-            });
+            if (res.includes("added") || res.includes("increased") || res.includes("success")) {
+                safeToast("Added to Cart!");
+                refreshCartSidebar();
+                setTimeout(() => {
+                    if (typeof openCart === 'function') openCart();
+                }, 500);
+            } else if (res.includes("login")) {
+                safeToast("Please login first to add items to cart.", true);
+            } else {
+                safeToast("Failed to add item. Out of stock?");
+            }
+        },
+        error: function() {
+            $btn.prop('disabled', false).css('opacity', '1');
+            console.error("Add to cart failed.");
         }
+    });
+}
 
 
         function refreshCartSidebar() {
