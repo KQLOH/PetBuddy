@@ -395,6 +395,8 @@
     border: 1.5px solid #C8E6C9;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
     transition: all 0.3s ease;
+    cursor: pointer;
+    font-family: inherit;
 }
 
 .btn-pill-add:hover {
