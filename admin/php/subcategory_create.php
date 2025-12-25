@@ -30,10 +30,8 @@ try {
 
     $stmt = $pdo->prepare("INSERT INTO sub_categories (category_id, name) VALUES (?, ?)");
     $stmt->execute([$catId, $name]);
-    
-    echo json_encode(['success' => true]);
 
+    echo json_encode(['success' => true]);
 } catch (Exception $e) {
     echo json_encode(['success' => false, 'error' => $e->getMessage()]);
 }
-?>

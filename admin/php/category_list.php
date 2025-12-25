@@ -62,7 +62,7 @@ $categories = [];
 if ($cats) {
     $catIds = array_column($cats, 'category_id');
     $inQuery = implode(',', array_fill(0, count($catIds), '?'));
-    
+
     $subSql = "SELECT sub_category_id, category_id, name FROM sub_categories WHERE category_id IN ($inQuery) ORDER BY name ASC";
     $subStmt = $pdo->prepare($subSql);
     $subStmt->execute($catIds);
@@ -79,16 +79,18 @@ if ($cats) {
     }
 }
 
-function q(array $extra = []) {
+function q(array $extra = [])
+{
     $base = $_GET;
     foreach ($extra as $k => $v) $base[$k] = $v;
     return http_build_query($base);
 }
 
-function sortLink($columnKey, $label) {
+function sortLink($columnKey, $label)
+{
     global $sort, $dir;
     $newDir = ($sort === $columnKey && $dir === 'ASC') ? 'DESC' : 'ASC';
-    
+
     $iconHtml = '';
     if ($sort === $columnKey) {
         if ($dir === 'ASC') {
@@ -97,7 +99,7 @@ function sortLink($columnKey, $label) {
             $iconHtml = '<img src="../images/down.png" class="sort-icon" alt="Desc">';
         }
     }
-    
+
     $url = '?' . q(['sort' => $columnKey, 'dir' => $newDir, 'p' => 1]);
     return '<a href="' . htmlspecialchars($url) . '" class="sort-link">' . $label . $iconHtml . '</a>';
 }
@@ -105,11 +107,12 @@ function sortLink($columnKey, $label) {
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>Categories - PetBuddy Admin</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
+
     <link rel="stylesheet" href="../css/admin_category.css">
     <link rel="stylesheet" href="../css/admin_btn.css">
 </head>
@@ -165,20 +168,22 @@ function sortLink($columnKey, $label) {
                     </thead>
                     <tbody>
                         <?php if (empty($categories)): ?>
-                            <tr><td colspan="5" class="no-data">No categories found.</td></tr>
+                            <tr>
+                                <td colspan="5" class="no-data">No categories found.</td>
+                            </tr>
                         <?php else: ?>
                             <?php foreach ($categories as $c): ?>
                                 <tr>
                                     <td style="color:#666;">#<?= $c['category_id'] ?></td>
-                                    
+
                                     <td style="font-weight:600; color:#344054;">
                                         <?= htmlspecialchars($c['name']) ?>
                                     </td>
-                                    
+
                                     <td style="font-size:13px; color:#666;">
                                         <?= htmlspecialchars($c['description'] ?: '-') ?>
                                     </td>
-                                    
+
                                     <td>
                                         <?php foreach ($c['subs'] as $sub): ?>
                                             <span class="sub-tag">
@@ -188,7 +193,7 @@ function sortLink($columnKey, $label) {
                                         <?php endforeach; ?>
                                         <button class="btn-add-sub" onclick="openSubModal(<?= $c['category_id'] ?>, '<?= htmlspecialchars($c['name']) ?>')">+ Add</button>
                                     </td>
-                                    
+
                                     <td class="actions" style="text-align:center;">
                                         <button class="btn-action btn-edit" onclick="openCatModal(<?= $c['category_id'] ?>)">Edit</button>
                                         <button class="btn-action btn-delete" onclick="deleteCat(<?= $c['category_id'] ?>, '<?= htmlspecialchars($c['name']) ?>')">Delete</button>
@@ -287,21 +292,26 @@ function sortLink($columnKey, $label) {
 
     <script>
         document.getElementById('sidebarToggle').onclick = () => document.body.classList.toggle('sidebar-collapsed');
-        
-        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
-        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        function openModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+        }
 
         function showCustomAlert(type, title, text, callback = null) {
             const overlay = document.getElementById('customAlert');
             const iconContainer = document.getElementById('customAlertIcon');
             const btnCancel = document.getElementById('customAlertCancel');
             const btnConfirm = document.getElementById('customAlertConfirm');
-            
+
             document.getElementById('customAlertTitle').innerText = title;
             document.getElementById('customAlertText').innerText = text;
-            
+
             iconContainer.innerHTML = '';
-            
+
             const img = document.createElement('img');
             if (type === 'success') {
                 img.src = '../images/success.png';
@@ -311,13 +321,13 @@ function sortLink($columnKey, $label) {
                 img.src = '../images/warning.png';
             }
             iconContainer.appendChild(img);
-            
+
             if (type === 'confirm') {
                 btnCancel.style.display = 'block';
                 btnConfirm.innerText = 'Yes, Delete';
-                btnConfirm.className = 'btn-alert btn-alert-confirm'; 
+                btnConfirm.className = 'btn-alert btn-alert-confirm';
                 btnConfirm.style.backgroundColor = '#D92D20';
-                
+
                 btnConfirm.onclick = () => {
                     closeCustomAlert();
                     if (callback) callback();
@@ -329,7 +339,7 @@ function sortLink($columnKey, $label) {
                 btnConfirm.style.backgroundColor = '#F4A261';
                 btnConfirm.onclick = closeCustomAlert;
             }
-            
+
             overlay.style.display = 'flex';
             setTimeout(() => overlay.classList.add('show'), 10);
         }
@@ -344,12 +354,12 @@ function sortLink($columnKey, $label) {
             document.getElementById('catForm').reset();
             document.getElementById('catId').value = '';
             document.getElementById('catModalTitle').textContent = id ? 'Edit Category' : 'New Category';
-            
+
             if (id) {
                 fetch(`category_get.php?id=${id}`)
                     .then(r => r.json())
                     .then(data => {
-                        if(data.error) {
+                        if (data.error) {
                             showCustomAlert('error', 'Error', data.error);
                         } else {
                             document.getElementById('catId').value = data.category_id;
@@ -368,11 +378,14 @@ function sortLink($columnKey, $label) {
             e.preventDefault();
             const formData = new FormData(this);
             const url = document.getElementById('catId').value ? 'category_update.php' : 'category_create.php';
-            
-            fetch(url, { method: 'POST', body: formData })
+
+            fetch(url, {
+                    method: 'POST',
+                    body: formData
+                })
                 .then(r => r.json())
                 .then(res => {
-                    if(res.success) {
+                    if (res.success) {
                         showCustomAlert('success', 'Success', 'Category saved successfully!');
                         closeModal('catModal');
                         setTimeout(() => location.reload(), 1000);
@@ -386,9 +399,11 @@ function sortLink($columnKey, $label) {
             showCustomAlert('confirm', 'Delete Category?', `Are you sure you want to delete "${name}"? This cannot be undone.`, () => {
                 fetch('category_delete.php', {
                     method: 'POST',
-                    body: new URLSearchParams({id: id})
+                    body: new URLSearchParams({
+                        id: id
+                    })
                 }).then(r => r.json()).then(res => {
-                    if(res.success) {
+                    if (res.success) {
                         showCustomAlert('success', 'Deleted', 'Category deleted.');
                         setTimeout(() => location.reload(), 1000);
                     } else {
@@ -408,10 +423,13 @@ function sortLink($columnKey, $label) {
         document.getElementById('subForm').onsubmit = function(e) {
             e.preventDefault();
             const formData = new FormData(this);
-            fetch('subcategory_create.php', { method: 'POST', body: formData })
+            fetch('subcategory_create.php', {
+                    method: 'POST',
+                    body: formData
+                })
                 .then(r => r.json())
                 .then(res => {
-                    if(res.success) {
+                    if (res.success) {
                         showCustomAlert('success', 'Success', 'Subcategory added!');
                         closeModal('subModal');
                         setTimeout(() => location.reload(), 1000);
@@ -425,9 +443,11 @@ function sortLink($columnKey, $label) {
             showCustomAlert('confirm', 'Delete Subcategory?', `Remove "${name}"?`, () => {
                 fetch('subcategory_delete.php', {
                     method: 'POST',
-                    body: new URLSearchParams({id: id})
+                    body: new URLSearchParams({
+                        id: id
+                    })
                 }).then(r => r.json()).then(res => {
-                    if(res.success) {
+                    if (res.success) {
                         showCustomAlert('success', 'Deleted', 'Subcategory removed.');
                         setTimeout(() => location.reload(), 1000);
                     } else {
@@ -436,7 +456,7 @@ function sortLink($columnKey, $label) {
                 });
             });
         }
-        
+
         window.onclick = function(event) {
             if (event.target.classList.contains('modal')) {
                 event.target.classList.add('hidden');
@@ -444,4 +464,5 @@ function sortLink($columnKey, $label) {
         }
     </script>
 </body>
+
 </html>

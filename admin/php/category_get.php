@@ -23,4 +23,3 @@ if ($cat) {
 } else {
     echo json_encode(['error' => 'Category not found']);
 }
-?>

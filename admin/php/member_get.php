@@ -43,5 +43,3 @@ $imagePath = !empty($member['image'])
 $member['image_path'] = $imagePath;
 
 echo json_encode(['success' => true, 'member' => $member]);
-?>
-

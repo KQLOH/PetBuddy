@@ -28,8 +28,6 @@ try {
     $stmt->execute([$id]);
 
     echo json_encode(['success' => true]);
-
 } catch (Exception $e) {
     echo json_encode(['success' => false, 'error' => 'Database Error: ' . $e->getMessage()]);
 }
-?>
