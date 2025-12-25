@@ -189,7 +189,7 @@ function sortLink($columnKey, $label)
                         <?php endif; ?>
 
                         <?php foreach ($members as $m): ?>
-                            <tr>
+                            <tr data-member-id="<?= $m['member_id'] ?>">
                                 <td><?= $m['member_id'] ?></td>
                                 <td><?= htmlspecialchars($m['full_name']) ?></td>
                                 <td><?= htmlspecialchars($m['email']) ?></td>
@@ -470,15 +470,15 @@ function sortLink($columnKey, $label)
                         const member = data.member;
                         const isSuperAdmin = <?= $adminRole === 'super_admin' ? 'true' : 'false' ?>;
                         content.innerHTML = `
-                            <form id="editMemberForm" onsubmit="saveMember(event, ${memberId})">
-                                <div class="member-edit-header">
-                                    <img src="${member.image_path}" class="member-edit-avatar" alt="Avatar">
-                                    <div class="member-edit-title">
-                                        <h2>${escapeHtml(member.full_name)}</h2>
-                                        ${getRoleBadge(member.role)}
-                                    </div>
+                            <form id="editMemberForm" onsubmit="saveMember(event, ${memberId})" enctype="multipart/form-data">
+                                <div class="modal-image-section">
+                                    <img id="edit-member-preview-img" src="${member.image_path}" alt="Preview">
+                                    <label class="upload-btn">
+                                        Upload New Image
+                                        <input type="file" name="profile_image" id="edit_member_profile_image" accept="image/*" hidden onchange="handleEditMemberImageSelect(this)">
+                                    </label>
                                 </div>
-                                <div class="form-grid">
+                                <div class="modal-form-grid">
                                     <div>
                                         <label>Full Name *</label>
                                         <input type="text" name="full_name" value="${escapeHtml(member.full_name)}" required>
@@ -534,6 +534,34 @@ function sortLink($columnKey, $label)
 
         function closeEditModal() {
             document.getElementById('editModal').classList.add('hidden');
+        }
+
+        function handleEditMemberImageSelect(input) {
+            const file = input.files[0];
+            const errorDiv = document.getElementById('edit-member-image-error');
+            const previewImg = document.getElementById('edit-member-preview-img');
+
+            if (errorDiv) errorDiv.textContent = '';
+
+            if (file) {
+                // Validate file type
+                const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+                if (!allowedTypes.includes(file.type)) {
+                    if (errorDiv) errorDiv.textContent = 'Please upload JPG, PNG, or GIF files only.';
+                    input.value = '';
+                    return;
+                }
+
+                // Validate file size (5MB)
+                if (file.size > 5000000) {
+                    if (errorDiv) errorDiv.textContent = 'Image file is too large. Maximum size is 5MB.';
+                    input.value = '';
+                    return;
+                }
+
+                // Show preview
+                previewImg.src = URL.createObjectURL(file);
+            }
         }
 
         function openAddAdminModal() {
@@ -781,48 +809,82 @@ function sortLink($columnKey, $label)
             }
         }
 
-        document.querySelectorAll('.btn-delete').forEach(btn => {
-            btn.onclick = () => {
-                const memberId = btn.dataset.id;
-                const memberName = btn.dataset.name;
-                const isSelf = btn.dataset.self === '1';
-                const hasOrder = btn.dataset.hasOrder === '1';
+        function removeMemberRow(memberId) {
+            // 找到对应的 table row
+            const row = document.querySelector(`tr[data-member-id="${memberId}"]`);
+            if (row) {
+                row.style.transition = 'opacity 0.3s ease';
+                row.style.opacity = '0';
+                setTimeout(() => {
+                    row.remove();
+                    // 检查是否还有成员
+                    const tbody = document.querySelector('table tbody');
+                    const remainingRows = tbody.querySelectorAll('tr[data-member-id]');
+                    if (remainingRows.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No members found</td></tr>';
+                    }
+                    // 更新总数
+                    updateMemberCount();
+                }, 300);
+            }
+        }
 
-                if (isSelf) {
-                    showCustomAlert('error', 'Action not allowed', 'You cannot delete your own account.');
-                } else if (hasOrder) {
-                    showCustomAlert('error', 'Cannot delete member', 'This member has existing orders and cannot be deleted.');
-                } else {
-                    showCustomAlert('confirm', 'Delete Member?', `Are you sure you want to delete "${memberName}"?`, () => {
-                        const params = new URLSearchParams();
-                        params.append('id', memberId);
+        function updateMemberCount() {
+            const tbody = document.querySelector('table tbody');
+            const rows = tbody.querySelectorAll('tr[data-member-id]');
+            const pageTitle = document.querySelector('.page-title');
+            if (pageTitle) {
+                const count = rows.length;
+                pageTitle.textContent = `Member List (${count})`;
+            }
+        }
 
-                        fetch('member_delete.php', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/x-www-form-urlencoded',
-                                    'X-Requested-With': 'XMLHttpRequest'
-                                },
-                                body: params
-                            })
-                            .then(res => res.json())
-                            .then(data => {
-                                if (data.success) {
-                                    showCustomAlert('success', 'Deleted!', 'The member has been removed.', () => {
-                                        window.location.reload();
-                                    });
-                                } else {
-                                    showCustomAlert('error', 'Error', data.error || 'Delete failed.');
-                                }
-                            })
-                            .catch(err => {
-                                console.error('Error:', err);
-                                showCustomAlert('error', 'System Error', 'Could not connect to the server.');
-                            });
-                    });
-                }
-            };
-        });
+        function setupDeleteButtons() {
+            document.querySelectorAll('.btn-delete').forEach(btn => {
+                btn.onclick = () => {
+                    const memberId = btn.dataset.id;
+                    const memberName = btn.dataset.name;
+                    const isSelf = btn.dataset.self === '1';
+                    const hasOrder = btn.dataset.hasOrder === '1';
+
+                    if (isSelf) {
+                        showCustomAlert('error', 'Action not allowed', 'You cannot delete your own account.');
+                    } else if (hasOrder) {
+                        showCustomAlert('error', 'Cannot delete member', 'This member has existing orders and cannot be deleted.');
+                    } else {
+                        showCustomAlert('confirm', 'Delete Member?', `Are you sure you want to delete "${memberName}"?`, () => {
+                            const params = new URLSearchParams();
+                            params.append('id', memberId);
+
+                            fetch('member_delete.php', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/x-www-form-urlencoded',
+                                        'X-Requested-With': 'XMLHttpRequest'
+                                    },
+                                    body: params
+                                })
+                                .then(res => res.json())
+                                .then(data => {
+                                    if (data.success) {
+                                        removeMemberRow(memberId);
+                                        showCustomAlert('success', 'Deleted!', 'The member has been removed.');
+                                    } else {
+                                        showCustomAlert('error', 'Error', data.error || 'Delete failed.');
+                                    }
+                                })
+                                .catch(err => {
+                                    console.error('Error:', err);
+                                    showCustomAlert('error', 'System Error', 'Could not connect to the server.');
+                                });
+                        });
+                    }
+                };
+            });
+        }
+
+        // 初始化删除按钮
+        setupDeleteButtons();
 
         document.getElementById('viewModal').addEventListener('click', function(e) {
             if (e.target === this) closeViewModal();
