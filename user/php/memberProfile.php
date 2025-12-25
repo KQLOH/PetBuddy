@@ -93,7 +93,6 @@ if (isset($pdo)) {
                 $msg_type = "error";
             } else {
                 $clean_phone = preg_replace('/[^0-9]/', '', $phone);
-
                 $image_path = null;
                 $upload_error = false;
 
@@ -101,8 +100,8 @@ if (isset($pdo)) {
                     $target_dir = "../uploads/";
                     if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
                     $file_ext = strtolower(pathinfo($_FILES["profile_image"]["name"], PATHINFO_EXTENSION));
-
                     $allowed_types = ['jpg', 'jpeg', 'png', 'gif'];
+
                     if (in_array($file_ext, $allowed_types)) {
                         $check = getimagesize($_FILES["profile_image"]["tmp_name"]);
                         if ($check !== false) {
@@ -130,12 +129,24 @@ if (isset($pdo)) {
                 if (!$upload_error) {
                     try {
                         if ($image_path) {
+                            $stmtOld = $pdo->prepare("SELECT image FROM members WHERE member_id = ?");
+                            $stmtOld->execute([$member_id]);
+                            $oldImage = $stmtOld->fetchColumn();
+
+                            if (!empty($oldImage)) {
+                                $oldFilePath = "../" . $oldImage;
+                                if (file_exists($oldFilePath)) {
+                                    unlink($oldFilePath);
+                                }
+                            }
+
                             $sql = "UPDATE members SET full_name = ?, phone = ?, image = ? WHERE member_id = ?";
                             $pdo->prepare($sql)->execute([$full_name, $clean_phone, $image_path, $member_id]);
                         } else {
                             $sql = "UPDATE members SET full_name = ?, phone = ? WHERE member_id = ?";
                             $pdo->prepare($sql)->execute([$full_name, $clean_phone, $member_id]);
                         }
+
                         $_SESSION['flash_msg'] = "Profile updated successfully!";
                         $_SESSION['flash_type'] = "success";
                         $_SESSION['flash_tab'] = "profile";
