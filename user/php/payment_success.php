@@ -2,7 +2,7 @@
 session_start();
 require "../include/db.php";
 
-// 1. 检查是否有 order_id
+
 if (!isset($_GET['order_id'])) {
     header("Location: home.php");
     exit;
@@ -10,8 +10,7 @@ if (!isset($_GET['order_id'])) {
 
 $order_id = intval($_GET['order_id']);
 
-// 可选：你也可以在这里查数据库获取订单金额，显示给用户看
-// 但为了保持简单，我们直接显示订单号即可
+
 ?>
 
 <!DOCTYPE html>
@@ -52,11 +51,11 @@ $order_id = intval($_GET['order_id']);
             animation: fadeIn 0.6s ease-out;
         }
 
-        /* 动画图标 */
+       
         .icon-circle { 
             width: 80px; 
             height: 80px; 
-            background: #4CAF50; /* 成功通常用绿色，或者你可以改成橙色 var(--primary-color) */
+            background: #4CAF50; 
             border-radius: 50%; 
             display: flex; 
             align-items: center; 
@@ -139,7 +138,7 @@ $order_id = intval($_GET['order_id']);
             background: #f9f9f9;
         }
 
-        /* 动画定义 */
+        
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
@@ -188,7 +187,7 @@ function sendReceipt() {
     const messageDiv = document.getElementById('receiptMessage');
     const originalText = btn.innerHTML;
     
-    // Disable button and show loading
+    
     btn.disabled = true;
     btn.innerHTML = '<img src="../images/mail.png" alt="Email" style="width: 18px; height: 18px; margin-right: 8px; vertical-align: middle; opacity: 0.6;"> Sending...';
     messageDiv.style.display = 'none';
