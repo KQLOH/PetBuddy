@@ -26,7 +26,7 @@ if (!empty($cart_items) && count($cart_items) > 0):
             </div>
 
             <button class="remove-btn" data-id="<?= $row['product_id'] ?>">
-                <i class="fas fa-trash-alt"></i>
+                <img src="../images/dusbin.png" alt="dusbin" class="custom-icon">
             </button>
         </div>
 <?php 
