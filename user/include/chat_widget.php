@@ -171,8 +171,8 @@
     }
 
     .widget-close img {
-        width: 14px;
-        height: 14px;
+        width: 20px;
+        height: 20px;
         opacity: 0.5;
         transition: 0.2s;
     }
@@ -340,7 +340,7 @@
     <div class="widget-header">
         <div class="widget-title">
             <div class="widget-avatar">
-                <img src="../images/paw.png" alt="Icon">
+                <img src="../images/pawprint.png" alt="Icon">
             </div>
             <div class="widget-info">
                 <h4>PetBuddy Support</h4>
@@ -348,7 +348,7 @@
             </div>
         </div>
         <button class="widget-close" onclick="toggleChatWidget()">
-            <img src="../images/close.png" alt="Close">
+            <img src="../images/error.png" alt="Close">
         </button>
     </div>
 
@@ -399,6 +399,17 @@
             widgetOpen = false;
         }
     }
+
+    document.addEventListener('click', function(event) {
+        if (widgetOpen) {
+            const modal = document.getElementById('chat-widget-modal');
+            const btnWrapper = document.getElementById('chat-widget-wrapper');
+
+            if (!modal.contains(event.target) && !btnWrapper.contains(event.target)) {
+                toggleChatWidget();
+            }
+        }
+    });
 
     function updateUnreadCount() {
         if (widgetOpen) return;

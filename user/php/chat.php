@@ -293,7 +293,7 @@ $statusSub = $isOnline ? "We typically reply in minutes." : "We'll reply when we
             <div class="chat-header">
                 <div class="header-left">
                     <div class="header-icon">
-                        <img src="../images/paw.png" alt="Support">
+                        <img src="../images/pawprint.png" alt="Support">
                     </div>
                     <div class="header-info">
                         <h2>PetBuddy Support</h2>
