@@ -66,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="admin-card">
 
             <div class="admin-logo">
-                <div class="logo-circle">🐾</div>
+                <div class="logo-circle"><img src="../../user/images/logo.png" alt="PetBuddy Logo" class="admin-logo-image"></div>
                 <div class="admin-logo-text">PetBuddy Admin</div>
             </div>
 
