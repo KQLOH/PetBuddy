@@ -85,14 +85,16 @@ function calculateReviewStats(array $reviews): array
 function generateStars(int $rating): string
 {
     $html = '';
-    $fullStars = floor($rating);
-    $hasHalfStar = ($rating - $fullStars) >= 0.5;
-    for ($i = 0; $i < $fullStars; $i++) $html .= '<i class="fas fa-star" style="color: #FFB774;"></i> ';
-    if ($hasHalfStar) {
-        $html .= '<i class="fas fa-star-half-alt" style="color: #FFB774;"></i> ';
-        $fullStars++;
+    $rating = max(0, min(5, $rating));
+
+    for ($i = 0; $i < $rating; $i++) {
+        $html .= '<span style="color: #FFB774; font-size: 18px; margin-right: 2px;">★</span>';
     }
-    for ($i = 0; $i < 5 - $fullStars; $i++) $html .= '<i class="far fa-star" style="color: #ddd;"></i> ';
+
+    for ($i = 0; $i < 5 - $rating; $i++) {
+        $html .= '<span style="color: #ddd; font-size: 18px; margin-right: 2px;">☆</span>';
+    }
+
     return $html;
 }
 
