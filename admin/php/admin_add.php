@@ -2,109 +2,162 @@
 session_start();
 require_once '../../user/include/db.php';
 
-// 安全检查：只有 Super Admin 可以进入
+header('Content-Type: application/json');
+
 if (empty($_SESSION['role']) || $_SESSION['role'] !== 'super_admin') {
-    header('Location: member_list.php');
+    http_response_code(401);
+    echo json_encode(['success' => false, 'error' => 'Unauthorized. Only Super Admin can add admins.']);
     exit;
 }
 
-$adminName = $_SESSION['full_name'] ?? 'Admin';
-$error = '';
-$success = '';
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+    exit;
+}
 
-// 处理表单提交
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $fullName = trim($_POST['full_name']);
-    $email    = trim($_POST['email']);
-    $password = $_POST['password'];
-    $role     = $_POST['role']; // 通常默认为 'admin'
+$full_name = trim($_POST['full_name'] ?? '');
+$email     = trim($_POST['email'] ?? '');
+$phone     = trim($_POST['phone'] ?? '');
+$address   = trim($_POST['address'] ?? '');
+$gender    = $_POST['gender'] ?? null;
+$dob       = $_POST['dob'] ?: null;
+$password  = trim($_POST['password'] ?? '');
+$confirm_password = trim($_POST['confirm_password'] ?? '');
+$role      = trim($_POST['role'] ?? 'admin');
 
-    // 简单验证
-    if (empty($fullName) || empty($email) || empty($password)) {
-        $error = "Please fill in all required fields.";
-    } else {
-        try {
-            // 检查 Email 是否已存在
-            $stmt = $pdo->prepare("SELECT COUNT(*) FROM members WHERE email = ?");
-            $stmt->execute([$email]);
-            if ($stmt->fetchColumn() > 0) {
-                $error = "Email already registered.";
+if ($full_name === '') {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Full name is required']);
+    exit;
+}
+
+if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Invalid email format']);
+    exit;
+}
+
+if ($password === '') {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Password is required']);
+    exit;
+}
+
+if (strlen($password) < 8) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Password must be at least 8 characters long']);
+    exit;
+}
+
+if (!preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/', $password)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Password must contain: uppercase letter, lowercase letter, 1 number, and 1 special character']);
+    exit;
+}
+
+if ($password !== $confirm_password) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Passwords do not match']);
+    exit;
+}
+
+if (!in_array($role, ['admin', 'super_admin'], true)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Invalid role']);
+    exit;
+}
+
+if ($gender && !in_array($gender, ['male', 'female'], true)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Invalid gender selection']);
+    exit;
+}
+
+if ($dob && !strtotime($dob)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Invalid date of birth format']);
+    exit;
+}
+
+try {
+    $check = $pdo->prepare("SELECT COUNT(*) FROM members WHERE email = ?");
+    $check->execute([$email]);
+    if ($check->fetchColumn() > 0) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Email already registered']);
+        exit;
+    }
+
+    $image_path = null;
+    $target_dir = "../images/admin/";
+    if (!is_dir($target_dir)) {
+        mkdir($target_dir, 0777, true);
+    }
+
+    if (isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] == 0) {
+        $file_ext = strtolower(pathinfo($_FILES["profile_image"]["name"], PATHINFO_EXTENSION));
+        $allowed_exts = ['jpg', 'jpeg', 'png', 'gif'];
+
+        $check = getimagesize($_FILES["profile_image"]["tmp_name"]);
+        if ($check !== false && in_array($file_ext, $allowed_exts)) {
+            if ($_FILES["profile_image"]["size"] <= 5000000) {
+                $email_hash = substr(md5($email), 0, 8);
+                $new_filename = "admin_" . $email_hash . "_" . time() . "." . $file_ext;
+                $target_file = $target_dir . $new_filename;
+
+                if (move_uploaded_file($_FILES["profile_image"]["tmp_name"], $target_file)) {
+                    $image_path = "admin/images/admin/" . $new_filename;
+                } else {
+                    http_response_code(400);
+                    echo json_encode(['success' => false, 'error' => 'Failed to upload image']);
+                    exit;
+                }
             } else {
-                // 插入新管理员
-                $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-                $stmt = $pdo->prepare("INSERT INTO members (full_name, email, password, role, created_at) VALUES (?, ?, ?, ?, NOW())");
-                $stmt->execute([$fullName, $email, $hashedPassword, $role]);
-                $success = "New admin added successfully!";
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'Image file is too large. Maximum size is 5MB']);
+                exit;
             }
-        } catch (PDOException $e) {
-            $error = "Database error: " . $e->getMessage();
+        } else {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Invalid image file. Please upload JPG, JPEG, PNG, or GIF files only']);
+            exit;
         }
     }
+
+    if ($image_path === null) {
+        $default_image_name = 'boy.png';
+        if ($gender === 'female') {
+            $default_image_name = 'woman.png';
+        }
+        
+        $source_file = "../../user/images/" . $default_image_name;
+        $dest_file = $target_dir . $default_image_name;
+        
+        if (file_exists($source_file)) {
+            if (copy($source_file, $dest_file)) {
+                $image_path = "admin/images/admin/" . $default_image_name;
+            } else {
+                $image_path = "admin/images/admin/" . $default_image_name;
+            }
+        } else {
+            $image_path = "admin/images/admin/" . $default_image_name;
+        }
+    }
+    
+    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+    $stmt = $pdo->prepare("
+        INSERT INTO members (full_name, email, password_hash, role, image, phone, address, gender, dob) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ");
+    $stmt->execute([$full_name, $email, $hashedPassword, $role, $image_path, $phone ?: null, $address ?: null, $gender, $dob]);
+
+    echo json_encode([
+        'success' => true,
+        'message' => 'Admin added successfully'
+    ]);
+} catch (PDOException $e) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'error' => 'Database error: ' . $e->getMessage()]);
 }
-?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Add New Admin</title>
-    <link rel="stylesheet" href="../css/admin_member.css">
-    <link rel="stylesheet" href="../css/admin_btn.css">
-</head>
-<body>
-
-    <?php include 'sidebar.php'; ?>
-
-    <div class="main">
-        <header class="topbar">
-            <div class="topbar-left">
-                <div class="topbar-title">Add New Admin</div>
-            </div>
-            <span class="tag-pill">Super Admin: <?= htmlspecialchars($adminName) ?></span>
-        </header>
-
-        <main class="content">
-            <div class="page-header">
-                <a href="member_list.php" style="text-decoration: none; color: #666;">← Back to List</a>
-                <h2 class="page-title">Register Administrator</h2>
-            </div>
-
-            <div class="form-container">
-                <?php if ($error): ?> <div class="msg msg-error"><?= $error ?></div> <?php endif; ?>
-                <?php if ($success): ?> <div class="msg msg-success"><?= $success ?></div> <?php endif; ?>
-
-                <form method="POST" action="">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label>Full Name *</label>
-                            <input type="text" name="full_name" required placeholder="Enter full name">
-                        </div>
-                        <div class="form-group">
-                            <label>Email Address *</label>
-                            <input type="email" name="email" required placeholder="admin@petbuddy.com">
-                        </div>
-                        <div class="form-group">
-                            <label>Password *</label>
-                            <input type="password" name="password" required placeholder="Min 6 characters">
-                        </div>
-                        <div class="form-group">
-                            <label>Assigned Role</label>
-                            <select name="role">
-                                <option value="admin">Admin</option>
-                                <option value="super_admin">Super Admin</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="form-actions">
-                        <a href="member_list.php" class="btn-reset" style="padding: 10px 25px;">Cancel</a>
-                        <button type="submit" class="btn-pill-add">
-                             Save Administrator
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </main>
-    </div>
-</body>
-</html>

@@ -162,9 +162,9 @@ function sortLink($columnKey, $label)
                 <button class="btn-search" type="submit">Search</button>
                 <a href="member_list.php" class="btn-reset">Reset</a>
                 <?php if ($adminRole === 'super_admin'): ?>
-                    <a href="admin_add.php" class="btn-pill-add" style="margin-left: auto;">
+                    <button type="button" class="btn-pill-add" style="margin-left: auto;" onclick="openAddAdminModal()">
                         <span class="icon">+</span> Add Admin
-                    </a>
+                    </button>
                 <?php endif; ?>
             </form>
 
@@ -295,6 +295,79 @@ function sortLink($columnKey, $label)
             <div class="modal-body" id="editModalContent">
                 <div class="loading">Loading...</div>
             </div>
+        </div>
+    </div>
+
+    <div id="addAdminModal" class="modal hidden">
+        <div class="modal-box modal-large">
+            <div class="modal-header">
+                <h3>Add New Admin</h3>
+                <button type="button" class="modal-close" id="btn-error" onclick="closeAddAdminModal()">
+                    <img src="../images/error.png">
+                </button>
+            </div>
+            <form id="addAdminForm" onsubmit="saveAdmin(event)" enctype="multipart/form-data">
+                <div class="modal-image-section">
+                    <img id="admin-preview-img" src="../images/default_product.jpg" alt="Preview">
+                    <label class="upload-btn">
+                        Upload Image
+                        <input type="file" name="profile_image" id="admin_profile_image" accept="image/*" hidden onchange="handleAdminImageSelect(this)">
+                    </label>
+                </div>
+                <div class="modal-form-grid">
+                    <div>
+                        <label>Full Name *</label>
+                        <input type="text" name="full_name" required placeholder="Enter full name">
+                    </div>
+                    <div>
+                        <label>Email Address *</label>
+                        <input type="email" name="email" required placeholder="admin@petbuddy.com">
+                    </div>
+                    <div>
+                        <label>Phone</label>
+                        <input type="text" name="phone" placeholder="Enter phone number">
+                    </div>
+                    <div>
+                        <label>Date of Birth</label>
+                        <input type="date" name="dob">
+                    </div>
+                    <div class="full">
+                        <label>Address</label>
+                        <textarea name="address" placeholder="Enter address"></textarea>
+                    </div>
+                    <div>
+                        <label>Gender</label>
+                        <select name="gender">
+                            <option value="">-- Select --</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Password *</label>
+                        <input type="password" name="password" id="admin_password" required placeholder="Min 8 characters" oninput="validatePassword()">
+                        <div class="error-message" id="password-error"></div>
+                        <div style="font-size: 11px; color: #777; margin-top: 5px;">
+                            Must contain: uppercase, lowercase, number, and special character
+                        </div>
+                    </div>
+                    <div>
+                        <label>Confirm Password *</label>
+                        <input type="password" name="confirm_password" id="admin_confirm_password" required placeholder="Confirm password" oninput="validatePasswordMatch()">
+                        <div class="error-message" id="confirm-password-error"></div>
+                    </div>
+                    <div>
+                        <label>Assigned Role</label>
+                        <input type="text" value="Admin" readonly style="background-color: #f5f5f5; cursor: not-allowed;">
+                        <input type="hidden" name="role" value="admin">
+                    </div>
+                </div>
+                <div class="error-message" id="admin-image-error"></div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeAddAdminModal()">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Administrator</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -463,6 +536,154 @@ function sortLink($columnKey, $label)
             document.getElementById('editModal').classList.add('hidden');
         }
 
+        function openAddAdminModal() {
+            const modal = document.getElementById('addAdminModal');
+            modal.classList.remove('hidden');
+            // Reset form
+            document.getElementById('addAdminForm').reset();
+            // Reset image preview
+            document.getElementById('admin-preview-img').src = '../images/default_product.jpg';
+            // Clear error messages
+            document.getElementById('password-error').textContent = '';
+            document.getElementById('confirm-password-error').textContent = '';
+            document.getElementById('admin-image-error').textContent = '';
+        }
+
+        function closeAddAdminModal() {
+            document.getElementById('addAdminModal').classList.add('hidden');
+            // Reset form
+            document.getElementById('addAdminForm').reset();
+            // Reset image preview
+            document.getElementById('admin-preview-img').src = '../images/default_product.jpg';
+            // Clear error messages
+            document.getElementById('password-error').textContent = '';
+            document.getElementById('confirm-password-error').textContent = '';
+            document.getElementById('admin-image-error').textContent = '';
+        }
+
+        function handleAdminImageSelect(input) {
+            const file = input.files[0];
+            const errorDiv = document.getElementById('admin-image-error');
+            const previewImg = document.getElementById('admin-preview-img');
+
+            errorDiv.textContent = '';
+
+            if (file) {
+                // Validate file type
+                const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+                if (!allowedTypes.includes(file.type)) {
+                    errorDiv.textContent = 'Please upload JPG, PNG, or GIF files only.';
+                    input.value = '';
+                    previewImg.src = '../images/default_product.jpg';
+                    return;
+                }
+
+                // Validate file size (5MB)
+                if (file.size > 5000000) {
+                    errorDiv.textContent = 'Image file is too large. Maximum size is 5MB.';
+                    input.value = '';
+                    previewImg.src = '../images/default_product.jpg';
+                    return;
+                }
+
+                // Show preview
+                previewImg.src = URL.createObjectURL(file);
+            } else {
+                previewImg.src = '../images/default-avatar.png';
+            }
+        }
+
+        function validatePassword() {
+            const password = document.getElementById('admin_password').value;
+            const errorDiv = document.getElementById('password-error');
+
+            if (password === '') {
+                errorDiv.textContent = '';
+                return false;
+            }
+
+            if (password.length < 8) {
+                errorDiv.textContent = 'Password must be at least 8 characters long.';
+                return false;
+            }
+
+            // Validate password requirements: uppercase, lowercase, number, special character
+            const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+            if (!passwordRegex.test(password)) {
+                errorDiv.textContent = 'Password must contain: uppercase, lowercase, number, and special character.';
+                return false;
+            }
+
+            errorDiv.textContent = '';
+            validatePasswordMatch();
+            return true;
+        }
+
+        function validatePasswordMatch() {
+            const password = document.getElementById('admin_password').value;
+            const confirmPassword = document.getElementById('admin_confirm_password').value;
+            const errorDiv = document.getElementById('confirm-password-error');
+
+            if (confirmPassword === '') {
+                errorDiv.textContent = '';
+                return false;
+            }
+
+            if (password !== confirmPassword) {
+                errorDiv.textContent = 'Passwords do not match.';
+                return false;
+            }
+
+            errorDiv.textContent = '';
+            return true;
+        }
+
+        function saveAdmin(event) {
+            event.preventDefault();
+            const form = event.target;
+            
+            // Validate password before submission
+            if (!validatePassword()) {
+                showCustomAlert('error', 'Validation Error', 'Please fix password errors before submitting.');
+                return;
+            }
+
+            if (!validatePasswordMatch()) {
+                showCustomAlert('error', 'Validation Error', 'Passwords do not match.');
+                return;
+            }
+
+            const formData = new FormData(form);
+
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Saving...';
+
+            fetch('admin_add.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        closeAddAdminModal();
+                        showCustomAlert('success', 'Success!', 'New admin has been added successfully.', () => {
+                            window.location.reload();
+                        });
+                    } else {
+                        showCustomAlert('error', 'Error', data.error || 'Failed to add admin');
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = originalText;
+                    }
+                })
+                .catch(error => {
+                    showCustomAlert('error', 'System Error', 'Could not connect to the server.');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
+                });
+        }
+
         function saveMember(event, memberId) {
             event.preventDefault();
             const form = event.target;
@@ -609,6 +830,10 @@ function sortLink($columnKey, $label)
 
         document.getElementById('editModal').addEventListener('click', function(e) {
             if (e.target === this) closeEditModal();
+        });
+
+        document.getElementById('addAdminModal').addEventListener('click', function(e) {
+            if (e.target === this) closeAddAdminModal();
         });
     </script>
 </body>

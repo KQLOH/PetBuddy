@@ -36,9 +36,15 @@ if (!$member) {
     exit;
 }
 
-$imagePath = !empty($member['image'])
-    ? '../../user/' . ltrim($member['image'], '/')
-    : 'https://via.placeholder.com/120?text=User';
+$imagePath = 'https://via.placeholder.com/120?text=User';
+if (!empty($member['image'])) {
+    $image = ltrim($member['image'], '/');
+    if (strpos($image, 'admin/images/') === 0) {
+        $imagePath = '../../' . $image;
+    } else {
+        $imagePath = '../../user/' . $image;
+    }
+}
 
 $member['image_path'] = $imagePath;
 
