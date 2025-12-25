@@ -1,21 +1,19 @@
 <?php
-
 session_start();
-
 require_once '../include/db.php';
 require_once '../include/product_utils.php';
 
+$page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+$limit = 30;
+$offset = ($page - 1) * $limit;
 
 $categoryId    = isset($_GET['category']) ? max(0, (int)$_GET['category']) : 0;
 $subCategoryId = isset($_GET['sub_category']) ? max(0, (int)$_GET['sub_category']) : 0;
 $searchTerm    = trim($_GET['search'] ?? '');
-
-
-$minPrice = isset($_GET['min_price']) ? max(0, (float)$_GET['min_price']) : 0;
-$maxPrice = isset($_GET['max_price']) ? max(0, (float)$_GET['max_price']) : 0;
-$sortBy = isset($_GET['sort']) ? $_GET['sort'] : 'newest';
-$inStockOnly = isset($_GET['in_stock']) && $_GET['in_stock'] == '1' ? true : false;
-
+$minPrice      = isset($_GET['min_price']) ? max(0, (float)$_GET['min_price']) : 0;
+$maxPrice      = isset($_GET['max_price']) ? max(0, (float)$_GET['max_price']) : 0;
+$sortBy        = isset($_GET['sort']) ? $_GET['sort'] : 'newest';
+$inStockOnly   = isset($_GET['in_stock']) && $_GET['in_stock'] == '1' ? true : false;
 
 $wishlistIds = [];
 if (isset($_SESSION['member_id'])) {
@@ -27,35 +25,29 @@ if (isset($_SESSION['member_id'])) {
     }
 }
 
-
 $products = [];
+$totalRows = 0;
+$totalPages = 0;
 $pageTitle = 'All Products';
 
 try {
-    $sql = "SELECT p.product_id, p.category_id, p.sub_category_id, p.name, p.price, p.stock_qty, 
-                   p.image, c.name AS category_name
-            FROM products p
-            LEFT JOIN product_categories c ON p.category_id = c.category_id
-            WHERE 1=1";
-
+    $whereSQL = "WHERE 1=1";
     $params = [];
 
-
     if ($searchTerm !== '') {
-        $sql .= " AND (p.name LIKE ? OR c.name LIKE ?)";
-        $like = '%' . $searchTerm . '%';
-        $params[] = $like;
-        $params[] = $like;
+        $whereSQL .= " AND (p.name LIKE ? OR c.name LIKE ?)";
+        $params[] = '%' . $searchTerm . '%';
+        $params[] = '%' . $searchTerm . '%';
         $pageTitle = 'Search: "' . htmlspecialchars($searchTerm) . '"';
     } elseif ($subCategoryId > 0) {
-        $sql .= " AND p.sub_category_id = ?";
+        $whereSQL .= " AND p.sub_category_id = ?";
         $params[] = $subCategoryId;
         $stmtSub = $pdo->prepare("SELECT name FROM sub_categories WHERE sub_category_id = ?");
         $stmtSub->execute([$subCategoryId]);
         $subName = $stmtSub->fetchColumn();
         if ($subName) $pageTitle = $subName;
     } elseif ($categoryId > 0) {
-        $sql .= " AND p.category_id = ?";
+        $whereSQL .= " AND p.category_id = ?";
         $params[] = $categoryId;
         $stmtCat = $pdo->prepare("SELECT name FROM product_categories WHERE category_id = ?");
         $stmtCat->execute([$categoryId]);
@@ -64,44 +56,76 @@ try {
     }
 
     if ($minPrice > 0) {
-        $sql .= " AND p.price >= ?";
+        $whereSQL .= " AND p.price >= ?";
         $params[] = $minPrice;
     }
     if ($maxPrice > 0) {
-        $sql .= " AND p.price <= ?";
+        $whereSQL .= " AND p.price <= ?";
         $params[] = $maxPrice;
     }
     if ($inStockOnly) {
-        $sql .= " AND p.stock_qty > 0";
+        $whereSQL .= " AND p.stock_qty > 0";
     }
 
+    $countSql = "SELECT COUNT(*) FROM products p 
+                 LEFT JOIN product_categories c ON p.category_id = c.category_id 
+                 $whereSQL";
+    $stmtCount = $pdo->prepare($countSql);
+    $stmtCount->execute($params);
+    $totalRows = $stmtCount->fetchColumn();
+    $totalPages = ceil($totalRows / $limit);
+
+    $orderSQL = "";
     switch ($sortBy) {
         case 'price_low':
-            $sql .= " ORDER BY p.price ASC";
+            $orderSQL = " ORDER BY p.price ASC";
             break;
         case 'price_high':
-            $sql .= " ORDER BY p.price DESC";
+            $orderSQL = " ORDER BY p.price DESC";
             break;
         case 'oldest':
-            $sql .= " ORDER BY p.product_id ASC";
+            $orderSQL = " ORDER BY p.product_id ASC";
             break;
         case 'name_asc':
-            $sql .= " ORDER BY p.name ASC";
+            $orderSQL = " ORDER BY p.name ASC";
             break;
         case 'name_desc':
-            $sql .= " ORDER BY p.name DESC";
+            $orderSQL = " ORDER BY p.name DESC";
             break;
         case 'newest':
         default:
-            $sql .= " ORDER BY p.product_id DESC";
+            $orderSQL = " ORDER BY p.product_id DESC";
             break;
     }
 
+    $sql = "SELECT p.product_id, p.category_id, p.sub_category_id, p.name, p.price, p.stock_qty, 
+                   p.image, c.name AS category_name
+            FROM products p
+            LEFT JOIN product_categories c ON p.category_id = c.category_id
+            $whereSQL
+            $orderSQL
+            LIMIT :limit OFFSET :offset";
+
     $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
+
+    foreach ($params as $key => $val) {
+        $stmt->bindValue($key + 1, $val);
+    }
+    $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
+
+    $stmt->execute();
     $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     $products = [];
+    error_log($e->getMessage());
+}
+
+function getQueryString($newPage)
+{
+    $params = $_GET;
+    $params['page'] = $newPage;
+    return http_build_query($params);
 }
 ?>
 
@@ -631,6 +655,59 @@ try {
             height: 20px;
 
         }
+
+        /* Pagination Styles */
+        .pagination-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 40px;
+            margin-bottom: 20px;
+        }
+
+        .pagination {
+            display: flex;
+            list-style: none;
+            padding: 0;
+            gap: 8px;
+        }
+
+        .page-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 40px;
+            height: 40px;
+            padding: 0 10px;
+            border-radius: 8px;
+            background-color: #fff;
+            border: 1px solid #e0e0e0;
+            color: #555;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .page-link:hover {
+            border-color: #FFB774;
+            color: #FFB774;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .page-link.active {
+            background: linear-gradient(135deg, #FFB774, #E89C55);
+            color: white;
+            border-color: transparent;
+            box-shadow: 0 4px 10px rgba(255, 183, 116, 0.4);
+        }
+
+        .page-link.disabled {
+            background-color: #f9f9f9;
+            color: #ccc;
+            cursor: not-allowed;
+            pointer-events: none;
+            border-color: #eee;
+        }
     </style>
 </head>
 
@@ -753,6 +830,48 @@ try {
                     </div>
                 <?php endforeach; ?>
             </div>
+        <?php endif; ?>
+
+        <?php if ($totalPages > 1): ?>
+        <div class="pagination-container">
+            <ul class="pagination">
+                
+                <?php if ($page > 1): ?>
+                    <li><a href="?<?= getQueryString($page - 1) ?>" class="page-link">&laquo; Prev</a></li>
+                <?php else: ?>
+                    <li><span class="page-link disabled">&laquo; Prev</span></li>
+                <?php endif; ?>
+
+                <?php
+                $start = max(1, $page - 2);
+                $end = min($totalPages, $page + 2);
+                
+                if ($start > 1) { 
+                    echo '<li><a href="?'.getQueryString(1).'" class="page-link">1</a></li>';
+                    if ($start > 2) echo '<li><span class="page-link disabled">...</span></li>';
+                }
+
+                for ($i = $start; $i <= $end; $i++): 
+                    $activeClass = ($i == $page) ? 'active' : '';
+                ?>
+                    <li><a href="?<?= getQueryString($i) ?>" class="page-link <?= $activeClass ?>"><?= $i ?></a></li>
+                <?php endfor; ?>
+
+                <?php 
+                if ($end < $totalPages) {
+                    if ($end < $totalPages - 1) echo '<li><span class="page-link disabled">...</span></li>';
+                    echo '<li><a href="?'.getQueryString($totalPages).'" class="page-link">'.$totalPages.'</a></li>';
+                }
+                ?>
+
+                <?php if ($page < $totalPages): ?>
+                    <li><a href="?<?= getQueryString($page + 1) ?>" class="page-link">Next &raquo;</a></li>
+                <?php else: ?>
+                    <li><span class="page-link disabled">Next &raquo;</span></li>
+                <?php endif; ?>
+
+            </ul>
+        </div>
         <?php endif; ?>
 
     </div>
