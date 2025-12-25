@@ -1,8 +1,8 @@
 <?php
 session_start();
 
-require_once '../../user/include/db.php'; 
-require_once '../../user/include/product_utils.php'; 
+require_once '../../user/include/db.php';
+require_once '../../user/include/product_utils.php';
 
 header('Content-Type: application/json');
 
@@ -31,7 +31,7 @@ try {
         WHERE o.order_id = ?
         LIMIT 1
     ";
-    
+
     $stmt = $pdo->prepare($sqlOrder);
     $stmt->execute([$orderId]);
     $order = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -55,7 +55,7 @@ try {
 
     foreach ($items as &$item) {
         $img = productImageUrl($item['image']);
-        
+
         if (strpos($img, 'http') === 0) {
             $item['image'] = $img;
         } else {
@@ -68,8 +68,6 @@ try {
         'order' => $order,
         'items' => $items
     ]);
-
 } catch (PDOException $e) {
     echo json_encode(['success' => false, 'error' => 'Database error: ' . $e->getMessage()]);
 }
-?>

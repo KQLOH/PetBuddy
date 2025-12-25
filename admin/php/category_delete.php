@@ -39,8 +39,6 @@ try {
     $stmt->execute([$id]);
 
     echo json_encode(['success' => true]);
-
 } catch (PDOException $e) {
     echo json_encode(['success' => false, 'error' => 'Database error: ' . $e->getMessage()]);
 }
-?>

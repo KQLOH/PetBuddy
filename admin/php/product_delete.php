@@ -35,7 +35,7 @@ try {
 
     if ($result) {
         if (!empty($imagePathInDb)) {
-            $relativePath = ltrim($imagePathInDb, './'); 
+            $relativePath = ltrim($imagePathInDb, './');
             $fullPhysicalPath = "../../user/" . $relativePath;
 
             if (file_exists($fullPhysicalPath) && is_file($fullPhysicalPath)) {

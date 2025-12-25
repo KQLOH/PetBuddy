@@ -100,5 +100,3 @@ if ($password !== '') {
 }
 
 echo json_encode(['success' => true, 'message' => 'Member updated successfully']);
-?>
-

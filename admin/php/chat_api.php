@@ -1,7 +1,7 @@
 <?php
 session_start();
 
-require_once '../../user/include/db.php'; 
+require_once '../../user/include/db.php';
 
 date_default_timezone_set('Asia/Kuala_Lumpur');
 header('Content-Type: application/json');
@@ -27,26 +27,24 @@ if (isset($pdo)) {
                     JOIN chat_messages c ON m.member_id = c.member_id
                     GROUP BY m.member_id
                     ORDER BY last_msg_time DESC";
-            
+
             $stmt = $pdo->query($sql);
             echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
         } catch (PDOException $e) {
             echo json_encode(['error' => $e->getMessage()]);
         }
-    }
-
-    elseif ($action === 'fetch_messages') {
+    } elseif ($action === 'fetch_messages') {
         $member_id = $_GET['member_id'] ?? 0;
         try {
             $pdo->prepare("UPDATE chat_messages SET is_read = 1 WHERE member_id = ? AND sender = 'member'")->execute([$member_id]);
-            
+
             $stmt = $pdo->prepare("SELECT * FROM chat_messages WHERE member_id = ? ORDER BY created_at ASC");
             $stmt->execute([$member_id]);
             $messages = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
+
             foreach ($messages as &$msg) {
                 $ts = strtotime($msg['created_at']);
-                if(date('Y-m-d') == date('Y-m-d', $ts)) {
+                if (date('Y-m-d') == date('Y-m-d', $ts)) {
                     $msg['time'] = date('h:i A', $ts);
                 } else {
                     $msg['time'] = date('d/m h:i A', $ts);
@@ -56,9 +54,7 @@ if (isset($pdo)) {
         } catch (PDOException $e) {
             echo json_encode(['error' => $e->getMessage()]);
         }
-    }
-
-    elseif ($action === 'send_reply') {
+    } elseif ($action === 'send_reply') {
         $member_id = $_POST['member_id'] ?? 0;
         $message = trim($_POST['message'] ?? '');
 
@@ -71,11 +67,9 @@ if (isset($pdo)) {
                 echo json_encode(['error' => $e->getMessage()]);
             }
         }
-    }
-
-    elseif ($action === 'delete_conversation') {
+    } elseif ($action === 'delete_conversation') {
         $member_id = $_POST['member_id'] ?? 0;
-        
+
         if ($member_id > 0) {
             try {
                 $stmt = $pdo->prepare("DELETE FROM chat_messages WHERE member_id = ?");
@@ -89,4 +83,3 @@ if (isset($pdo)) {
         }
     }
 }
-?>
