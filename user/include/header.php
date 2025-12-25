@@ -6,7 +6,6 @@ if (session_status() === PHP_SESSION_NONE) {
 
 require_once 'db.php';
 
-// --- 1. Remember Me Logic ---
 if (!isset($_SESSION['member_id']) && isset($_COOKIE['remember_token'])) {
     if (isset($pdo)) {
         $token = $_COOKIE['remember_token'];
@@ -35,7 +34,6 @@ if (!isset($_SESSION['member_id']) && isset($_COOKIE['remember_token'])) {
     sessionStorage.setItem('session_alive', 'true');
 </script>
 <?php
-// Cart & Utils Includes
 if (file_exists(__DIR__ . "/../php/cart_function.php")) {
     require_once __DIR__ . "/../php/cart_function.php";
 } elseif (file_exists("cart_function.php")) {
@@ -67,7 +65,7 @@ if ($loggedIn) {
         if ($row && !empty($row['image'])) {
             $userAvatar = '../' . $row['image'];
         }
-    } catch (PDOException $e) { /* Ignore */
+    } catch (PDOException $e) {
     }
 }
 
@@ -101,7 +99,6 @@ try {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <style>
-        /* === 1. Variables & Reset === */
         :root {
             --primary-color: #FFB774;
             --primary-dark: #E89C55;
@@ -122,7 +119,6 @@ try {
             padding-top: calc(var(--announcement-height) + 80px);
         }
 
-        /* === 2. Announcement Bar === */
         .announcement-bar {
             position: fixed;
             top: 0;
@@ -148,7 +144,6 @@ try {
             animation: marquee-flow 25s linear infinite;
         }
 
-        /* PNG Icon in Marquee (White Filter) */
         .marquee-icon {
             width: 16px;
             height: 16px;
@@ -168,7 +163,6 @@ try {
             }
         }
 
-        /* === 3. Navigation Bar === */
         .navbar {
             width: 100%;
             background: #fff;
@@ -198,25 +192,23 @@ try {
             text-decoration: none;
         }
 
-/* 1. Update the container: Remove background and fix dimensions */
-.logo-circle {
-    width: auto;       /* Allow width to adjust based on image aspect ratio */
-    height: auto;      /* Allow height to adjust */
-    background: transparent; /* REMOVED the orange background color */
-    border-radius: 0;  /* REMOVED the circular shape */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: 8px; /* Add a little space between image and "PetBuddy" text */
-}
+        .logo-circle {
+            width: auto;
+            height: auto;
+            background: transparent;
+            border-radius: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 8px;
+        }
 
-/* 2. Update the image: Make it bigger and ensure original colors show */
-.logo-icon-img { 
-    height: 50px;      /* Set desired height (was ~20px before). Adjust this value if needed. */
-    width: auto;       /* Maintain aspect ratio */
-    object-fit: contain;
-    filter: none;      /* Ensure no filters (like the white one) are applied */
-}
+        .logo-icon-img {
+            height: 50px;
+            width: auto;
+            object-fit: contain;
+            filter: none;
+        }
 
         .nav-links {
             display: flex;
@@ -242,7 +234,6 @@ try {
             color: var(--primary-color) !important;
         }
 
-        /* Navigation Action Buttons (Search, User, Cart) */
         .nav-icon-btn {
             width: 44px;
             height: 44px;
@@ -261,7 +252,6 @@ try {
             background: #f5f5f5;
         }
 
-        /* General PNG Icon Style */
         .custom-icon {
             width: 24px;
             height: 24px;
@@ -274,7 +264,6 @@ try {
             opacity: 1;
         }
 
-        /* === Cart Badge === */
         .cart-badge {
             position: absolute;
             top: 2px;
@@ -299,7 +288,6 @@ try {
             display: none;
         }
 
-        /* === 4. Search Bar Dropdown === */
         .search-container {
             width: 100%;
             background: #fff;
@@ -356,10 +344,8 @@ try {
             height: 18px;
             object-fit: contain;
             filter: brightness(0) invert(1);
-            /* Make white */
         }
 
-        /* === 5. User Dropdown === */
         .user-menu-dropdown {
             display: none;
             position: absolute;
@@ -389,7 +375,6 @@ try {
             color: var(--primary-color);
         }
 
-        /* === 6. Sidebar & Overlay === */
         .overlay {
             position: fixed;
             inset: 0;
@@ -455,7 +440,6 @@ try {
             transform: scale(1.1);
         }
 
-        /* === 7. Cart Sidebar === */
         .cart-sidebar {
             width: 420px;
             right: -450px;
@@ -506,7 +490,6 @@ try {
             font-size: 14px;
         }
 
-        /* Qty Control */
         .qty-control-wrapper {
             display: flex;
             align-items: center;
@@ -601,7 +584,6 @@ try {
             color: var(--text-dark);
         }
 
-        /* === 9. Categories Dropdown & Menu === */
         .nav-dropdown-wrapper {
             position: relative;
             display: flex;
@@ -624,7 +606,6 @@ try {
             color: var(--primary-dark);
         }
 
-        /* FIX: Force small size for the 'Down' arrow in categories menu */
         .nav-dropdown-wrapper>a .custom-icon {
             width: 12px;
             height: 12px;
@@ -632,7 +613,6 @@ try {
             margin-top: 2px;
         }
 
-        /* Dropdown Box */
         .dropdown-menu {
             display: none;
             position: absolute;
@@ -654,7 +634,6 @@ try {
             animation: fadeIn 0.2s ease-in-out;
         }
 
-        /* Invisible bridge to prevent closing on hover */
         .dropdown-menu::before {
             content: "";
             position: absolute;
@@ -688,7 +667,6 @@ try {
             color: var(--primary-dark);
         }
 
-        /* Submenu (Right side) */
         .submenu {
             display: none;
             position: absolute;
@@ -728,7 +706,6 @@ try {
             object-fit: contain;
         }
 
-        /* === 10. Free Shipping Bar === */
         .fs-container {
             padding: 0 0 15px 0;
             background: transparent;
@@ -773,20 +750,6 @@ try {
             background: #28a745 !important;
         }
 
-        /* Animations */
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px) translateX(-50%);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0) translateX(-50%);
-            }
-        }
-
-        /* Z-Index Overrides */
         .swal2-container,
         .swal2-popup,
         #toast-container,
@@ -800,6 +763,117 @@ try {
                 width: 100%;
                 right: -100%;
             }
+        }
+
+        .cart-item {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #f0f0f0;
+            padding-bottom: 15px;
+            align-items: center;
+            position: relative;
+        }
+
+        .cart-item:last-child {
+            border-bottom: none;
+        }
+
+        .cart-item img {
+            width: 70px;
+            height: 70px;
+            object-fit: cover;
+            border-radius: 8px;
+            background: #f9f9f9;
+            border: 1px solid #eee;
+        }
+
+        .cart-item-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-width: 0;
+        }
+
+        .cart-item-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .cart-item-price {
+            color: var(--primary-dark, #E89C55);
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 6px;
+        }
+
+        .qty-control-wrapper {
+            display: flex;
+            align-items: center;
+            background: #f5f5f5;
+            border-radius: 4px;
+            width: fit-content;
+            border: 1px solid #eee;
+        }
+
+        .qty-btn {
+            border: none;
+            background: transparent;
+            padding: 2px 10px;
+            cursor: pointer;
+            font-size: 16px;
+            color: #555;
+            transition: color 0.2s;
+        }
+
+        .qty-btn:hover {
+            color: #000;
+            background-color: #e0e0e0;
+        }
+
+        .qty-display {
+            font-size: 13px;
+            font-weight: 600;
+            padding: 0 8px;
+            min-width: 24px;
+            text-align: center;
+            color: #333;
+        }
+
+        .remove-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            border-radius: 50%;
+        }
+
+        .remove-btn:hover {
+            background-color: #fee2e2;
+        }
+
+        .remove-btn .custom-icon {
+            width: 18px;
+            height: 18px;
+            object-fit: contain;
+            opacity: 0.6;
+            transition: opacity 0.2s, transform 0.2s;
+        }
+
+        .remove-btn:hover .custom-icon {
+            opacity: 1;
+            filter: none;
+            transform: scale(1.1);
         }
     </style>
 </head>
@@ -970,13 +1044,11 @@ try {
     </div>
 
     <script>
-        // --- 1. Search Bar Toggle ---
         function toggleSearchBar() {
             const bar = document.getElementById("searchBar");
             if (bar) bar.classList.toggle("active");
         }
 
-        // --- 2. User Dropdown Toggle ---
         function toggleUserDropdown() {
             const dropdown = document.getElementById("userDropdown");
             if (dropdown) {
@@ -992,7 +1064,6 @@ try {
             }
         });
 
-        // --- 3. Sidebar Functions ---
         function closeAllSidebars() {
             const cart = document.getElementById("cartSidebar");
             const overlay = document.getElementById("loginOverlay");
@@ -1021,7 +1092,6 @@ try {
             if (overlay) overlay.classList.remove("active");
         }
 
-        // --- 4. Free Shipping Logic ---
         function updateFreeShipping() {
             const totalEl = document.getElementById('cartSidebarTotal');
             const footer = document.getElementById('cartFooter');
@@ -1067,7 +1137,6 @@ try {
             }
         }
 
-        // --- 5. Update Cart Badge ---
         function updateCartBadge() {
             const badge = document.getElementById('cartBadge');
             if (!badge) return;
@@ -1097,7 +1166,6 @@ try {
             }
         }
 
-        // --- 6. Double Watcher ---
         document.addEventListener("DOMContentLoaded", function() {
             updateFreeShipping();
             updateCartBadge();
