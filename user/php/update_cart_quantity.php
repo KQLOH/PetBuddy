@@ -1,28 +1,43 @@
 <?php
 session_start();
-require "../include/db.php";
+require_once "../include/db.php"; 
 
-if (isset($_SESSION['member_id']) && isset($_POST['product_id']) && isset($_POST['quantity'])) {
-    $mid = $_SESSION['member_id'];
-    $pid = $_POST['product_id'];
-    $qty = intval($_POST['quantity']);
+header('Content-Type: application/json');
 
-    if ($qty < 1) { $qty = 1; } 
+if (!isset($_POST['product_id']) || !isset($_POST['quantity'])) {
+    echo json_encode(['status' => 'error', 'message' => 'Missing parameters']);
+    exit;
+}
 
-    
-    $stmtCheck = $pdo->prepare("SELECT stock_qty FROM products WHERE product_id = ?");
-    $stmtCheck->execute([$pid]);
-    $stock = $stmtCheck->fetchColumn();
+$product_id = intval($_POST['product_id']);
+$quantity = intval($_POST['quantity']);
 
-    if ($stock !== false && $qty > $stock) {
-        $qty = $stock;
-    }
+if ($quantity < 1) {
+    echo json_encode(['status' => 'error', 'message' => 'Quantity cannot be less than 1']);
+    exit;
+}
 
-    $stmt = $pdo->prepare("UPDATE cart_items SET quantity = ? WHERE member_id = ? AND product_id = ?");
-    if ($stmt->execute([$qty, $mid, $pid])) {
-        echo "success";
-    } else {
-        echo "error";
+if (isset($_SESSION['cart'][$product_id])) {
+    $_SESSION['cart'][$product_id] = $quantity;
+}
+
+if (isset($_SESSION['member_id'])) {
+    $member_id = $_SESSION['member_id'];
+    try {
+        $checkSql = "SELECT cart_item_id FROM cart_items WHERE member_id = ? AND product_id = ?";
+        $checkStmt = $pdo->prepare($checkSql);
+        $checkStmt->execute([$member_id, $product_id]);
+        
+        if ($checkStmt->rowCount() > 0) {
+            $sql = "UPDATE cart_items SET quantity = ? WHERE member_id = ? AND product_id = ?";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([$quantity, $member_id, $product_id]);
+        }
+    } catch (PDOException $e) {
+        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()]);
+        exit;
     }
 }
+
+echo json_encode(['status' => 'success']);
 ?>
