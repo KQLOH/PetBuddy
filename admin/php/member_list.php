@@ -512,9 +512,18 @@ function sortLink($columnKey, $label)
                                         <input type="text" value="${member.role.replace('_', ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}" readonly style="background-color: #f5f5f5; cursor: not-allowed;">
                                     </div>
                                     <div class="full form-section">Security</div>
-                                    <div class="full">
+                                    <div>
                                         <label>Reset Password (optional)</label>
-                                        <input type="password" name="password" placeholder="Min 6 characters">
+                                        <input type="password" name="password" id="edit_member_password" placeholder="Min 8 characters" oninput="validateEditMemberPassword()">
+                                        <div class="error-message" id="edit-member-password-error"></div>
+                                        <div style="font-size: 11px; color: #777; margin-top: 5px;">
+                                            Must contain: uppercase, lowercase, number, and special character
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label>Confirm Password</label>
+                                        <input type="password" name="confirm_password" id="edit_member_confirm_password" placeholder="Confirm password" oninput="validateEditMemberPasswordMatch()">
+                                        <div class="error-message" id="edit-member-confirm-password-error"></div>
                                     </div>
                                 </div>
                                 <div class="modal-actions">
@@ -712,9 +721,97 @@ function sortLink($columnKey, $label)
                 });
         }
 
+        function validateEditMemberPassword() {
+            const passwordInput = document.getElementById('edit_member_password');
+            const errorDiv = document.getElementById('edit-member-password-error');
+            
+            if (!passwordInput || !errorDiv) return true;
+
+            const password = passwordInput.value;
+
+            // 如果密码为空，不需要验证（因为是可选的）
+            if (password === '') {
+                errorDiv.textContent = '';
+                return true;
+            }
+
+            if (password.length < 8) {
+                errorDiv.textContent = 'Password must be at least 8 characters long.';
+                return false;
+            }
+
+            // Validate password requirements: uppercase, lowercase, number, special character
+            const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+            if (!passwordRegex.test(password)) {
+                errorDiv.textContent = 'Password must contain: uppercase, lowercase, number, and special character.';
+                return false;
+            }
+
+            errorDiv.textContent = '';
+            validateEditMemberPasswordMatch();
+            return true;
+        }
+
+        function validateEditMemberPasswordMatch() {
+            const passwordInput = document.getElementById('edit_member_password');
+            const confirmPasswordInput = document.getElementById('edit_member_confirm_password');
+            const errorDiv = document.getElementById('edit-member-confirm-password-error');
+            
+            if (!passwordInput || !confirmPasswordInput || !errorDiv) return true;
+
+            const password = passwordInput.value;
+            const confirmPassword = confirmPasswordInput.value;
+
+            // 如果两个字段都为空，不需要验证
+            if (password === '' && confirmPassword === '') {
+                errorDiv.textContent = '';
+                return true;
+            }
+
+            // 如果只填写了其中一个，需要提示
+            if (password !== '' && confirmPassword === '') {
+                errorDiv.textContent = 'Please confirm your password.';
+                return false;
+            }
+
+            if (confirmPassword !== '' && password === '') {
+                errorDiv.textContent = 'Please enter password first.';
+                return false;
+            }
+
+            if (password !== confirmPassword) {
+                errorDiv.textContent = 'Passwords do not match.';
+                return false;
+            }
+
+            errorDiv.textContent = '';
+            return true;
+        }
+
         function saveMember(event, memberId) {
             event.preventDefault();
             const form = event.target;
+            
+            // 验证密码（如果提供了）
+            const passwordInput = document.getElementById('edit_member_password');
+            const confirmPasswordInput = document.getElementById('edit_member_confirm_password');
+            
+            if (passwordInput && passwordInput.value !== '') {
+                if (!validateEditMemberPassword()) {
+                    showCustomAlert('error', 'Validation Error', 'Please fix password errors before submitting.');
+                    return;
+                }
+
+                if (!validateEditMemberPasswordMatch()) {
+                    showCustomAlert('error', 'Validation Error', 'Passwords do not match.');
+                    return;
+                }
+            } else if (confirmPasswordInput && confirmPasswordInput.value !== '') {
+                // 如果只填写了确认密码但没有填写密码
+                showCustomAlert('error', 'Validation Error', 'Please enter password first.');
+                return;
+            }
+
             const formData = new FormData(form);
             formData.append('id', memberId);
 

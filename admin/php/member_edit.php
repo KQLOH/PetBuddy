@@ -36,6 +36,7 @@ $gender    = $_POST['gender'] ?: null;
 $dob       = $_POST['dob'] ?: null;
 $role      = $_POST['role'] ?? null;
 $password  = trim($_POST['password'] ?? '');
+$confirm_password = trim($_POST['confirm_password'] ?? '');
 
 if ($full_name === '') {
     http_response_code(400);
@@ -170,11 +171,26 @@ if ($updateImage) {
 }
 
 if ($password !== '') {
-    if (strlen($password) < 6) {
+    // 密码验证：至少8个字符，包含大小写字母、数字和特殊字符
+    if (strlen($password) < 8) {
         http_response_code(400);
-        echo json_encode(['error' => 'Password must be at least 6 characters']);
+        echo json_encode(['success' => false, 'error' => 'Password must be at least 8 characters long']);
         exit;
     }
+
+    if (!preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/', $password)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Password must contain: uppercase letter, lowercase letter, 1 number, and 1 special character']);
+        exit;
+    }
+
+    // 验证确认密码
+    if ($password !== $confirm_password) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Passwords do not match']);
+        exit;
+    }
+
     $hash = password_hash($password, PASSWORD_DEFAULT);
     $pdo->prepare("
         UPDATE members SET password_hash = ?
