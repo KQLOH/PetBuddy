@@ -657,7 +657,9 @@ if (isset($pdo)) {
         <div class="modal-box">
             <div class="modal-header">
                 <h3 id="addrModalTitle">Add New Address</h3>
-                <button class="close-modal" onclick="toggleModal('addrModal')">&times;</button>
+                <button class="close-modal" onclick="toggleModal('addrModal')">
+                    <img src="../images/error.png" style="width:16px; height:16px;">
+                </button>
             </div>
             <form method="POST" class="modal-body" id="addrForm">
                 <input type="hidden" name="form_type" value="save_address">
@@ -705,7 +707,9 @@ if (isset($pdo)) {
         <div class="modal-box">
             <div class="modal-header">
                 <h3>Change Password</h3>
-                <button class="close-modal" onclick="toggleModal('pwdModal')">&times;</button>
+                <button class="close-modal" onclick="toggleModal('pwdModal')">
+                    <img src="../images/error.png" style="width:16px; height:16px;">
+                </button>
             </div>
             <form method="POST" action="" id="pwdForm" class="modal-body" onsubmit="return showLoading(this);">
                 <input type="hidden" name="form_type" value="change_password">
@@ -728,7 +732,9 @@ if (isset($pdo)) {
         <div class="modal-box" style="max-width: 700px;">
             <div class="modal-header">
                 <h3>Order Details <span id="modal_order_id" style="color:#888; font-weight:400;"></span></h3>
-                <button class="close-modal" onclick="toggleModal('orderModal')">&times;</button>
+                <button class="close-modal" onclick="toggleModal('orderModal')">
+                    <img src="../images/error.png" style="width:16px; height:16px;">
+                </button>
             </div>
 
             <div class="modal-body" style="padding-top: 0;">
@@ -774,8 +780,9 @@ if (isset($pdo)) {
         <div class="modal-box" style="max-width: 600px;">
             <div class="modal-header">
                 <h3>Rate Products</h3>
-                <button class="close-modal" onclick="toggleModal('reviewModal')">&times;</button>
-            </div>
+                <button class="close-modal" onclick="toggleModal('reviewModal')">
+                    <img src="../images/error.png" style="width:16px; height:16px;">
+                </button>            </div>
             <div class="modal-body" id="reviewModalBody" style="max-height: 60vh; overflow-y: auto;">
             </div>
             <div style="padding: 15px; text-align: right; border-top: 1px solid #eee;">
