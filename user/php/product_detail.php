@@ -12,8 +12,7 @@ if ($productId <= 0) {
 }
 
 // 2. 数据库查询函数
-function fetchProductDetail(PDO $pdo, int $productId): ?array
-{
+function fetchProductDetail(PDO $pdo, int $productId): ?array {
     $sql = "SELECT p.product_id, p.category_id, p.name, p.description, p.price, p.stock_qty, p.image, c.name AS category_name
             FROM products p
             LEFT JOIN product_categories c ON p.category_id = c.category_id
@@ -28,8 +27,7 @@ function fetchProductDetail(PDO $pdo, int $productId): ?array
     }
 }
 
-function fetchRelated(PDO $pdo, int $categoryId, int $productId, int $limit = 3): array
-{
+function fetchRelated(PDO $pdo, int $categoryId, int $productId, int $limit = 3): array {
     $sql = "SELECT product_id, name, price, image FROM products
             WHERE category_id = :cat_id AND product_id <> :prod_id
             ORDER BY RAND() LIMIT :limit";
@@ -45,8 +43,7 @@ function fetchRelated(PDO $pdo, int $categoryId, int $productId, int $limit = 3)
     }
 }
 
-function fetchProductReviews(PDO $pdo, int $productId): array
-{
+function fetchProductReviews(PDO $pdo, int $productId): array {
     $reviews = [];
     $sql = "SELECT r.rating, r.comment, r.review_date, m.full_name AS reviewer
             FROM product_reviews r
@@ -65,13 +62,11 @@ function fetchProductReviews(PDO $pdo, int $productId): array
                 'date'     => $row['review_date']
             ];
         }
-    } catch (PDOException $e) {
-    }
+    } catch (PDOException $e) { }
     return $reviews;
 }
 
-function calculateReviewStats(array $reviews): array
-{
+function calculateReviewStats(array $reviews): array {
     if (empty($reviews)) return ['average' => 0, 'total' => 0];
     $total = count($reviews);
     $sum = 0;
@@ -82,19 +77,21 @@ function calculateReviewStats(array $reviews): array
     return ['average' => $average, 'total' => $total];
 }
 
-function generateStars(int $rating): string
-{
+function generateStars(int $rating): string {
     $html = '';
     $fullStars = floor($rating);
     $hasHalfStar = ($rating - $fullStars) >= 0.5;
     
+    // 实心星
     for ($i = 0; $i < $fullStars; $i++) {
         $html .= '<i class="fas fa-star" style="color: #FFB774;"></i> ';
     }
-    if ($hasHalfStar) {
-        $html .= '<i class="fas fa-star-half-alt" style="color: #FFB774;"></i> ';
-        $fullStars++;
+    // 半星 (如果有)
+    if ($hasHalfStar) { 
+        $html .= '<i class="fas fa-star-half-alt" style="color: #FFB774;"></i> '; 
+        $fullStars++; 
     }
+    // 空心星
     for ($i = 0; $i < 5 - $fullStars; $i++) {
         $html .= '<i class="far fa-star" style="color: #ddd;"></i> ';
     }
@@ -123,8 +120,7 @@ if (isset($_SESSION['member_id'])) {
         $stmtW = $pdo->prepare("SELECT product_id FROM wishlist WHERE member_id = ?");
         $stmtW->execute([$_SESSION['member_id']]);
         $wishlistIds = $stmtW->fetchAll(PDO::FETCH_COLUMN);
-    } catch (Exception $e) {
-    }
+    } catch (Exception $e) { }
 }
 ?>
 
@@ -136,429 +132,132 @@ if (isset($_SESSION['member_id'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($product['name']); ?> - PetBuddy</title>
     
- 
-
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
 
     <style>
         /* ======================== */
         /* Product Page CSS       */
         /* ======================== */
+        :root { --primary-color: #FFB774; --primary-dark: #E89C55; --text-dark: #2F2F2F; --text-light: #666; --border-color: #e1e1e1; }
+        .container { max-width: 1200px; margin: 40px auto; padding: 0 20px; }
+        .pd-product-detail { display: flex; gap: 50px; margin-bottom: 60px; align-items: flex-start; }
+        .pd-product-images { flex: 1; position: relative; }
+        .pd-main-image { width: 100%; border-radius: 20px; overflow: hidden; border: 1px solid #eee; background: #fff; }
+        .pd-main-image img { width: 100%; height: auto; display: block; object-fit: cover; }
+        .pd-product-info { flex: 1; }
+        .pd-product-tag { display: inline-block; background: #FFF5EB; color: var(--primary-dark); padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; text-transform: uppercase; margin-bottom: 15px; }
+        .pd-product-title { font-size: 32px; font-weight: 800; color: var(--text-dark); margin: 0 0 15px 0; line-height: 1.2; }
+        .pd-product-rating { display: flex; align-items: center; gap: 10px; margin-bottom: 25px; }
+        .pd-rating-count { color: var(--text-light); font-size: 14px; }
+        .pd-product-price { display: flex; align-items: center; gap: 20px; margin-bottom: 30px; border-bottom: 1px solid #eee; padding-bottom: 30px; }
+        .pd-current-price { font-size: 36px; font-weight: 700; color: var(--primary-dark); }
+        .pd-stock-info { background: #E8F5E9; color: #2E7D32; padding: 5px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; }
+        .pd-purchase-options { margin-bottom: 30px; }
+        .pd-quantity-selector { margin-bottom: 25px; }
+        .pd-quantity-label { font-size: 14px; font-weight: 600; margin-bottom: 10px; color: var(--text-dark); }
+        .pd-quantity-controls { display: flex; align-items: center; border: 2px solid #eee; border-radius: 8px; width: fit-content; overflow: hidden; }
+        .pd-quantity-btn { background: #fff; border: none; width: 40px; height: 40px; font-size: 18px; cursor: pointer; color: var(--text-dark); transition: 0.2s; }
+        .pd-quantity-btn:hover { background: #f9f9f9; }
+        .pd-quantity-input { width: 50px; height: 40px; border: none; text-align: center; font-size: 16px; font-weight: 600; color: var(--text-dark); -moz-appearance: textfield; }
+        .pd-quantity-input::-webkit-outer-spin-button, .pd-quantity-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .pd-action-buttons { display: flex; flex-direction: column; align-items: center; gap: 15px; width: 100%; }
+        .pd-btn-row { display: flex; gap: 12px; width: 100%; }
+        .pd-btn { height: 50px; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .pd-btn-primary { flex: 1; background: var(--text-dark); color: white; border: none; }
+        .pd-btn-primary:hover { background: #000; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
         
-        :root {
-            --primary-color: #FFB774;
-            --primary-dark: #E89C55;
-            --text-dark: #2F2F2F;
-            --text-light: #666;
-            --border-color: #e1e1e1;
-        }
+        /* 购物车图标 */
+        .btn-icon-img { width: 20px; height: 20px; object-fit: contain; margin-right: 8px; filter: brightness(0) invert(1); }
+        .pd-btn-primary:hover .btn-icon-img { transform: scale(1.1); transition: transform 0.2s ease; }
 
-        .container {
-            max-width: 1200px;
-            margin: 40px auto;
-            padding: 0 20px;
-        }
+        /* 圆形柔和爱心按钮 */
+        .pd-btn-secondary { width: 50px; height: 50px; background: #fff; border: 1px solid #eee; border-radius: 50%; cursor: pointer; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .pd-btn-secondary:hover { background: #fffbf6; transform: translateY(-3px); box-shadow: 0 5px 12px rgba(0,0,0,0.1); border-color: var(--primary-color); }
+        .pd-btn-secondary.active { border-color: transparent; background: #ffecec; box-shadow: inset 0 2px 5px rgba(255, 77, 77, 0.1); }
+        
+        /* 爱心图片 */
+        .wishlist-icon { width: 24px; height: 24px; object-fit: contain; transition: all 0.3s ease; filter: grayscale(100%) opacity(0.4); }
+        .pd-btn-secondary.active .wishlist-icon { filter: grayscale(0%) opacity(1); transform: scale(1.1); }
+        .wishlist-btn.animating .wishlist-icon { animation: heartBeat 0.4s ease-in-out; }
+        @keyframes heartBeat { 0% { transform: scale(1); } 25% { transform: scale(1.35); } 50% { transform: scale(0.9); } 75% { transform: scale(1.1); } 100% { transform: scale(1); } }
 
-        /* --- 主布局 --- */
-        .pd-product-detail {
-            display: flex;
-            gap: 50px;
-            margin-bottom: 60px;
-            align-items: flex-start;
-        }
-
-        .pd-product-images {
-            flex: 1;
-            position: relative;
-        }
-
-        .pd-main-image {
-            width: 100%;
-            border-radius: 20px;
-            overflow: hidden;
-            border: 1px solid #eee;
-            background: #fff;
-        }
-
-        .pd-main-image img {
-            width: 100%;
-            height: auto;
-            display: block;
-            object-fit: cover;
-        }
-
-        .pd-product-info {
-            flex: 1;
-        }
-
-        /* --- 文本信息 --- */
-        .pd-product-tag {
-            display: inline-block;
-            background: #FFF5EB;
-            color: var(--primary-dark);
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 600;
-            text-transform: uppercase;
-            margin-bottom: 15px;
-        }
-
-        .pd-product-title {
-            font-size: 32px;
-            font-weight: 800;
-            color: var(--text-dark);
-            margin: 0 0 15px 0;
-            line-height: 1.2;
-        }
-
-        .pd-product-rating {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 25px;
-        }
-
-        .pd-rating-count {
-            color: var(--text-light);
-            font-size: 14px;
-        }
-
-        .pd-product-price {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            margin-bottom: 30px;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 30px;
-        }
-
-        .pd-current-price {
-            font-size: 36px;
-            font-weight: 700;
-            color: var(--primary-dark);
-        }
-
-        .pd-stock-info {
-            background: #E8F5E9;
-            color: #2E7D32;
-            padding: 5px 12px;
-            border-radius: 6px;
-            font-size: 13px;
-            font-weight: 600;
-        }
-
-        /* --- 购买控制 --- */
-        .pd-purchase-options {
-            margin-bottom: 30px;
-        }
-
-        .pd-quantity-selector {
-            margin-bottom: 25px;
-        }
-
-        .pd-quantity-label {
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 10px;
-            color: var(--text-dark);
-        }
-
-        .pd-quantity-controls {
-            display: flex;
-            align-items: center;
-            border: 2px solid #eee;
-            border-radius: 8px;
-            width: fit-content;
-            overflow: hidden;
-        }
-
-        .pd-quantity-btn {
-            background: #fff;
-            border: none;
-            width: 40px;
-            height: 40px;
-            font-size: 18px;
-            cursor: pointer;
-            color: var(--text-dark);
-            transition: 0.2s;
-        }
-
-        .pd-quantity-btn:hover {
-            background: #f9f9f9;
-        }
-
-        .pd-quantity-input {
-            width: 50px;
-            height: 40px;
-            border: none;
-            text-align: center;
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--text-dark);
-            -moz-appearance: textfield;
-        }
-        .pd-quantity-input::-webkit-outer-spin-button,
-        .pd-quantity-input::-webkit-inner-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
-
-        /* --- 按钮 --- */
-        .pd-action-buttons {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 15px;
-            width: 100%;
-        }
-
-        .pd-btn-row {
-            display: flex;
-            gap: 12px;
-            width: 100%;
-        }
-
-        .pd-btn {
-            height: 50px;
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .pd-btn-primary {
-            flex: 1;
-            background: var(--text-dark);
-            color: white;
-            border: none;
-        }
-
-        .pd-btn-primary:hover {
-            background: #000;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-
-        .pd-btn-secondary {
-            width: 50px;
-            background: #fff;
-            border: 2px solid #eee;
-            color: #ccc;
-        }
-
-        .pd-btn-secondary:hover {
-            border-color: var(--primary-color);
-            color: var(--primary-color);
-            background: #FFF9F5;
-        }
-
-        .pd-btn-secondary.active {
-            border-color: #ff4d4d;
-            color: #ff4d4d;
-            background: #fff0f0;
-        }
-
-        /* 爱心动画 */
-        .wishlist-btn.animating i {
-            animation: heartPop 0.3s ease-in-out;
-        }
-        @keyframes heartPop {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.3); }
-        }
-
-        .continue-link {
-            color: #888;
-            text-decoration: none;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.3s;
-            border-bottom: 1px solid transparent;
-        }
-
-        .continue-link:hover {
-            color: var(--primary-color);
-            border-color: var(--primary-color);
-        }
-
-        /* --- Tabs --- */
-        .pd-product-tabs {
-            margin-bottom: 60px;
-        }
-
-        .pd-tabs-header {
-            display: flex;
-            border-bottom: 1px solid #eee;
-            margin-bottom: 30px;
-        }
-
-        .pd-tab {
-            padding: 15px 30px;
-            cursor: pointer;
-            font-weight: 600;
-            color: #888;
-            position: relative;
-            transition: 0.3s;
-        }
-
-        .pd-tab:hover {
-            color: var(--text-dark);
-        }
-
-        .pd-tab.active {
-            color: var(--primary-dark);
-        }
-
-        .pd-tab.active::after {
-            content: '';
-            position: absolute;
-            bottom: -1px;
-            left: 0;
-            width: 100%;
-            height: 3px;
-            background: var(--primary-color);
-        }
-
-        .pd-tab-content {
-            display: none;
-            line-height: 1.8;
-            color: #555;
-        }
-
-        .pd-tab-content.active {
-            display: block;
-            animation: fadeIn 0.5s ease;
-        }
-
-        .pd-specs-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .pd-specs-table td {
-            padding: 12px 0;
-            border-bottom: 1px solid #eee;
-        }
-
-        .pd-specs-table td:first-child {
-            font-weight: 600;
-            width: 200px;
-            color: var(--text-dark);
-        }
-
-        /* --- Reviews --- */
-        .pd-review-item {
-            border-bottom: 1px solid #eee;
-            padding-bottom: 20px;
-            margin-bottom: 20px;
-        }
-
-        .pd-review-header {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 8px;
-        }
-
-        .pd-reviewer {
-            font-weight: 700;
-            color: var(--text-dark);
-        }
-
-        .pd-review-date {
-            font-size: 13px;
-            color: #999;
-        }
-
+        .continue-link { color: #888; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.3s; border-bottom: 1px solid transparent; }
+        .continue-link:hover { color: var(--primary-color); border-color: var(--primary-color); }
+        
+        /* Tabs & 其他样式保持原样 */
+        .pd-product-tabs { margin-bottom: 60px; }
+        .pd-tabs-header { display: flex; border-bottom: 1px solid #eee; margin-bottom: 30px; }
+        .pd-tab { padding: 15px 30px; cursor: pointer; font-weight: 600; color: #888; position: relative; transition: 0.3s; }
+        .pd-tab:hover { color: var(--text-dark); }
+        .pd-tab.active { color: var(--primary-dark); }
+        .pd-tab.active::after { content: ''; position: absolute; bottom: -1px; left: 0; width: 100%; height: 3px; background: var(--primary-color); }
+        .pd-tab-content { display: none; line-height: 1.8; color: #555; }
+        .pd-tab-content.active { display: block; animation: fadeIn 0.5s ease; }
+        .pd-specs-table { width: 100%; border-collapse: collapse; }
+        .pd-specs-table td { padding: 12px 0; border-bottom: 1px solid #eee; }
+        .pd-specs-table td:first-child { font-weight: 600; width: 200px; color: var(--text-dark); }
+        
+        /* 评论样式 */
+        .pd-review-item { border-bottom: 1px solid #eee; padding-bottom: 20px; margin-bottom: 20px; }
+        .pd-review-header { display: flex; justify-content: space-between; margin-bottom: 5px; }
+        .pd-reviewer { font-weight: 700; color: var(--text-dark); }
+        .pd-review-date { font-size: 13px; color: #999; }
+        
+        /* 星星样式 */
         .pd-rating-stars {
-            font-size: 12px;
-            margin-bottom: 10px;
+            font-size: 13px; 
+            color: #FFB774;
+            line-height: 1;
+            margin-bottom: 10px; /* 增加底部间距 */
+        }
+        .pd-rating-stars i {
+            margin-right: 2px;
         }
 
-        /* --- Related Products --- */
-        .pd-section-title {
-            font-size: 24px;
-            font-weight: 700;
-            margin-bottom: 25px;
-            color: var(--text-dark);
-        }
+        .pd-section-title { font-size: 24px; font-weight: 700; margin-bottom: 25px; color: var(--text-dark); }
+        .pd-products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 25px; }
+        .pd-product-card { display: block; text-decoration: none; background: #fff; border: 1px solid #eee; border-radius: 12px; overflow: hidden; transition: 0.3s; }
+        .pd-product-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.05); border-color: var(--primary-color); }
+        .pd-product-card-img { width: 100%; height: 200px; background: #f9f9f9; display: flex; align-items: center; justify-content: center; }
+        .pd-product-card-img img { width: 100%; height: 100%; object-fit: cover; }
+        .pd-product-card-info { padding: 15px; }
+        .pd-product-card-title { font-size: 16px; font-weight: 600; color: var(--text-dark); margin: 0 0 8px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .pd-product-card-price { font-size: 18px; font-weight: 700; color: var(--primary-dark); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @media (max-width: 768px) { .pd-product-detail { flex-direction: column; } .pd-btn-row { width: 100%; } }
 
-        .pd-products-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-            gap: 25px;
-        }
-
-        .pd-product-card {
-            display: block;
-            text-decoration: none;
-            background: #fff;
-            border: 1px solid #eee;
-            border-radius: 12px;
-            overflow: hidden;
-            transition: 0.3s;
-        }
-
-        .pd-product-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
-            border-color: var(--primary-color);
-        }
-
-        .pd-product-card-img {
-            width: 100%;
-            height: 200px;
-            background: #f9f9f9;
+        /* ✨✨✨ Toast 弹窗样式 ✨✨✨ */
+        #custom-toast {
+            visibility: hidden;
+            min-width: 200px;
+            background-color: rgba(40, 40, 40, 0.95);
+            color: #fff;
+            text-align: center;
+            border-radius: 50px;
+            padding: 12px 24px;
+            position: fixed;
+            z-index: 9999;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            font-size: 15px;
+            box-shadow: 0px 8px 20px rgba(0,0,0,0.2);
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             display: flex;
             align-items: center;
             justify-content: center;
+            gap: 10px;
         }
-
-        .pd-product-card-img img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+        #custom-toast.show {
+            visibility: visible;
+            opacity: 1;
+            bottom: 50px;
         }
-
-        .pd-product-card-info {
-            padding: 15px;
-        }
-
-        .pd-product-card-title {
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--text-dark);
-            margin: 0 0 8px 0;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .pd-product-card-price {
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--primary-dark);
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Mobile Responsive */
-        @media (max-width: 768px) {
-            .pd-product-detail {
-                flex-direction: column;
-            }
-            .pd-btn-row {
-                width: 100%;
-            }
+        .toast-icon {
+            width: 20px;
+            height: 20px;
+            
         }
     </style>
 </head>
@@ -601,16 +300,16 @@ if (isset($_SESSION['member_id'])) {
                     <div class="pd-action-buttons">
                         <div class="pd-btn-row">
                             <button class="pd-btn pd-btn-primary" id="pd-add-to-cart" data-id="<?php echo (int)$product['product_id']; ?>">
-                                <span class="pd-icon-cart"><i class="fas fa-shopping-cart"></i></span> Add to Cart
+                                <img src="../images/cart.png" class="btn-icon-img" alt="Cart">
+                                Add to Cart
                             </button>
 
                             <?php
                             $isWished = in_array($product['product_id'], $wishlistIds ?? []);
-                            $heartClass = $isWished ? 'fas' : 'far';
                             $btnClass = $isWished ? 'active' : '';
                             ?>
                             <button class="pd-btn pd-btn-secondary wishlist-btn <?php echo $btnClass; ?>" onclick="toggleWishlistDetail(this, <?php echo $product['product_id']; ?>)" title="Add to Wishlist">
-                                <i class="<?php echo $heartClass; ?> fa-heart" style="font-size: 18px;"></i>
+                                <img src="../images/heart.png" alt="Wishlist" class="wishlist-icon">
                             </button>
                         </div>
 
@@ -653,9 +352,11 @@ if (isset($_SESSION['member_id'])) {
                                         <?php echo date('d M Y', strtotime($review['date'])); ?>
                                     </div>
                                 </div>
+                                
                                 <div class="pd-rating-stars">
-                                    <?php echo generateStars($review['rating']); ?>
+                                    <?php echo generateStars((int)$review['rating']); ?>
                                 </div>
+                                
                                 <div class="pd-review-content">
                                     <?php echo nl2br(htmlspecialchars($review['comment'])); ?>
                                 </div>
@@ -690,12 +391,38 @@ if (isset($_SESSION['member_id'])) {
         </div>
     </div>
 
+    <div id="custom-toast">
+        <img src="../images/success.png" alt="" class="toast-icon">
+        <span id="custom-toast-msg">Added to cart!</span>
+    </div>
+
     <?php include_once '../include/footer.php'; ?>
     <?php include '../include/chat_widget.php'; ?>
 
     <script>
+        // Toast Function
+        function safeToast(message, type = 'success') {
+            const toast = document.getElementById('custom-toast');
+            const msgSpan = document.getElementById('custom-toast-msg');
+            msgSpan.innerText = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2500);
+        }
+
+        function safeAlert(message) {
+            alert(message);
+        }
+
+        function confirmLogin() {
+            if(confirm("Please Login to shop. Go to login page?")) {
+                window.location.href = "login.php";
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
-            // Tab 切换逻辑
+            // Tabs
             document.querySelectorAll('.pd-tab').forEach(tab => {
                 tab.addEventListener('click', function() {
                     document.querySelectorAll('.pd-tab').forEach(t => t.classList.remove('active'));
@@ -706,7 +433,7 @@ if (isset($_SESSION['member_id'])) {
                 });
             });
 
-            // 数量加减逻辑
+            // Quantity Buttons
             const qtyInput = document.querySelector('.pd-quantity-input');
             const maxStock = qtyInput ? parseInt(qtyInput.getAttribute('data-stock')) : 999;
 
@@ -721,7 +448,7 @@ if (isset($_SESSION['member_id'])) {
         });
 
         $(document).ready(function() {
-            // 加入购物车 AJAX
+            // Add to Cart
             $('#pd-add-to-cart').click(function(e) {
                 e.preventDefault();
                 var $btn = $(this);
@@ -737,34 +464,34 @@ if (isset($_SESSION['member_id'])) {
                     data: { product_id: pid, quantity: qty },
                     success: function(response) {
                         $btn.prop('disabled', false);
-                        var res = response.trim();
-
-                        if (res.includes("added") || res.includes("increased") || res.includes("success")) {
-                            const Toast = Swal.mixin({
-                                toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true
-                            });
-                            Toast.fire({ icon: 'success', title: 'Added to Cart!' });
-
-                            if (typeof refreshCartSidebar === 'function') refreshCartSidebar();
-                            setTimeout(() => { if (typeof openCart === 'function') openCart(); }, 300);
-
-                        } else if (res.includes("login")) {
-                            Swal.fire({
-                                title: "Please Login", text: "Login to shop.", icon: "warning", confirmButtonText: "Login"
-                            }).then((r) => { if (r.isConfirmed) window.location.href = "login.php"; });
+                        var resString = "";
+                        if (typeof response === 'object') {
+                            resString = JSON.stringify(response).toLowerCase();
                         } else {
-                            Swal.fire("Error", "Could not add item.", "error");
+                            resString = response.toString().toLowerCase();
+                        }
+
+                        if (resString.includes("added") || resString.includes("increased") || resString.includes("success")) {
+                            safeToast('Added to Cart!');
+                            if (typeof refreshCartSidebar === 'function') refreshCartSidebar(); else setTimeout(function(){ location.reload(); }, 1000);
+                            setTimeout(() => { if (typeof openCart === 'function') openCart(); }, 500);
+                        } else if (resString.includes("login")) {
+                            confirmLogin();
+                        } else {
+                            safeAlert("Could not add item. Out of stock?");
                         }
                     },
-                    error: function() { $btn.prop('disabled', false); }
+                    error: function() { 
+                        $btn.prop('disabled', false); 
+                        safeAlert("System error. Please try again.");
+                    }
                 });
             });
         });
 
-        // 收藏功能 AJAX
+        // Wishlist
         function toggleWishlistDetail(btn, pid) {
             let $btn = $(btn);
-            let $icon = $btn.find("i");
             $btn.addClass("animating");
             setTimeout(() => $btn.removeClass("animating"), 300);
 
@@ -775,18 +502,12 @@ if (isset($_SESSION['member_id'])) {
                 dataType: 'json',
                 success: function(res) {
                     if (res.status === 'login_required') {
-                        Swal.fire({
-                            title: 'Login Required', text: 'Please login to save items.', icon: 'warning',
-                            confirmButtonText: 'Login', confirmButtonColor: '#2F2F2F'
-                        }).then((r) => { if (r.isConfirmed) window.location.href = 'login.php'; });
+                        confirmLogin();
                     } else if (res.status === 'added') {
                         $btn.addClass('active');
-                        $icon.removeClass('far').addClass('fas');
-                        const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
-                        Toast.fire({ icon: 'success', title: 'Saved to Wishlist' });
+                        safeToast('Saved to Wishlist');
                     } else if (res.status === 'removed') {
                         $btn.removeClass('active');
-                        $icon.removeClass('fas').addClass('far');
                     }
                 }
             });
