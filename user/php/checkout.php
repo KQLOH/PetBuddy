@@ -145,7 +145,6 @@ $total = $checkout_subtotal + $shipping_fee;
         .grand-total .amount { font-size: 24px; font-weight: 600; color: #333; }
         .currency { font-size: 12px; color: #737373; margin-right: 5px; font-weight: 400; vertical-align: middle; }
         
-        /* Dropdown Style */
         .address-selector-wrapper { margin-bottom: 20px; background: #FFF9F5; padding: 15px; border: 1px solid var(--primary-color); border-radius: 8px; }
         .address-selector-wrapper label { font-weight: 600; color: var(--primary-dark); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
         .address-selector-wrapper select { border-color: var(--primary-color); }
@@ -167,22 +166,18 @@ $total = $checkout_subtotal + $shipping_fee;
         }
         .payment-label { font-weight: 600; font-size: 15px; color: #333; flex: 1; }
         
-        /* Payment Icons - Images */
         .payment-icons { display: flex; gap: 8px; align-items: center; }
         .payment-icons img { height: 22px; width: auto; object-fit: contain; }
 
         .payment-details { display: none; padding: 0 20px 20px 20px; margin-top: -5px; animation: slideDown 0.3s ease-out; }
         .payment-card.selected .payment-details { display: block; }
         
-        /* Helper Text & Input Icons */
         .helper-text { font-size: 13px; color: #666; background: rgba(0,0,0,0.03); padding: 12px; border-radius: 6px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; }
         .helper-text img { width: 14px; height: 14px; opacity: 0.6; }
         
-        /* Input Icon Positioning */
         .input-icon-wrapper { position: relative; }
         .input-icon-img { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; object-fit: contain; opacity: 0.5; }
 
-        /* Inline Icons */
         .inline-icon { width: 16px; height: 16px; object-fit: contain; vertical-align: middle; }
 
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
@@ -209,24 +204,17 @@ $total = $checkout_subtotal + $shipping_fee;
         .voucher-item.disabled .v-btn { background: #ccc; cursor: not-allowed; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        /* ✨✨✨ Custom Alert Styles (修改部分) ✨✨✨ */
         .custom-alert-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; display: none; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s ease; }
         .custom-alert-overlay.show { opacity: 1; }
         .custom-alert-box { background: white; width: 90%; max-width: 400px; padding: 30px; border-radius: 20px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.2); transform: scale(0.9); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         .custom-alert-overlay.show .custom-alert-box { transform: scale(1); }
         
-        /* ✨ 修改：移除了固定的宽高和圆角背景 */
         .custom-alert-icon { 
             margin: 0 auto 20px; 
             display: flex; 
             align-items: center; 
             justify-content: center; 
         }
-        
-        /* ✨ 修改：移除了背景颜色样式 */
-        .icon-success { }
-        .icon-error { }
-        .icon-confirm { }
 
         .custom-alert-title { font-size: 20px; margin-bottom: 10px; color: #333; }
         .custom-alert-text { font-size: 15px; color: #666; margin-bottom: 25px; line-height: 1.5; }
