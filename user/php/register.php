@@ -280,7 +280,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                             $new_full_path = "../" . $new_image_path;
                             
                             if (rename($old_path, $new_full_path)) {
-                                // Update database with new path
                                 $update_stmt = $pdo->prepare("UPDATE members SET image = ? WHERE member_id = ?");
                                 $update_stmt->execute([$new_image_path, $new_member_id]);
                             }

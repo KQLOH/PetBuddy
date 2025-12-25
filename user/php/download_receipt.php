@@ -1,14 +1,9 @@
 <?php
-/**
- * Download E-Receipt as PDF
- * This file generates and downloads a PDF receipt for the order
- */
 
 session_start();
 require '../include/db.php';
 require_once '../include/product_utils.php';
 
-// Check if user is logged in
 if (!isset($_SESSION['member_id'])) {
     header("Location: login.php");
     exit;
@@ -22,7 +17,6 @@ if ($order_id <= 0) {
 }
 
 try {
-    // 1. Get Order Details
     $stmt = $pdo->prepare("SELECT * FROM orders WHERE order_id = ? AND member_id = ?");
     $stmt->execute([$order_id, $member_id]);
     $order = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -31,12 +25,10 @@ try {
         die('Order not found');
     }
 
-    // 2. Get Member Information
     $stmt = $pdo->prepare("SELECT * FROM members WHERE member_id = ?");
     $stmt->execute([$member_id]);
     $member = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    // 3. Get Order Items
     $stmt = $pdo->prepare("
         SELECT oi.*, p.name, p.image 
         FROM order_items oi 
@@ -46,7 +38,6 @@ try {
     $stmt->execute([$order_id]);
     $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // 4. Get Shipping Information
     $stmt = $pdo->prepare("
         SELECT s.*, ma.recipient_name, ma.recipient_phone, ma.address_line1, ma.address_line2, 
                ma.city, ma.state, ma.postcode, ma.country
@@ -57,12 +48,10 @@ try {
     $stmt->execute([$order_id]);
     $shipping = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    // 5. Get Payment Information
     $stmt = $pdo->prepare("SELECT * FROM payments WHERE order_id = ? ORDER BY payment_date DESC LIMIT 1");
     $stmt->execute([$order_id]);
     $payment = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    // 6. Calculate amounts
     $subtotal = 0;
     foreach ($items as $item) {
         $subtotal += floatval($item['unit_price']) * intval($item['quantity']);
@@ -71,12 +60,9 @@ try {
     $discount = floatval($order['discount_amount']);
     $total = floatval($order['total_amount']);
 
-    // 7. Generate PDF using TCPDF or fallback to HTML download
-    // Check if TCPDF is available
     $tcpdf_path = '../TCPDF/tcpdf.php';
     
     if (file_exists($tcpdf_path)) {
-        // Use TCPDF
         require_once($tcpdf_path);
         
         $pdf = new TCPDF('P', 'mm', 'A4', true, 'UTF-8', false);
@@ -85,22 +71,17 @@ try {
         $pdf->SetTitle('E-Receipt - Order #' . $order_id);
         $pdf->SetSubject('Order Receipt');
         
-        // Remove default header/footer
         $pdf->setPrintHeader(false);
         $pdf->setPrintFooter(false);
         
-        // Add a page
         $pdf->AddPage();
         
-        // Set font
         $pdf->SetFont('helvetica', '', 10);
         
-        // Colors
-        $primary_color = array(255, 183, 116); // #FFB774
-        $dark_color = array(47, 47, 47); // #2F2F2F
-        $success_color = array(76, 175, 80); // #4CAF50
+        $primary_color = array(255, 183, 116);
+        $dark_color = array(47, 47, 47);
+        $success_color = array(76, 175, 80);
         
-        // Header
         $pdf->SetFillColor($primary_color[0], $primary_color[1], $primary_color[2]);
         $pdf->Rect(0, 0, 210, 40, 'F');
         $pdf->SetTextColor(255, 255, 255);
@@ -111,18 +92,15 @@ try {
         $pdf->SetXY(10, 20);
         $pdf->Cell(0, 10, 'E-Receipt', 0, 1, 'L');
         
-        // Reset text color
         $pdf->SetTextColor(0, 0, 0);
         $pdf->SetY(50);
         
-        // Success message
         $pdf->SetFillColor($success_color[0], $success_color[1], $success_color[2]);
         $pdf->SetTextColor(255, 255, 255);
         $pdf->SetFont('helvetica', 'B', 16);
         $pdf->Cell(0, 10, 'Payment Successful!', 0, 1, 'C', true);
         $pdf->Ln(5);
         
-        // Order Info Box
         $pdf->SetTextColor(0, 0, 0);
         $pdf->SetFillColor(249, 249, 249);
         $pdf->Rect(10, $pdf->GetY(), 190, 25, 'F');
@@ -138,7 +116,6 @@ try {
         $pdf->SetTextColor(0, 0, 0);
         $pdf->Ln(10);
         
-        // Shipping Address
         if ($shipping) {
             $pdf->SetFont('helvetica', 'B', 12);
             $pdf->Cell(0, 8, 'Shipping Address', 0, 1);
@@ -155,19 +132,16 @@ try {
             $pdf->Ln(5);
         }
         
-        // Order Items
         $pdf->SetFont('helvetica', 'B', 12);
         $pdf->Cell(0, 8, 'Order Items', 0, 1);
         $pdf->Ln(2);
         
-        // Table header
         $pdf->SetFillColor(240, 240, 240);
         $pdf->SetFont('helvetica', 'B', 10);
         $pdf->Cell(120, 8, 'Product', 1, 0, 'L', true);
         $pdf->Cell(30, 8, 'Qty', 1, 0, 'C', true);
         $pdf->Cell(40, 8, 'Price', 1, 1, 'R', true);
         
-        // Items
         $pdf->SetFont('helvetica', '', 9);
         foreach ($items as $item) {
             $item_total = floatval($item['unit_price']) * intval($item['quantity']);
@@ -177,7 +151,6 @@ try {
         }
         $pdf->Ln(5);
         
-        // Payment Summary
         $pdf->SetFillColor(249, 249, 249);
         $pdf->Rect(10, $pdf->GetY(), 190, 50, 'F');
         $pdf->SetXY(15, $pdf->GetY() + 5);
@@ -205,7 +178,6 @@ try {
         $pdf->SetTextColor(0, 0, 0);
         $pdf->Ln(5);
         
-        // Payment Info
         if ($payment) {
             $pdf->SetFont('helvetica', 'B', 12);
             $pdf->Cell(0, 8, 'Payment Information', 0, 1);
@@ -215,19 +187,16 @@ try {
             $pdf->Ln(5);
         }
         
-        // Footer
         $pdf->SetY(-20);
         $pdf->SetFont('helvetica', 'I', 9);
         $pdf->SetTextColor(128, 128, 128);
         $pdf->Cell(0, 5, 'Thank you for shopping with PetBuddy!', 0, 1, 'C');
         $pdf->Cell(0, 5, 'If you have any questions, please contact our support team.', 0, 1, 'C');
         
-        // Output PDF
         $filename = 'PetBuddy_Receipt_Order_' . $order_id . '_' . date('Ymd') . '.pdf';
-        $pdf->Output($filename, 'D'); // D = download
+        $pdf->Output($filename, 'D');
         
     } else {
-        // Fallback: Create HTML version that can be printed as PDF
         header('Content-Type: text/html; charset=utf-8');
         ?>
         <!DOCTYPE html>
