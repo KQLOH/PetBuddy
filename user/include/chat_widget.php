@@ -327,6 +327,109 @@
             right: 20px;
         }
     }
+
+    /* Modal Prompt Styles */
+    #chat-modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+        z-index: 100000;
+        align-items: center;
+        justify-content: center;
+        animation: fadeIn 0.3s ease;
+    }
+
+    #chat-modal-overlay.show {
+        display: flex;
+    }
+
+    #chat-modal {
+        background: white;
+        border-radius: 16px;
+        padding: 40px 30px 30px;
+        max-width: 400px;
+        width: 90%;
+        text-align: center;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        animation: slideUp 0.3s ease;
+        position: relative;
+    }
+
+    .chat-modal-icon {
+        width: 60px;
+        height: 60px;
+        margin: 0 auto 20px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #E8F5E9;
+    }
+
+    .chat-modal-icon img {
+        width: 40px;
+        height: 40px;
+    }
+
+    .chat-modal-icon.error {
+        background: #FFEBEE;
+    }
+
+    .chat-modal-title {
+        font-size: 24px;
+        font-weight: 700;
+        color: #2F2F2F;
+        margin: 0 0 10px 0;
+    }
+
+    .chat-modal-message {
+        font-size: 15px;
+        color: #666;
+        margin: 0 0 25px 0;
+        line-height: 1.5;
+    }
+
+    .chat-modal-buttons {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+    }
+
+    .chat-modal-btn {
+        padding: 12px 32px;
+        border: none;
+        border-radius: 8px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        min-width: 100px;
+    }
+
+    .chat-modal-btn-primary {
+        background: #FFB774;
+        color: white;
+    }
+
+    .chat-modal-btn-primary:hover {
+        background: #E89C55;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(255, 183, 116, 0.4);
+    }
+
+    .chat-modal-btn-secondary {
+        background: #f5f5f5;
+        color: #666;
+    }
+
+    .chat-modal-btn-secondary:hover {
+        background: #e8e8e8;
+    }
 </style>
 
 <div id="chat-widget-wrapper">
@@ -367,6 +470,21 @@
     </form>
 </div>
 
+<!-- Chat Modal Prompt -->
+<div id="chat-modal-overlay">
+    <div id="chat-modal">
+        <div class="chat-modal-icon" id="chat-modal-icon">
+            <img src="../images/success.png" alt="">
+        </div>
+        <h3 class="chat-modal-title" id="chat-modal-title">Login Required</h3>
+        <p class="chat-modal-message" id="chat-modal-message">Please login to use the chat feature.</p>
+        <div class="chat-modal-buttons" id="chat-modal-buttons">
+            <button class="chat-modal-btn chat-modal-btn-primary" id="chat-login-btn">Go to Login</button>
+            <button class="chat-modal-btn chat-modal-btn-secondary" onclick="closeChatModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
 <script>
     let widgetOpen = false;
     let widgetLastCount = 0;
@@ -380,19 +498,72 @@
     }
     const API_URL = getApiPath();
 
+    function getLoginPath() {
+        if (window.location.href.indexOf('user/php') > -1) {
+            return 'login.php';
+        } else {
+            return 'user/php/login.php';
+        }
+    }
+
+    // Set login button path
+    document.addEventListener('DOMContentLoaded', function() {
+        const loginBtn = document.getElementById('chat-login-btn');
+        if (loginBtn) {
+            loginBtn.onclick = function() {
+                window.location.href = getLoginPath();
+            };
+        }
+    });
+
+    function showChatLoginModal() {
+        const overlay = document.getElementById('chat-modal-overlay');
+        if (overlay) {
+            overlay.classList.add('show');
+        }
+    }
+
+    function closeChatModal() {
+        const overlay = document.getElementById('chat-modal-overlay');
+        if (overlay) {
+            overlay.classList.remove('show');
+        }
+    }
+
+    // Close modal when clicking overlay
+    document.getElementById('chat-modal-overlay').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeChatModal();
+        }
+    });
+
     function toggleChatWidget() {
         const modal = document.getElementById('chat-widget-modal');
         const btnWrapper = document.getElementById('chat-widget-wrapper');
         const input = document.getElementById('widget-input');
 
         if (!widgetOpen) {
-            modal.style.display = 'flex';
-            btnWrapper.style.display = 'none';
-            widgetOpen = true;
+            // Check if user is logged in first
+            fetch(API_URL + '?action=get_unread')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error === 'Unauthorized') {
+                        showChatLoginModal();
+                        return;
+                    }
+                    // User is logged in, open widget
+                    modal.style.display = 'flex';
+                    btnWrapper.style.display = 'none';
+                    widgetOpen = true;
 
-            loadWidgetMessages();
-            markMessagesAsRead();
-            setTimeout(() => input.focus(), 300);
+                    loadWidgetMessages();
+                    markMessagesAsRead();
+                    setTimeout(() => input.focus(), 300);
+                })
+                .catch(e => {
+                    console.error("Error checking login:", e);
+                    showChatLoginModal();
+                });
         } else {
             modal.style.display = 'none';
             btnWrapper.style.display = 'block';
@@ -417,6 +588,12 @@
         fetch(API_URL + '?action=get_unread')
             .then(res => res.json())
             .then(data => {
+                if (data.error === 'Unauthorized') {
+                    // User not logged in, hide badge
+                    document.getElementById('chat-notification').style.display = 'none';
+                    return;
+                }
+
                 console.log("Unread API Response:", data);
 
                 const badge = document.getElementById('chat-notification');
@@ -451,7 +628,13 @@
         fetch(API_URL + '?action=fetch')
             .then(res => res.json())
             .then(data => {
-                if (data.error) return;
+                if (data.error) {
+                    if (data.error === 'Unauthorized') {
+                        showChatLoginModal();
+                        toggleChatWidget(); // Close widget if open
+                    }
+                    return;
+                }
 
                 const box = document.getElementById('widget-chat-box');
 
@@ -538,7 +721,13 @@
             .then(data => {
                 if (data.status === 'success') {
                     loadWidgetMessages();
+                } else if (data.error === 'Unauthorized') {
+                    showChatLoginModal();
+                    toggleChatWidget(); // Close widget if open
                 }
+            })
+            .catch(e => {
+                console.error("Send message error:", e);
             });
     });
 
