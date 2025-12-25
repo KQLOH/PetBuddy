@@ -3,8 +3,18 @@ session_start();
 require '../include/db.php';
 
 $register_error = "";
+$register_success = false;
+$register_success_message = '';
 $step = isset($_SESSION['email_verified']) && $_SESSION['email_verified'] ? 2 : 1; // Step 1: Email + OTP, Step 2: Complete Registration
 $verified_email = $_SESSION['verified_email'] ?? '';
+
+// Check for registration success (from session flag or URL parameter)
+if ((isset($_SESSION['registration_success']) && $_SESSION['registration_success']) || (isset($_GET['success']) && $_GET['success'] == '1')) {
+    $register_success = true;
+    $register_success_message = $_SESSION['registration_success_message'] ?? 'Registration successful! Redirecting to login page...';
+    unset($_SESSION['registration_success']);
+    unset($_SESSION['registration_success_message']);
+}
 
 // Retrieve form data from session if validation failed
 $form_data = $_SESSION['form_data'] ?? [
@@ -148,7 +158,8 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     'msn.com', 'ymail.com', 'icloud.com', 'me.com', 'mac.com',
                     'protonmail.com', 'proton.me', 'mail.com', 'aol.com', 'zoho.com',
                     'gmx.com', 'yandex.com', 'qq.com', '163.com', '126.com',
-                    'sina.com', 'sohu.com', 'rediffmail.com', 'inbox.com', 'fastmail.com'
+                    'sina.com', 'sohu.com', 'rediffmail.com', 'inbox.com', 'fastmail.com',
+                    'student.tarc.edu.my'
                 ];
                 
                 if (!in_array($domain, $validDomains)) {
@@ -308,11 +319,16 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
                     }
                     
-                    // Clear session
+                    // Clear email verification session
                     unset($_SESSION['email_verified']);
                     unset($_SESSION['verified_email']);
                     
-                    header("Location: login.php?registration_success=true");
+                    // Set registration success flag in session for display
+                    $_SESSION['registration_success'] = true;
+                    $_SESSION['registration_success_message'] = 'Registration successful! Redirecting to login page...';
+                    
+                    // Redirect to same page to show success message first
+                    header("Location: register.php?success=1");
                     exit;
                 } else {
                     $register_error = "Registration failed. Please try again.";
@@ -333,7 +349,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="../css/style.css">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
         .header-logo {
@@ -856,6 +871,152 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
             color: #6b7280;
             margin-top: 8px;
         }
+
+        /* Custom Alert/Confirm Modal Styles */
+        .custom-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .custom-modal-overlay.show {
+            opacity: 1;
+        }
+
+        .custom-modal {
+            background: white;
+            border-radius: 12px;
+            padding: 0;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+
+        .custom-modal-overlay.show .custom-modal {
+            transform: scale(1);
+        }
+
+        .custom-modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .custom-modal-header.success {
+            border-bottom-color: #10b981;
+        }
+
+        .custom-modal-header.error {
+            border-bottom-color: #ef4444;
+        }
+
+        .custom-modal-header.warning {
+            border-bottom-color: #f59e0b;
+        }
+
+        .custom-modal-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        
+        .custom-modal-icon img {
+            width: 20px;
+            height: 20px;
+            object-fit: contain;
+        }
+
+        .custom-modal-icon.success {
+            background-color: #d1fae5;
+            color: #10b981;
+        }
+
+        .custom-modal-icon.error {
+            background-color: #fee2e2;
+            color: #ef4444;
+        }
+
+        .custom-modal-icon.warning {
+            background-color: #fef3c7;
+            color: #f59e0b;
+        }
+
+        .custom-modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0;
+        }
+
+        .custom-modal-body {
+            padding: 24px;
+            color: #4b5563;
+            line-height: 1.6;
+        }
+
+        .custom-modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .custom-modal-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .custom-modal-btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .custom-modal-btn-primary:hover {
+            background-color: var(--primary-dark);
+        }
+
+        .custom-modal-btn-secondary {
+            background-color: #6b7280;
+            color: white;
+        }
+
+        .custom-modal-btn-secondary:hover {
+            background-color: #4b5563;
+        }
+
+        .custom-modal-btn-danger {
+            background-color: #dc2626;
+            color: white;
+        }
+
+        .custom-modal-btn-danger:hover {
+            background-color: #b91c1c;
+        }
     </style>
 </head>
 
@@ -1091,6 +1252,123 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php include '../include/footer.php'; ?>
 
     <script>
+        // Check for registration success and show alert, then redirect
+        <?php if ($register_success): ?>
+        document.addEventListener('DOMContentLoaded', function() {
+            showAlert('Registration Successful!', 'Your account has been created successfully. You will be redirected to the login page shortly.', 'success', 3000).then(function() {
+                window.location.href = 'login.php?registration_success=true';
+            });
+        });
+        <?php endif; ?>
+        
+        // Custom Alert/Confirm Functions (replacement for SweetAlert2)
+        function showAlert(title, text, icon = 'success', timer = null) {
+            return new Promise((resolve) => {
+                const overlay = document.createElement('div');
+                overlay.className = 'custom-modal-overlay';
+                overlay.id = 'custom-modal-overlay';
+                
+                const iconClass = icon === 'success' ? 'success' : (icon === 'error' ? 'error' : 'warning');
+                let iconContent = '';
+                if (icon === 'success') {
+                    iconContent = '<img src="../images/success.png" alt="Success" style="width: 20px; height: 20px;">';
+                } else if (icon === 'error') {
+                    iconContent = '✕';
+                } else {
+                    iconContent = '!';
+                }
+                
+                overlay.innerHTML = `
+                    <div class="custom-modal">
+                        <div class="custom-modal-header ${iconClass}">
+                            <div class="custom-modal-icon ${iconClass}">${iconContent}</div>
+                            <h3 class="custom-modal-title">${title}</h3>
+                        </div>
+                        <div class="custom-modal-body">
+                            ${text}
+                        </div>
+                        <div class="custom-modal-footer">
+                            <button class="custom-modal-btn custom-modal-btn-primary" id="custom-modal-ok">OK</button>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(overlay);
+                
+                // Trigger animation
+                setTimeout(() => overlay.classList.add('show'), 10);
+                
+                const okBtn = overlay.querySelector('#custom-modal-ok');
+                const closeModal = () => {
+                    overlay.classList.remove('show');
+                    setTimeout(() => {
+                        document.body.removeChild(overlay);
+                        resolve();
+                    }, 300);
+                };
+                
+                okBtn.addEventListener('click', closeModal);
+                overlay.addEventListener('click', function(e) {
+                    if (e.target === overlay) {
+                        closeModal();
+                    }
+                });
+                
+                // Auto close if timer is set
+                if (timer) {
+                    setTimeout(closeModal, timer);
+                }
+            });
+        }
+
+        function showConfirm(title, text, confirmText = 'Yes', cancelText = 'No', confirmColor = 'danger') {
+            return new Promise((resolve) => {
+                const overlay = document.createElement('div');
+                overlay.className = 'custom-modal-overlay';
+                overlay.id = 'custom-modal-overlay';
+                
+                overlay.innerHTML = `
+                    <div class="custom-modal">
+                        <div class="custom-modal-header warning">
+                            <div class="custom-modal-icon warning">!</div>
+                            <h3 class="custom-modal-title">${title}</h3>
+                        </div>
+                        <div class="custom-modal-body">
+                            ${text}
+                        </div>
+                        <div class="custom-modal-footer">
+                            <button class="custom-modal-btn custom-modal-btn-secondary" id="custom-modal-cancel">${cancelText}</button>
+                            <button class="custom-modal-btn custom-modal-btn-${confirmColor}" id="custom-modal-confirm">${confirmText}</button>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(overlay);
+                
+                // Trigger animation
+                setTimeout(() => overlay.classList.add('show'), 10);
+                
+                const cancelBtn = overlay.querySelector('#custom-modal-cancel');
+                const confirmBtn = overlay.querySelector('#custom-modal-confirm');
+                
+                const closeModal = (result) => {
+                    overlay.classList.remove('show');
+                    setTimeout(() => {
+                        document.body.removeChild(overlay);
+                        resolve(result);
+                    }, 300);
+                };
+                
+                cancelBtn.addEventListener('click', () => closeModal(false));
+                confirmBtn.addEventListener('click', () => closeModal(true));
+                overlay.addEventListener('click', function(e) {
+                    if (e.target === overlay) {
+                        closeModal(false);
+                    }
+                });
+            });
+        }
+
         // OTP Input Auto-focus
         document.querySelectorAll('.otp-input').forEach((input, index) => {
             input.addEventListener('input', function(e) {
@@ -1124,7 +1402,8 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 'msn.com', 'ymail.com', 'icloud.com', 'me.com', 'mac.com',
                 'protonmail.com', 'proton.me', 'mail.com', 'aol.com', 'zoho.com',
                 'gmx.com', 'yandex.com', 'qq.com', '163.com', '126.com',
-                'sina.com', 'sohu.com', 'rediffmail.com', 'inbox.com', 'fastmail.com'
+                'sina.com', 'sohu.com', 'rediffmail.com', 'inbox.com', 'fastmail.com',
+                'student.tarc.edu.my'
             ];
             
             // Check if domain is valid (has proper TLD)
@@ -1254,17 +1533,11 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                             // Start countdown
                             startCountdown(180);
                             
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Code Sent!',
-                                text: response.message || 'Please check your email for the verification code.',
-                                timer: 3000,
-                                showConfirmButton: false
-                            });
+                            showAlert('Code Sent!', response.message || 'Please check your email for the verification code.', 'success', 3000);
                         } else {
                             emailError.textContent = response.message || 'Failed to send verification code. Please try again.';
                             emailError.style.color = '#e53935';
-                            Swal.fire('Error', response.message || 'Failed to send verification code. Please try again.', 'error');
+                            showAlert('Error', response.message || 'Failed to send verification code. Please try again.', 'error');
                         }
                         document.getElementById('send-otp-btn').disabled = false;
                         document.getElementById('send-otp-btn').textContent = 'Send Verification Code';
@@ -1288,12 +1561,7 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                         
                         emailError.textContent = errorMsg;
                         emailError.style.color = '#e53935';
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: errorMsg,
-                            confirmButtonText: 'OK'
-                        });
+                        showAlert('Error', errorMsg, 'error');
                         
                         document.getElementById('send-otp-btn').disabled = false;
                         document.getElementById('send-otp-btn').textContent = 'Send Verification Code';
@@ -1312,7 +1580,7 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                        document.getElementById('otp6').value;
             
             if (otp.length !== 6) {
-                Swal.fire('Error', 'Please enter the complete 6-digit code.', 'error');
+                showAlert('Error', 'Please enter the complete 6-digit code.', 'error');
                 return;
             }
             
@@ -1326,17 +1594,11 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 dataType: 'json',
                 success: function(response) {
                     if (response.success) {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Email Verified!',
-                            text: 'Please complete your registration.',
-                            timer: 2000,
-                            showConfirmButton: false
-                        }).then(() => {
+                        showAlert('Email Verified!', 'Please complete your registration.', 'success', 2000).then(() => {
                             window.location.reload();
                         });
                     } else {
-                        Swal.fire('Error', response.message, 'error');
+                        showAlert('Error', response.message, 'error');
                         // Clear OTP inputs
                         for (let i = 1; i <= 6; i++) {
                             document.getElementById('otp' + i).value = '';
@@ -1347,7 +1609,7 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     document.getElementById('verify-otp-btn').textContent = 'Verify Code';
                 },
                 error: function() {
-                    Swal.fire('Error', 'Verification failed. Please try again.', 'error');
+                    showAlert('Error', 'Verification failed. Please try again.', 'error');
                     document.getElementById('verify-otp-btn').disabled = false;
                     document.getElementById('verify-otp-btn').textContent = 'Verify Code';
                 }
@@ -1719,19 +1981,19 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                         const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
                         if (!allowedTypes.includes(imageFile.type)) {
                             e.preventDefault();
-                            Swal.fire('Error', 'Please upload JPG, PNG, or GIF files only.', 'error');
+                            showAlert('Error', 'Please upload JPG, PNG, or GIF files only.', 'error');
                             return false;
                         }
                         if (imageFile.size > 5000000) {
                             e.preventDefault();
-                            Swal.fire('Error', 'Image file is too large. Maximum size is 5MB.', 'error');
+                            showAlert('Error', 'Image file is too large. Maximum size is 5MB.', 'error');
                             return false;
                         }
                     }
                     
                     if (hasErrors) {
                         e.preventDefault();
-                        Swal.fire('Error', 'Please correct the errors highlighted in red and try again.', 'error');
+                        showAlert('Error', 'Please correct the errors highlighted in red and try again.', 'error');
                         // Scroll to first error
                         const firstError = document.querySelector('.input-error, .ck-select-error');
                         if (firstError) {
@@ -1777,17 +2039,14 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
         if (cancelBtn) {
             cancelBtn.addEventListener('click', function(e) {
                 e.preventDefault();
-                Swal.fire({
-                    title: 'Cancel Registration?',
-                    text: 'Are you sure you want to cancel? Your email verification will be reset and you\'ll need to verify again.',
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#dc2626',
-                    cancelButtonColor: '#6b7280',
-                    confirmButtonText: 'Yes, Cancel',
-                    cancelButtonText: 'No, Continue'
-                }).then((result) => {
-                    if (result.isConfirmed) {
+                showConfirm(
+                    'Cancel Registration?',
+                    'Are you sure you want to cancel? Your email verification will be reset and you\'ll need to verify again.',
+                    'Yes, Cancel',
+                    'No, Continue',
+                    'danger'
+                ).then((confirmed) => {
+                    if (confirmed) {
                         window.location.href = '?cancel=true';
                     }
                 });
