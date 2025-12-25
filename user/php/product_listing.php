@@ -621,39 +621,127 @@ function getQueryString($newPage)
         }
 
 
-        #custom-toast {
-            visibility: hidden;
-            min-width: 200px;
-            background-color: rgba(40, 40, 40, 0.95);
-            color: #fff;
-            text-align: center;
-            border-radius: 50px;
-            padding: 12px 24px;
+        /* Modal Prompt Styles */
+        #custom-modal-overlay {
+            display: none;
             position: fixed;
-            z-index: 9999;
-            left: 50%;
-            bottom: 30px;
-            transform: translateX(-50%);
-            font-size: 15px;
-            box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.2);
-            opacity: 0;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        #custom-modal-overlay.show {
+            display: flex;
+        }
+
+        #custom-modal {
+            background: white;
+            border-radius: 16px;
+            padding: 40px 30px 30px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            animation: slideUp 0.3s ease;
+            position: relative;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-icon {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 20px;
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
+            background: #E8F5E9;
         }
 
-        #custom-toast.show {
-            visibility: visible;
-            opacity: 1;
-            bottom: 50px;
+        .modal-icon img {
+            width: 40px;
+            height: 40px;
         }
 
-        .toast-icon {
-            width: 20px;
-            height: 20px;
+        .modal-icon.error {
+            background: #FFEBEE;
+        }
 
+        .modal-icon.warning {
+            background: #FFF3E0;
+        }
+
+        .modal-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #2F2F2F;
+            margin: 0 0 10px 0;
+        }
+
+        .modal-message {
+            font-size: 15px;
+            color: #666;
+            margin: 0 0 25px 0;
+            line-height: 1.5;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .modal-btn {
+            padding: 12px 32px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-width: 100px;
+        }
+
+        .modal-btn-primary {
+            background: #FFB774;
+            color: white;
+        }
+
+        .modal-btn-primary:hover {
+            background: #E89C55;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 183, 116, 0.4);
+        }
+
+        .modal-btn-secondary {
+            background: #f5f5f5;
+            color: #666;
+        }
+
+        .modal-btn-secondary:hover {
+            background: #e8e8e8;
         }
 
         /* Pagination Styles */
@@ -876,41 +964,109 @@ function getQueryString($newPage)
 
     </div>
 
-    <div id="custom-toast">
-        <img src="../images/success.png" alt="" class="toast-icon">
-        <span id="custom-toast-msg">Added to cart!</span>
+    <!-- Modal Prompt -->
+    <div id="custom-modal-overlay">
+        <div id="custom-modal">
+            <div class="modal-icon" id="modal-icon">
+                <img src="../images/success.png" alt="">
+            </div>
+            <h3 class="modal-title" id="modal-title">Success!</h3>
+            <p class="modal-message" id="modal-message">Operation completed successfully.</p>
+            <div class="modal-buttons" id="modal-buttons">
+                <button class="modal-btn modal-btn-primary" id="modal-ok-btn">OK</button>
+            </div>
+        </div>
     </div>
 
     <?php include '../include/footer.php'; ?>
     <?php include '../include/chat_widget.php'; ?>
 
     <script>
-        function safeToast(message) {
-            const toast = document.getElementById('custom-toast');
-            const msgSpan = document.getElementById('custom-toast-msg');
-            const img = toast.querySelector('img');
+        function safeToast(message, showLoginBtn = false, title = '') {
+            const overlay = document.getElementById('custom-modal-overlay');
+            const modal = document.getElementById('custom-modal');
+            const iconDiv = document.getElementById('modal-icon');
+            const iconImg = iconDiv.querySelector('img');
+            const titleEl = document.getElementById('modal-title');
+            const messageEl = document.getElementById('modal-message');
+            const buttonsDiv = document.getElementById('modal-buttons');
 
-            msgSpan.innerText = message;
-
-
-            if (message.toLowerCase().includes("remove") || message.toLowerCase().includes("delete")) {
-
-                img.src = '../images/dusbin.png';
+            // Set title
+            if (title) {
+                titleEl.textContent = title;
+            } else if (showLoginBtn) {
+                titleEl.textContent = 'Login Required';
+            } else if (message.toLowerCase().includes("error") || message.toLowerCase().includes("failed")) {
+                titleEl.textContent = 'Error';
             } else {
-
-                img.src = '../images/success.png';
+                titleEl.textContent = 'Success!';
             }
 
-            img.onerror = function() {
+            // Set message
+            messageEl.textContent = message;
+
+            // Set icon
+            iconDiv.className = 'modal-icon';
+            if (message.toLowerCase().includes("remove") || message.toLowerCase().includes("delete")) {
+                iconImg.src = '../images/dusbin.png';
+            } else if (message.toLowerCase().includes("error") || message.toLowerCase().includes("failed")) {
+                iconImg.src = '../images/error.png';
+                iconDiv.classList.add('error');
+            } else {
+                iconImg.src = '../images/success.png';
+            }
+
+            iconImg.onerror = function() {
                 this.src = '../images/success.png';
             };
 
-            toast.classList.add('show');
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, 2500);
+            // Set buttons
+            buttonsDiv.innerHTML = '';
+            if (showLoginBtn) {
+                const loginBtn = document.createElement('button');
+                loginBtn.className = 'modal-btn modal-btn-primary';
+                loginBtn.textContent = 'Go to Login';
+                loginBtn.onclick = function() {
+                    overlay.classList.remove('show');
+                    window.location.href = 'login.php';
+                };
+                buttonsDiv.appendChild(loginBtn);
+
+                const cancelBtn = document.createElement('button');
+                cancelBtn.className = 'modal-btn modal-btn-secondary';
+                cancelBtn.textContent = 'Cancel';
+                cancelBtn.onclick = function() {
+                    overlay.classList.remove('show');
+                };
+                buttonsDiv.appendChild(cancelBtn);
+            } else {
+                const okBtn = document.createElement('button');
+                okBtn.className = 'modal-btn modal-btn-primary';
+                okBtn.textContent = 'OK';
+                okBtn.onclick = function() {
+                    overlay.classList.remove('show');
+                };
+                buttonsDiv.appendChild(okBtn);
+            }
+
+            // Show modal
+            overlay.classList.add('show');
+
+            // Auto close for non-login messages after 2.5 seconds
+            if (!showLoginBtn) {
+                setTimeout(() => {
+                    overlay.classList.remove('show');
+                }, 2500);
+            }
         }
 
+
+        // Close modal when clicking overlay
+        document.getElementById('custom-modal-overlay').addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.classList.remove('show');
+            }
+        });
 
         $(document).ready(function() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -975,18 +1131,15 @@ function getQueryString($newPage)
                     $btn.prop('disabled', false).css('opacity', '1');
 
                     if (res === "login_required") {
-                        if (confirm("Please login first. Go to login page?")) {
-                            window.location.href = 'login.php';
-                        }
+                        safeToast("Please login first to add items to cart.", true);
                     } else if (res === "added" || res === "quantity increased") {
-
                         safeToast("Added to Cart!");
                         refreshCartSidebar();
                         setTimeout(() => {
                             if (typeof openCart === 'function') openCart();
                         }, 500);
                     } else {
-                        alert("Failed to add item. Out of stock?");
+                        safeToast("Failed to add item. Out of stock?");
                     }
                 },
                 error: function() {
@@ -1032,9 +1185,7 @@ function getQueryString($newPage)
                 dataType: 'json',
                 success: function(res) {
                     if (res.status === 'login_required') {
-                        if (confirm("Please login to save items. Go to login?")) {
-                            window.location.href = 'login.php';
-                        }
+                        safeToast("Please login to save items to wishlist.", true);
                     } else if (res.status === 'added') {
                         $btn.addClass('active');
 
