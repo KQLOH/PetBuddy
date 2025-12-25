@@ -11,191 +11,13 @@ $adminName = $_SESSION['full_name'] ?? 'Admin';
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>Customer Support - PetBuddy Admin</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="../css/admin_product.css">
-    
-    <style>
-        /* --- LAYOUT --- */
-        .content {
-            height: calc(100vh - 60px);
-            display: flex;
-            flex-direction: column;
-            padding: 0;
-            overflow: hidden;
-            background-color: #f3f4f6;
-        }
-        .chat-container {
-            display: flex;
-            height: 100%;
-            background: #fff;
-            overflow: hidden;
-        }
-
-        /* --- ICONS (PNG) --- */
-        .icon-sm { width: 16px; height: 16px; object-fit: contain; }
-        .icon-md { width: 20px; height: 20px; object-fit: contain; }
-        .icon-lg { width: 24px; height: 24px; object-fit: contain; }
-        .icon-xl { width: 40px; height: 40px; object-fit: contain; opacity: 0.3; }
-        
-        /* White icon filter for colored buttons */
-        .icon-white { filter: brightness(0) invert(1); }
-        
-        /* Spinning animation for loading.png */
-        .spin { animation: spin 1s linear infinite; }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
-
-        /* --- SIDEBAR --- */
-        .chat-sidebar {
-            width: 340px;
-            border-right: 1px solid #e5e7eb;
-            display: flex;
-            flex-direction: column;
-            background: #fff;
-            z-index: 2;
-        }
-        .sidebar-header {
-            padding: 16px 20px;
-            background: #fff;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        .search-wrapper { position: relative; display: flex; align-items: center;}
-        
-        /* Search Icon Positioning */
-        .search-icon-img {
-            position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
-            width: 14px; height: 14px; opacity: 0.5;
-        }
-        
-        .search-box {
-            width: 100%;
-            padding: 10px 10px 10px 36px;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            font-size: 13px;
-            background: #f9fafb;
-            outline: none;
-            transition: all 0.2s;
-        }
-        .search-box:focus { background: #fff; border-color: #FF9F1C; }
-
-        .contact-list { flex: 1; overflow-y: auto; }
-        .contact-item {
-            display: flex; align-items: center; padding: 12px 20px;
-            border-bottom: 1px solid #f8f8f8; cursor: pointer; transition: background 0.2s;
-        }
-        .contact-item:hover { background-color: #f9fafb; }
-        .contact-item.active { background-color: #FFF7ED; border-right: 3px solid #FF9F1C; }
-
-        .avatar {
-            width: 44px; height: 44px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-weight: 600; font-size: 16px; margin-right: 14px; flex-shrink: 0;
-            overflow: hidden; border: 1px solid #eee; background-color: #FFF4E5; color: #FF9F1C;
-        }
-        .avatar img { width: 100%; height: 100%; object-fit: cover; }
-        
-        /* Avatar Placeholder Icon */
-        .avatar-placeholder { width: 20px; height: 20px; opacity: 0.5; }
-
-        .contact-info { flex: 1; min-width: 0; }
-        .contact-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
-        .contact-name { font-weight: 600; font-size: 14px; color: #111827; }
-        .contact-time { font-size: 11px; color: #9ca3af; }
-        .contact-preview { font-size: 12px; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-        .unread-badge {
-            background-color: #ef4444; color: white;
-            font-size: 10px; padding: 2px 6px; border-radius: 10px; font-weight: bold;
-        }
-
-        /* --- MAIN AREA --- */
-        .chat-main {
-            flex: 1; display: flex; flex-direction: column; background-color: #fff; position: relative;
-        }
-        .chat-header {
-            padding: 0 24px; height: 68px; border-bottom: 1px solid #e5e7eb;
-            background: #fff; display: flex; align-items: center; justify-content: space-between;
-        }
-        .header-user { display: flex; align-items: center; }
-        .header-info h3 { margin: 0; font-size: 16px; color: #111827; font-weight: 700; }
-        .header-info p { margin: 2px 0 0; font-size: 12px; color: #6b7280; }
-
-        /* Delete Button with PNG */
-        .btn-delete-chat {
-            background: #fee2e2; border: none;
-            width: 36px; height: 36px; border-radius: 8px;
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer; transition: all 0.2s;
-        }
-        .btn-delete-chat:hover { background: #fecaca; transform: scale(1.05); }
-        .btn-delete-chat img { width: 16px; height: 16px; }
-
-        .messages-area {
-            flex: 1; padding: 20px 24px; overflow-y: auto;
-            background-color: #F4F6F8;
-            background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
-            background-size: 20px 20px;
-            display: flex; flex-direction: column; gap: 8px;
-        }
-
-        .date-divider { text-align: center; margin: 20px 0; }
-        .date-divider span {
-            background: rgba(229, 231, 235, 0.8); color: #6b7280; font-size: 11px;
-            padding: 4px 12px; border-radius: 12px; font-weight: 500;
-        }
-
-        .msg-bubble {
-            max-width: 65%; padding: 12px 16px; border-radius: 16px;
-            font-size: 14px; line-height: 1.5; position: relative;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-        }
-        .msg-member { align-self: flex-start; background: #fff; color: #1f2937; border-bottom-left-radius: 4px; }
-        .msg-admin { align-self: flex-end; background: #FF9F1C; color: white; border-bottom-right-radius: 4px; }
-        .msg-time { font-size: 10px; margin-top: 4px; text-align: right; opacity: 0.7; display: block; }
-
-        .input-area {
-            padding: 20px 24px; border-top: 1px solid #e5e7eb; background: #fff;
-            display: flex; gap: 12px; align-items: center;
-        }
-        .chat-input {
-            flex: 1; padding: 12px 16px; border: 1px solid #d1d5db; border-radius: 12px;
-            outline: none; font-size: 14px; background: #f9fafb;
-        }
-        .chat-input:focus { border-color: #FF9F1C; background: #fff; }
-        
-        .btn-send {
-            background: #FF9F1C; border: none;
-            width: 46px; height: 46px; border-radius: 12px;
-            cursor: pointer; display: flex; align-items: center; justify-content: center;
-            transition: all 0.2s; flex-shrink: 0;
-        }
-        .btn-send:hover { background: #e08b15; }
-        /* Send icon needs to be white */
-        .btn-send img { width: 18px; filter: brightness(0) invert(1); }
-
-        .empty-state {
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            height: 100%; color: #9ca3af;
-        }
-        .empty-state img { width: 60px; height: 60px; opacity: 0.2; margin-bottom: 15px; }
-
-        /* Custom Alert */
-        .custom-alert-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; display: none; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s ease; }
-        .custom-alert-overlay.show { opacity: 1; }
-        .custom-alert-box { background: white; padding: 30px; border-radius: 12px; width: 90%; max-width: 400px; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); transform: scale(0.8); transition: transform 0.3s ease; }
-        .custom-alert-overlay.show .custom-alert-box { transform: scale(1); }
-        .custom-alert-icon { width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; background: #FFF4E5; border: 2px solid #FF9F1C; }
-        .custom-alert-icon img { width: 30px; }
-        .custom-alert-title { margin: 0 0 10px; font-size: 1.25rem; color: #111827; font-weight: 700; }
-        .custom-alert-text { color: #6b7280; margin-bottom: 24px; font-size: 14px; }
-        .custom-alert-buttons { display: flex; justify-content: center; gap: 12px; }
-        .btn-alert { padding: 10px 20px; border-radius: 8px; cursor: pointer; border: none; font-weight: 600; font-size: 14px; }
-        .btn-alert-confirm { background: #D92D20; color: white; }
-        .btn-alert-cancel { background: #F3F4F6; color: #374151; }
-    </style>
+    <link rel="stylesheet" href="../css/admin_btn.css">
+    <link rel="stylesheet" href="../css/admin_chat.css">
 </head>
 
 <body>
@@ -205,7 +27,7 @@ $adminName = $_SESSION['full_name'] ?? 'Admin';
     <div class="main">
         <header class="topbar">
             <div class="topbar-left">
-                <button id="sidebarToggle" class="sidebar-toggle">☰</button>
+                <button id="sidebarToggle" class="sidebar-toggle"><img src="../images/menu.png"></button>
                 <div class="topbar-title">Customer Support</div>
             </div>
             <span class="tag-pill" style="margin-right: 20px;">Admin: <?= htmlspecialchars($adminName) ?></span>
@@ -213,7 +35,6 @@ $adminName = $_SESSION['full_name'] ?? 'Admin';
 
         <main class="content">
             <div class="chat-container">
-                
                 <div class="chat-sidebar">
                     <div class="sidebar-header">
                         <div class="search-wrapper">
@@ -230,7 +51,7 @@ $adminName = $_SESSION['full_name'] ?? 'Admin';
                 </div>
 
                 <div class="chat-main">
-                    
+
                     <div class="chat-header" id="chatHeader" style="display:none;">
                         <div class="header-user">
                             <div class="avatar" id="headerAvatarContainer" style="margin-right:12px; width:40px; height:40px;"></div>
@@ -239,7 +60,7 @@ $adminName = $_SESSION['full_name'] ?? 'Admin';
                                 <p>Member ID: <span id="chatUserId"></span></p>
                             </div>
                         </div>
-                        
+
                         <button class="btn-delete-chat" title="Delete Conversation" onclick="confirmDeleteChat()">
                             <img src="../images/dusbin.png" alt="Delete">
                         </button>
@@ -279,7 +100,7 @@ $adminName = $_SESSION['full_name'] ?? 'Admin';
     </div>
 
     <script>
-        document.getElementById('sidebarToggle').addEventListener('click', function () {
+        document.getElementById('sidebarToggle').addEventListener('click', function() {
             document.body.classList.toggle('sidebar-collapsed');
         });
 
@@ -292,7 +113,7 @@ $adminName = $_SESSION['full_name'] ?? 'Admin';
                 .then(res => res.json())
                 .then(data => {
                     allContacts = data;
-                    if(document.getElementById('searchContact').value === '') {
+                    if (document.getElementById('searchContact').value === '') {
                         renderContacts(data);
                     }
                 })
@@ -308,8 +129,8 @@ $adminName = $_SESSION['full_name'] ?? 'Admin';
         function renderContacts(data) {
             const list = document.getElementById('contactList');
             list.innerHTML = '';
-            
-            if(data.length === 0) {
+
+            if (data.length === 0) {
                 list.innerHTML = '<div style="padding:20px; text-align:center; color:#999; font-size:13px;">No conversations found.</div>';
                 return;
             }
@@ -322,7 +143,7 @@ $adminName = $_SESSION['full_name'] ?? 'Admin';
                 let avatarContent = '';
                 if (user.image && user.image.trim() !== '') {
                     let imgPath = user.image;
-                    if(!imgPath.startsWith('http') && !imgPath.startsWith('../')) {
+                    if (!imgPath.startsWith('http') && !imgPath.startsWith('../')) {
                         imgPath = '../../user/' + imgPath.replace(/^\//, '');
                     }
                     avatarContent = `<img src="${imgPath}" alt="User">`;
@@ -333,12 +154,18 @@ $adminName = $_SESSION['full_name'] ?? 'Admin';
 
                 const msgDate = new Date(user.last_msg_time);
                 const today = new Date();
-                let timeStr = msgDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                if(msgDate.getDate() !== today.getDate()) {
-                    timeStr = msgDate.toLocaleDateString([], {month:'short', day:'numeric'});
+                let timeStr = msgDate.toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                if (msgDate.getDate() !== today.getDate()) {
+                    timeStr = msgDate.toLocaleDateString([], {
+                        month: 'short',
+                        day: 'numeric'
+                    });
                 }
 
-                const safeImage = user.image ? user.image.replace(/'/g, "\\'") : ''; 
+                const safeImage = user.image ? user.image.replace(/'/g, "\\'") : '';
 
                 const item = document.createElement('div');
                 item.className = `contact-item ${isActive}`;
@@ -366,12 +193,12 @@ $adminName = $_SESSION['full_name'] ?? 'Admin';
             currentMemberId = memberId;
             document.getElementById('chatUserName').textContent = name;
             document.getElementById('chatUserId').textContent = memberId;
-            
+
             // Header Avatar
             const headerAvatar = document.getElementById('headerAvatarContainer');
             if (image && image.trim() !== '') {
                 let imgPath = image;
-                if(!imgPath.startsWith('http') && !imgPath.startsWith('../')) {
+                if (!imgPath.startsWith('http') && !imgPath.startsWith('../')) {
                     imgPath = '../../user/' + imgPath.replace(/^\//, '');
                 }
                 headerAvatar.innerHTML = `<img src="${imgPath}" alt="User">`;
@@ -381,23 +208,26 @@ $adminName = $_SESSION['full_name'] ?? 'Admin';
                 headerAvatar.innerHTML = `<img src="../../images/user.png" class="avatar-placeholder">`;
                 headerAvatar.style.background = '#f0f0f0';
             }
-            
+
             document.getElementById('chatHeader').style.display = 'flex';
             document.getElementById('inputArea').style.display = 'flex';
-            document.getElementById('messageArea').innerHTML = ''; 
-            lastMsgCount = 0; 
+            document.getElementById('messageArea').innerHTML = '';
+            lastMsgCount = 0;
 
             loadMessages();
-            loadContacts(); 
-            
+            loadContacts();
+
             setTimeout(() => document.getElementById('adminInput').focus(), 100);
         }
 
         function confirmDeleteChat() {
-            if(!currentMemberId) return;
+            if (!currentMemberId) return;
             const overlay = document.getElementById('customAlert');
             const btnConfirm = document.getElementById('btnConfirmDelete');
-            btnConfirm.onclick = () => { deleteChat(); closeCustomAlert(); };
+            btnConfirm.onclick = () => {
+                deleteChat();
+                closeCustomAlert();
+            };
             overlay.style.display = 'flex';
             setTimeout(() => overlay.classList.add('show'), 10);
         }
@@ -413,10 +243,13 @@ $adminName = $_SESSION['full_name'] ?? 'Admin';
             formData.append('action', 'delete_conversation');
             formData.append('member_id', currentMemberId);
 
-            fetch('chat_api.php', { method: 'POST', body: formData })
+            fetch('chat_api.php', {
+                    method: 'POST',
+                    body: formData
+                })
                 .then(res => res.json())
                 .then(data => {
-                    if(data.status === 'success') {
+                    if (data.status === 'success') {
                         currentMemberId = null;
                         document.getElementById('chatHeader').style.display = 'none';
                         document.getElementById('inputArea').style.display = 'none';
@@ -439,7 +272,7 @@ $adminName = $_SESSION['full_name'] ?? 'Admin';
             fetch(`chat_api.php?action=fetch_messages&member_id=${currentMemberId}`)
                 .then(res => res.json())
                 .then(data => {
-                    if(data.length !== lastMsgCount) {
+                    if (data.length !== lastMsgCount) {
                         const area = document.getElementById('messageArea');
                         const isAtBottom = area.scrollHeight - area.scrollTop <= area.clientHeight + 100;
 
@@ -449,8 +282,8 @@ $adminName = $_SESSION['full_name'] ?? 'Admin';
                         data.forEach(msg => {
                             const msgDate = new Date(msg.created_at);
                             const dateStr = formatDate(msgDate);
-                            
-                            if(dateStr !== lastDate) {
+
+                            if (dateStr !== lastDate) {
                                 const div = document.createElement('div');
                                 div.className = 'date-divider';
                                 div.innerHTML = `<span>${dateStr}</span>`;
@@ -477,9 +310,12 @@ $adminName = $_SESSION['full_name'] ?? 'Admin';
             const today = new Date();
             const yesterday = new Date();
             yesterday.setDate(yesterday.getDate() - 1);
-            if(date.toDateString() === today.toDateString()) return 'Today';
-            if(date.toDateString() === yesterday.toDateString()) return 'Yesterday';
-            return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+            if (date.toDateString() === today.toDateString()) return 'Today';
+            if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+            return date.toLocaleDateString('en-GB', {
+                day: 'numeric',
+                month: 'short'
+            });
         }
 
         const inputField = document.getElementById('adminInput');
@@ -487,17 +323,20 @@ $adminName = $_SESSION['full_name'] ?? 'Admin';
 
         function sendMessage() {
             const text = inputField.value.trim();
-            if(!text || !currentMemberId) return;
+            if (!text || !currentMemberId) return;
 
             const formData = new FormData();
             formData.append('action', 'send_reply');
             formData.append('member_id', currentMemberId);
             formData.append('message', text);
 
-            fetch('chat_api.php', { method: 'POST', body: formData })
+            fetch('chat_api.php', {
+                    method: 'POST',
+                    body: formData
+                })
                 .then(res => res.json())
                 .then(data => {
-                    if(data.status === 'success') {
+                    if (data.status === 'success') {
                         inputField.value = '';
                         loadMessages();
                     }
@@ -505,7 +344,9 @@ $adminName = $_SESSION['full_name'] ?? 'Admin';
         }
 
         sendBtn.addEventListener('click', sendMessage);
-        inputField.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(); });
+        inputField.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
 
         function escapeHtml(text) {
             const div = document.createElement('div');
@@ -513,8 +354,12 @@ $adminName = $_SESSION['full_name'] ?? 'Admin';
             return div.innerHTML;
         }
 
-        setInterval(() => { if(currentMemberId) loadMessages(); loadContacts(); }, 3000);
+        setInterval(() => {
+            if (currentMemberId) loadMessages();
+            loadContacts();
+        }, 3000);
         loadContacts();
     </script>
 </body>
+
 </html>
