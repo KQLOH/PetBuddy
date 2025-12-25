@@ -939,7 +939,6 @@ if (isset($_SESSION['member_id'])) {
     <?php include '../include/chat_widget.php'; ?>
 
     <script>
-        // Close modal when clicking overlay
         document.addEventListener('DOMContentLoaded', function() {
             const overlay = document.getElementById('custom-modal-overlay');
             if (overlay) {
@@ -952,7 +951,6 @@ if (isset($_SESSION['member_id'])) {
         });
 
         function safeToast(message, showLoginBtn = false) {
-            // If login required, show modal
             if (showLoginBtn) {
                 const overlay = document.getElementById('custom-modal-overlay');
                 const modal = document.getElementById('custom-modal');
@@ -989,7 +987,6 @@ if (isset($_SESSION['member_id'])) {
                 return;
             }
 
-            // Otherwise, show toast (bottom notification)
             const toast = document.getElementById('custom-toast');
             const msgSpan = document.getElementById('custom-toast-msg');
             const img = toast.querySelector('img');

@@ -38,7 +38,6 @@ if ($code === '') {
 }
 
 try {
-    // 检查 code 是否已存在（排除当前记录）
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM vouchers WHERE code = ? AND voucher_id != ?");
     $stmt->execute([$code, $id]);
     if ($stmt->fetchColumn() > 0) {

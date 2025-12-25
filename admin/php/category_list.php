@@ -104,7 +104,8 @@ function sortLink($columnKey, $label)
     return '<a href="' . htmlspecialchars($url) . '" class="sort-link">' . $label . $iconHtml . '</a>';
 }
 
-function categoryImageUrl(?string $dbPath, ?string $categoryName = null): string {
+function categoryImageUrl(?string $dbPath, ?string $categoryName = null): string
+{
 
     if ($dbPath && trim($dbPath) !== '') {
         if (strpos($dbPath, '../images/') === 0) {
@@ -122,7 +123,7 @@ function categoryImageUrl(?string $dbPath, ?string $categoryName = null): string
 
         return '../../user/images/' . $dbPath;
     }
-    
+
 
     if ($categoryName) {
         $name = strtolower($categoryName);
@@ -136,14 +137,14 @@ function categoryImageUrl(?string $dbPath, ?string $categoryName = null): string
             'accessory' => 'home-accessory.png',
             'food' => 'pet-food.png',
         ];
-        
+
         foreach ($imageMap as $keyword => $image) {
             if (strpos($name, $keyword) !== false) {
                 return '../../user/images/' . $image;
             }
         }
     }
-    
+
     return '../images/default_product.jpg';
 }
 ?>
@@ -221,9 +222,8 @@ function categoryImageUrl(?string $dbPath, ?string $categoryName = null): string
                                     <td style="color:#666;">#<?= $c['category_id'] ?></td>
 
                                     <td>
-                                        <?php 
+                                        <?php
                                         $imgSrc = categoryImageUrl($c['image'] ?? null, $c['name'] ?? null);
-                                        // echo "<!-- Image: " . htmlspecialchars($c['image'] ?? 'NULL') . " | Name: " . htmlspecialchars($c['name'] ?? 'NULL') . " | Src: " . htmlspecialchars($imgSrc) . " -->";
                                         ?>
                                         <img class="product-thumb"
                                             src="<?= htmlspecialchars($imgSrc) ?>"
@@ -439,7 +439,7 @@ function categoryImageUrl(?string $dbPath, ?string $categoryName = null): string
                             document.getElementById('catId').value = data.category_id;
                             document.getElementById('catName').value = data.name;
                             document.getElementById('catDesc').value = data.description || '';
-                            
+
                             if (data.image && data.image.trim() !== '' && data.image !== null) {
                                 let imageUrl = '';
                                 if (data.image.indexOf('../images/') === 0) {
@@ -456,7 +456,7 @@ function categoryImageUrl(?string $dbPath, ?string $categoryName = null): string
                                 const autoImage = getCategoryImageUrl(null, data.name);
                                 document.getElementById('catPreview').src = autoImage;
                             }
-                            
+
                             openModal('catModal');
                         }
                     })
@@ -479,7 +479,7 @@ function categoryImageUrl(?string $dbPath, ?string $categoryName = null): string
                 }
                 return '../../user/images/' + dbPath;
             }
-            
+
             if (categoryName) {
                 const name = categoryName.toLowerCase();
                 const imageMap = {
@@ -492,14 +492,14 @@ function categoryImageUrl(?string $dbPath, ?string $categoryName = null): string
                     'accessory': 'home-accessory.png',
                     'food': 'pet-food.png'
                 };
-                
+
                 for (const [keyword, image] of Object.entries(imageMap)) {
                     if (name.indexOf(keyword) !== -1) {
                         return '../../user/images/' + image;
                     }
                 }
             }
-            
+
             return '../images/default_product.jpg';
         }
 

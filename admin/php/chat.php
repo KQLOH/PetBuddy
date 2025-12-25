@@ -139,7 +139,6 @@ $adminName = $_SESSION['full_name'] ?? 'Admin';
                 const isActive = currentMemberId == user.member_id ? 'active' : '';
                 let badgeHtml = user.unread_count > 0 ? `<span class="unread-badge">${user.unread_count}</span>` : '';
 
-                // Avatar Logic (Image or Fallback)
                 let avatarContent = '';
                 if (user.image && user.image.trim() !== '') {
                     let imgPath = user.image;
@@ -148,7 +147,6 @@ $adminName = $_SESSION['full_name'] ?? 'Admin';
                     }
                     avatarContent = `<img src="${imgPath}" alt="User">`;
                 } else {
-                    // Fallback to user.png
                     avatarContent = `<img src="../../images/user.png" class="avatar-placeholder">`;
                 }
 
@@ -194,7 +192,6 @@ $adminName = $_SESSION['full_name'] ?? 'Admin';
             document.getElementById('chatUserName').textContent = name;
             document.getElementById('chatUserId').textContent = memberId;
 
-            // Header Avatar
             const headerAvatar = document.getElementById('headerAvatarContainer');
             if (image && image.trim() !== '') {
                 let imgPath = image;
