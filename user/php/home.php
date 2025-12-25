@@ -1,17 +1,12 @@
 <?php
-/**
- * PetBuddy Home Page - Premium Design
- * Modern, elegant homepage with dynamic features
- */
 
-// Start session and connect to database
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 require_once '../include/db.php';
 require_once '../include/product_utils.php'; 
 
-// --- 1. 获取当前用户已收藏的商品ID ---
+
 $user_wishlist_ids = [];
 if (isset($_SESSION['member_id'])) {
     try {
@@ -21,7 +16,7 @@ if (isset($_SESSION['member_id'])) {
     } catch (PDOException $e) { }
 }
 
-// --- 2. 获取 Top 5 畅销商品 ---
+
 $featured_products = [];
 try {
     $stmt = $pdo->prepare("
@@ -38,13 +33,13 @@ try {
     $stmt->execute();
     $featured_products = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // 补齐逻辑略 (保持你原有的逻辑即可)
+    
     if (count($featured_products) < 5) {
-        // ... (此处省略补齐代码以节省篇幅，逻辑不变) ...
+        
     }
 } catch (PDOException $e) { error_log($e->getMessage()); }
 
-// --- 3. 获取分类 ---
+
 $categories = [];
 try {
     $stmt = $pdo->prepare("SELECT * FROM product_categories LIMIT 8");
@@ -69,7 +64,7 @@ include '../include/header.php';
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: "Inter", system-ui, sans-serif; color: var(--text-dark); background: #fff; overflow-x: hidden; }
 
-        /* ================= Hero Section ================= */
+        
         .hero-section { position: relative; height: 85vh; min-height: 600px; background: linear-gradient(135deg, #FFE8D1 0%, #FFF5EC 100%); overflow: hidden; display: flex; align-items: center; }
         .hero-content { max-width: 1200px; margin: 0 auto; padding: 0 40px; position: relative; z-index: 2; }
         .hero-slide-content { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; opacity: 0; visibility: hidden; position: absolute; top: 0; left: 40px; right: 40px; transition: opacity 0.8s ease, visibility 0.8s ease; }
@@ -109,7 +104,7 @@ include '../include/header.php';
         .float-3 { top: 20%; right: 8%; width: 50px; animation-delay: 2s; }
         @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-20px); } }
 
-        /* ================= Features Section ================= */
+        
         .features-section { padding: 80px 40px; background: white; }
         .features-container { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 40px; }
         .feature-card { text-align: center; padding: 40px 30px; border-radius: 20px; transition: all 0.3s ease; background: white; }
@@ -119,7 +114,7 @@ include '../include/header.php';
         .feature-title { font-size: 20px; font-weight: 700; margin-bottom: 12px; color: var(--text-dark); }
         .feature-desc { font-size: 15px; color: var(--text-light); line-height: 1.6; }
 
-        /* ================= Categories Section ================= */
+        
         .categories-section { padding: 100px 40px; background: white; position: relative; overflow: hidden; }
         .categories-section::before { content: '🐾'; position: absolute; top: 50px; right: 50px; font-size: 200px; opacity: 0.03; z-index: 0; }
         .section-header { text-align: center; margin-bottom: 60px; position: relative; z-index: 1; }
@@ -143,7 +138,7 @@ include '../include/header.php';
         .btn-view-all { display: inline-flex; align-items: center; gap: 10px; padding: 16px 40px; background: white; color: var(--text-dark); border: 2px solid var(--primary-color); border-radius: 50px; font-size: 16px; font-weight: 600; text-decoration: none; transition: all 0.3s ease; }
         .btn-view-all:hover { background: var(--primary-color); color: white; transform: translateY(-3px); box-shadow: 0 10px 30px rgba(255, 183, 116, 0.3); }
 
-        /* ================= Products Section ================= */
+        
         .products-section { padding: 80px 40px; background: white; }
         .products-grid { max-width: 1300px; margin: 0 auto; display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; }
         .p-card { background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 15px rgba(0,0,0,0.06); position: relative; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border: 1px solid #f5f5f5; display: flex; flex-direction: column; }
@@ -169,15 +164,15 @@ include '../include/header.php';
         .amount { font-size: 20px; color: #FFB774; font-weight: 700; letter-spacing: -0.5px; }
         .p-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
-        /* ✨✨✨ Add & Heart Button with IMAGES ✨✨✨ */
+        
         .btn-add { background: linear-gradient(135deg, #2F2F2F, #1a1a1a); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; padding: 10px; transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 5px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
         .btn-add:hover { background: linear-gradient(135deg, #000, #2F2F2F); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.25); }
-        /* Cart 图标变白 */
+        
         .btn-add img { width: 18px; height: 18px; filter: brightness(0) invert(1); margin-right: 5px; object-fit: contain; }
 
         .btn-heart-action { text-align: center; border: 2px solid #eee; padding: 10px; border-radius: 8px; background: #fff; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; justify-content: center; }
         .btn-heart-action:hover { border-color: #FFB774; background: #fff9f4; transform: translateY(-2px); }
-        /* Heart 图标变色逻辑 */
+        
         .btn-heart-action img { width: 20px; height: 20px; object-fit: contain; transition: all 0.3s ease; filter: grayscale(100%) opacity(0.5); }
         .btn-heart-action.active { border-color: #ff4d4d; background: #fff0f0; }
         .btn-heart-action.active img { filter: grayscale(0%) opacity(1); transform: scale(1.1); }
@@ -186,7 +181,7 @@ include '../include/header.php';
         .btn-heart-action.animating { animation: heartPop 0.3s ease-in-out; }
         @keyframes heartPop { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.3); } }
 
-        /* Responsive */
+        
         @media (min-width: 1400px) { .products-grid { grid-template-columns: repeat(5, 1fr); } .categories-grid { grid-template-columns: repeat(4, 1fr); } }
         @media (max-width: 1200px) { .products-grid { grid-template-columns: repeat(3, 1fr); } .categories-grid { grid-template-columns: repeat(3, 1fr); } }
         @media (max-width: 900px) { .products-grid { grid-template-columns: repeat(2, 1fr); } .categories-grid { grid-template-columns: repeat(2, 1fr); } }
@@ -199,7 +194,7 @@ include '../include/header.php';
         .cta-button { padding: 18px 45px; background: white; color: var(--primary-dark); border-radius: 50px; font-size: 18px; font-weight: 700; text-decoration: none; display: inline-block; transition: all 0.3s ease; box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
         .cta-button:hover { transform: translateY(-5px); box-shadow: 0 15px 40px rgba(0,0,0,0.25); }
 
-        /* ✨✨✨ Toast CSS ✨✨✨ */
+        
         #custom-toast { visibility: hidden; min-width: 200px; background-color: rgba(40, 40, 40, 0.95); color: #fff; text-align: center; border-radius: 50px; padding: 12px 24px; position: fixed; z-index: 9999; left: 50%; bottom: 30px; transform: translateX(-50%); font-size: 15px; box-shadow: 0px 8px 20px rgba(0,0,0,0.2); opacity: 0; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: flex; align-items: center; justify-content: center; gap: 10px; }
         #custom-toast.show { visibility: visible; opacity: 1; bottom: 50px; }
         .toast-icon { width: 20px; height: 20px;  }
@@ -394,7 +389,7 @@ include '../include/header.php';
 <?php include '../include/chat_widget.php'; ?>
 
 <script>
-// ============ 1. Hero Slider Logic ============
+
 let currentMainSlide = 0;
 const mainSlides = document.querySelectorAll('.hero-slide-content');
 const mainDots = document.querySelectorAll('.main-slider-dot');
@@ -429,7 +424,7 @@ if (heroSection) {
     heroSection.addEventListener('mouseleave', () => { resetMainAutoSlide(); });
 }
 
-// ============ 2. Toast Function ============
+
 function safeToast(message, type = 'success') {
     const toast = document.getElementById('custom-toast');
     const msgSpan = document.getElementById('custom-toast-msg');
@@ -437,20 +432,20 @@ function safeToast(message, type = 'success') {
 
     msgSpan.innerText = message;
 
-    // 根据内容切换图标
+    
     if (message.toLowerCase().includes("remove") || message.toLowerCase().includes("delete")) {
         img.src = '../images/trash.png'; 
     } else {
         img.src = '../images/success.png';
     }
-    // 防止图片加载失败回退
+    
     img.onerror = function() { this.src = '../images/success.png'; };
 
     toast.classList.add('show');
     setTimeout(() => { toast.classList.remove('show'); }, 2500);
 }
 
-// ============ 3. Add to Cart ============
+
 function addToCart(pid) {
     let $btn = $("button[onclick='addToCart("+pid+")']");
     $btn.prop('disabled', true).css('opacity', '0.7');
@@ -479,7 +474,7 @@ function addToCart(pid) {
     });
 }
 
-// ============ 4. Refresh Sidebar ============
+
 function refreshCartSidebar() {
     $.ajax({
         url: 'fetch_cart.php', 
@@ -497,10 +492,10 @@ function refreshCartSidebar() {
     });
 }
 
-// ============ 5. Wishlist Function ============
+
 function toggleWishlist(btn, pid) {
     let $btn = $(btn);
-    // 图片在CSS里已经处理了 grayscale 滤镜
+    
     $btn.addClass("animating");
     setTimeout(() => $btn.removeClass("animating"), 300);
 
@@ -525,7 +520,7 @@ function toggleWishlist(btn, pid) {
     });
 }
 
-// ============ 6. 侧边栏删除监听 (全局) ============
+
 $(document).ready(function() {
     $(document).on('click', '.btn-remove-item', function(e) {
         e.preventDefault();

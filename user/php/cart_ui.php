@@ -1,6 +1,5 @@
 <?php
-// cart_ui.php
-// 防止直接访问报错
+
 if (!isset($cart_items)) { $cart_items = []; }
 if (!function_exists('productImageUrl')) { require_once __DIR__ . "/../include/product_utils.php"; }
 
@@ -8,7 +7,7 @@ $total_price = 0;
 
 if (!empty($cart_items) && count($cart_items) > 0):
     foreach ($cart_items as $row):
-        // 计算单行总价
+       
         $price = isset($row['price']) ? $row['price'] : 0;
         $qty = isset($row['quantity']) ? $row['quantity'] : 0;
         $subtotal = $price * $qty;
@@ -38,7 +37,7 @@ if (!empty($cart_items) && count($cart_items) > 0):
     <?php
     endforeach;
     
-    // 传递总价给 Sidebar
+    
     echo '<script>
         if(document.getElementById("cartSidebarTotal")) {
             document.getElementById("cartSidebarTotal").innerText = "' . number_format($total_price, 2) . '";
@@ -70,28 +69,26 @@ endif;
 ?>
 
 <script>
-    // ============================================
-    // 删除功能 (包含两个弹窗)
-    // ============================================
+
     function deleteCartItem(pid) {
         
-        // 执行删除的动作
+        
         const performDelete = () => {
             $.ajax({
-                // ✨✨✨ 关键点：这里必须改成 remove_cart.php (对应你的文件名) ✨✨✨
+               
                 url: 'remove_cart.php', 
                 type: 'POST',
                 data: { product_id: pid },
                 success: function(response) {
                     if (response.trim() === 'success') {
-                        // 1. 刷新侧边栏 (不刷新整个页面)
+                        
                         if (typeof refreshCartSidebar === 'function') {
                             refreshCartSidebar();
                         } else {
                             location.reload(); 
                         }
 
-                        // 2. ✨ Pop-up Message 2: Success (删除成功提示)
+                        
                         if (typeof safeToast === 'function') {
                             safeToast("Item removed from cart");
                         } else {
@@ -107,7 +104,7 @@ endif;
             });
         };
 
-        // ✨ Pop-up Message 1: Confirmation (确认提示)
+        
         if (typeof Swal !== 'undefined') {
             Swal.fire({
                 title: 'Remove Item?',
@@ -123,14 +120,14 @@ endif;
                 }
             });
         } else {
-            // 降级处理
+           
             if (confirm("Are you sure you want to remove this item?")) {
                 performDelete();
             }
         }
     }
 
-    // 数量更新函数
+   
     function changeQty(pid, action) {
         let display = document.getElementById('qty-val-' + pid);
         if(!display) return;

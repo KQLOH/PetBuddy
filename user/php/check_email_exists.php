@@ -1,8 +1,5 @@
 <?php
-/**
- * Check if email is already registered
- * Used for real-time email validation during registration
- */
+
 
 session_start();
 require '../include/db.php';
@@ -23,7 +20,7 @@ try {
     
     echo json_encode(['exists' => $exists]);
 } catch (PDOException $e) {
-    // On error, return false to allow proceeding (error will be caught later)
+    
     echo json_encode(['exists' => false]);
 }
 ?>

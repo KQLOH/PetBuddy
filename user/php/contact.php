@@ -34,7 +34,7 @@ if (isset($_GET['field'])) {
         color: var(--text-dark);
     }
 
-    /* Hero Section */
+    
     .contact-hero {
         background: linear-gradient(135deg, #FFE8D1 0%, #FFF5EC 100%);
         padding: 80px 40px;
@@ -47,7 +47,7 @@ if (isset($_GET['field'])) {
     .contact-hero::after { content: ''; position: absolute; bottom: 20px; left: 10%; font-size: 100px; opacity: 0.1; }
 
     .hero-badge {
-        display: inline-flex; /* Changed to flex for icon alignment */
+        display: inline-flex; 
         align-items: center;
         gap: 8px;
         background: white;
@@ -63,10 +63,10 @@ if (isset($_GET['field'])) {
     .contact-title { font-size: 48px; font-weight: 800; color: var(--text-dark); margin-bottom: 15px; line-height: 1.2; }
     .contact-subtitle { font-size: 18px; color: var(--text-light); max-width: 600px; margin: 0 auto; line-height: 1.6; }
 
-    /* Container */
+    
     .container-wrapper { max-width: 1280px; margin: 0 auto; padding: 80px 40px; }
 
-    /* Quick Contact Cards */
+    
     .quick-contact-section { margin-bottom: 80px; }
     .quick-contact-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; margin-bottom: 60px; }
 
@@ -108,11 +108,11 @@ if (isset($_GET['field'])) {
     .contact-card a { color: var(--text-dark); text-decoration: none; font-weight: 600; transition: color 0.3s ease; }
     .contact-card a:hover { color: var(--primary-dark); }
 
-    /* Main Content Layout */
+    
     .main-layout { display: grid; grid-template-columns: 1fr; gap: 40px; margin-bottom: 80px; }
     @media (min-width: 968px) { .main-layout { grid-template-columns: 1fr 1.2fr; } }
 
-    /* Info Panel */
+    
     .info-panel { background: white; padding: 40px; border-radius: 25px; border: 2px solid var(--border-color); height: fit-content; position: sticky; top: 120px; }
     
     .info-panel h2 {
@@ -130,7 +130,7 @@ if (isset($_GET['field'])) {
     .info-content a { color: var(--text-dark); text-decoration: none; transition: color 0.3s ease; }
     .info-content a:hover { color: var(--primary-dark); }
 
-    /* Form Panel */
+    
     .form-panel { background: white; padding: 45px; border-radius: 25px; box-shadow: 0 8px 30px rgba(0,0,0,0.08); border: 2px solid var(--border-color); }
     .form-panel h2 { font-size: 28px; font-weight: 800; color: var(--text-dark); margin-bottom: 10px; }
     .form-description { font-size: 15px; color: var(--text-light); margin-bottom: 35px; }
@@ -153,12 +153,12 @@ if (isset($_GET['field'])) {
     .btn-submit:hover { transform: translateY(-3px); box-shadow: 0 12px 35px rgba(255, 183, 116, 0.4); }
     .btn-submit:active { transform: translateY(-1px); }
 
-    /* Alert Messages */
+    
     .alert { padding: 18px 25px; border-radius: 12px; margin-bottom: 30px; font-size: 15px; font-weight: 500; display: flex; align-items: center; gap: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
     .alert-success { background: linear-gradient(135deg, #10b981, #059669); color: white; }
     .alert-error { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
 
-    /* Map Section */
+   
     .map-section { background: var(--bg-light); padding: 80px 40px; margin-top: 60px; }
     .map-header { text-align: center; margin-bottom: 50px; }
     .map-header h2 { font-size: 36px; font-weight: 800; color: var(--text-dark); margin-bottom: 15px; }
@@ -191,7 +191,7 @@ if (isset($_GET['field'])) {
     }
     .map-link:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(255, 183, 116, 0.4); }
 
-    /* CTA Section */
+    
     .cta-section {
         background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
         color: white; text-align: center; padding: 80px 40px; border-radius: 30px;
@@ -210,7 +210,7 @@ if (isset($_GET['field'])) {
     }
     .btn-primary:hover { transform: translateY(-5px); box-shadow: 0 15px 40px rgba(0,0,0,0.25); }
 
-    /* Responsive */
+    
     @media (max-width: 768px) {
         .contact-hero { padding: 60px 20px; }
         .contact-title { font-size: 36px; }
@@ -221,8 +221,8 @@ if (isset($_GET['field'])) {
         .cta-title { font-size: 28px; }
     }
 
-    /* ✨✨✨ 新增：图标专用样式 ✨✨✨ */
-    .icon-white { filter: brightness(0) invert(1); } /* 让黑色图标变白 */
+    
+    .icon-white { filter: brightness(0) invert(1); } 
     .inline-icon { width: 16px; height: 16px; object-fit: contain; vertical-align: middle; }
     .btn-icon { width: 18px; height: 18px; object-fit: contain; }
     .title-icon { width: 28px; height: 28px; object-fit: contain; }
