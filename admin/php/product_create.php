@@ -2,27 +2,12 @@
 session_start();
 require_once '../../user/include/db.php';
 
-if (
-    empty($_SESSION['role']) ||
-    !in_array($_SESSION['role'], ['admin','super_admin'], true)
-) {
-    header('Location: admin_login.php');
+header('Content-Type: application/json');
+
+if (empty($_SESSION['role']) || !in_array($_SESSION['role'], ['admin', 'super_admin'])) {
+    echo json_encode(['success' => false, 'error' => 'Unauthorized access.']);
     exit;
 }
-
-$categories = $pdo->query("
-    SELECT category_id, name 
-    FROM product_categories 
-    ORDER BY name
-")->fetchAll(PDO::FETCH_ASSOC);
-
-$subCategories = $pdo->query("
-    SELECT sub_category_id, name 
-    FROM sub_categories 
-    ORDER BY name
-")->fetchAll(PDO::FETCH_ASSOC);
-
-$error = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
@@ -34,102 +19,79 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $sub   = $_POST['sub_category_id'] ?: null;
 
     if ($name === '') {
-        $error = 'Product name is required.';
-    } elseif ($price <= 0) {
-        $error = 'Invalid price.';
-    } elseif ($stock < 0) {
-        $error = 'Invalid stock quantity.';
+        echo json_encode(['success' => false, 'error' => 'Product name is required.']);
+        exit;
+    }
+    if ($price <= 0) {
+        echo json_encode(['success' => false, 'error' => 'Price must be greater than 0.']);
+        exit;
     }
 
-    $imagePath = null;
+    try {
+        $imagePath = null;
 
-    if (!$error && isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+        if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+            $allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+            if (in_array($_FILES['image']['type'], $allowed)) {
 
-        $allowed = ['image/jpeg','image/png','image/webp', 'image/jpg'];
-        if (!in_array($_FILES['image']['type'], $allowed, true)) {
-            $error = 'Invalid image format.';
-        } else {
+                $ext = pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION);
+                $newName = 'product_' . time() . '_' . rand(1000, 9999) . '.' . $ext;
 
-            $ext = pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION);
-            $newName = 'product_' . time() . '_' . rand(1000,9999) . '.' . $ext;
-            $baseFolder = '../../user/images/product/';
-            $dbPath = '../images/product/';
+                $baseFolder = '../../user/images/product/';
+                $dbPath = '../images/product/';
 
-            if ($cat) {
-                $catStmt = $pdo->prepare("SELECT name FROM product_categories WHERE category_id = ?");
-                $catStmt->execute([$cat]);
-                $catName = $catStmt->fetchColumn();
+                if ($cat) {
+                    $catStmt = $pdo->prepare("SELECT name FROM product_categories WHERE category_id = ?");
+                    $catStmt->execute([$cat]);
+                    $catName = $catStmt->fetchColumn();
 
-                if ($catName) {
-                    $catFolder = trim($catName);($catName);
-                    $baseFolder .= $catFolder . '/';
-                    $dbPath .= $catFolder . '/';
+                    if ($catName) {
+                        $safeCatName = trim($catName);
+                        $baseFolder .= $safeCatName . '/';
+                        $dbPath .= $safeCatName . '/';
 
-                    if ($sub) {
-                        $subStmt = $pdo->prepare("SELECT name FROM sub_categories WHERE sub_category_id = ?");
-                        $subStmt->execute([$sub]);
-                        $subName = $subStmt->fetchColumn();
-
-                        if ($subName) {
-                            $subFolder = trim($subName);
-                            $baseFolder .= $subFolder . '/';
-                            $dbPath .= $subFolder . '/';
+                        if ($sub) {
+                            $subStmt = $pdo->prepare("SELECT name FROM sub_categories WHERE sub_category_id = ?");
+                            $subStmt->execute([$sub]);
+                            $subName = $subStmt->fetchColumn();
+                            if ($subName) {
+                                $safeSubName = trim($subName);
+                                $baseFolder .= $safeSubName . '/';
+                                $dbPath .= $safeSubName . '/';
+                            }
                         }
                     }
                 }
+
+                if (!is_dir($baseFolder)) {
+                    mkdir($baseFolder, 0777, true);
+                }
+
+                if (move_uploaded_file($_FILES['image']['tmp_name'], $baseFolder . $newName)) {
+                    $imagePath = $dbPath . $newName;
+                }
             }
-
-            if (!is_dir($baseFolder)) {
-                mkdir($baseFolder, 0777, true);
-            }
-
-            move_uploaded_file($_FILES['image']['tmp_name'], $baseFolder . $newName);
-
-            $imagePath = $dbPath . $newName;
         }
-    }
 
-    if (!$error) {
-        try {
-            $pdo->prepare("
-                INSERT INTO products
-                (name, description, price, stock_qty, category_id, sub_category_id, image)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ")->execute([
-                $name,
-                $desc,
-                $price,
-                $stock,
-                $cat,
-                $sub,
-                $imagePath
-            ]);
+        $stmt = $pdo->prepare("
+            INSERT INTO products 
+            (name, description, price, stock_qty, category_id, sub_category_id, image) 
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ");
 
-            if (
-                !empty($_SERVER['HTTP_X_REQUESTED_WITH']) &&
-                strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest'
-            ) {
-                header('Content-Type: application/json');
-                echo json_encode(['success' => true]);
-                exit;
-            }
+        $success = $stmt->execute([$name, $desc, $price, $stock, $cat, $sub, $imagePath]);
 
-            header('Location: product_list.php');
-            exit;
-
-        } catch (Exception $e) {
-            $error = 'Database error: ' . $e->getMessage();
+        if ($success) {
+            echo json_encode(['success' => true]);
+        } else {
+            echo json_encode(['success' => false, 'error' => 'Database insertion failed.']);
         }
-    }
-
-    if (
-        !empty($_SERVER['HTTP_X_REQUESTED_WITH']) &&
-        strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest'
-    ) {
-        header('Content-Type: application/json');
-        http_response_code(400);
-        echo json_encode(['error' => $error]);
+        exit;
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => 'Server Error: ' . $e->getMessage()]);
         exit;
     }
+} else {
+    echo json_encode(['success' => false, 'error' => 'Invalid request method.']);
+    exit;
 }
-?>
