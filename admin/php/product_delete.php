@@ -2,10 +2,8 @@
 session_start();
 require_once '../../user/include/db.php';
 
-// 设置返回头为 JSON 格式
 header('Content-Type: application/json');
 
-// 权限检查
 if (
     empty($_SESSION['role']) ||
     !in_array($_SESSION['role'], ['admin', 'super_admin'], true)
@@ -22,13 +20,34 @@ if ($productId <= 0) {
 }
 
 try {
-    $stmt = $pdo->prepare("DELETE FROM products WHERE product_id = ?");
-    $result = $stmt->execute([$productId]);
+    $stmtPath = $pdo->prepare("SELECT image FROM products WHERE product_id = ?");
+    $stmtPath->execute([$productId]);
+    $product = $stmtPath->fetch(PDO::FETCH_ASSOC);
+
+    if (!$product) {
+        echo json_encode(['success' => false, 'error' => 'Product not found']);
+        exit;
+    }
+
+    $imagePathInDb = $product['image'];
+    $stmtDel = $pdo->prepare("DELETE FROM products WHERE product_id = ?");
+    $result = $stmtDel->execute([$productId]);
 
     if ($result) {
+        if (!empty($imagePathInDb)) {
+            $relativePath = ltrim($imagePathInDb, './'); 
+            $fullPhysicalPath = "../../user/" . $relativePath;
+
+            if (file_exists($fullPhysicalPath) && is_file($fullPhysicalPath)) {
+                if (strpos($imagePathInDb, 'default_product.png') === false) {
+                    unlink($fullPhysicalPath);
+                }
+            }
+        }
+
         echo json_encode(['success' => true]);
     } else {
-        echo json_encode(['success' => false, 'error' => 'Product not found or already deleted']);
+        echo json_encode(['success' => false, 'error' => 'Failed to delete product from database']);
     }
     exit;
 } catch (PDOException $e) {

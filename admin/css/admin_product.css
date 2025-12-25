@@ -658,24 +658,138 @@ tbody tr:hover {
     box-shadow: 0 4px 12px rgba(244, 162, 97, .3)
 }
 
-.sort-link {
-        text-decoration: none;
-        color: inherit;
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        font-weight: bold;
-    }
-    .sort-icon {
-        width: 10px;
-        height: auto;
-    }
-    .success-icon { 
-        width: 60px; height: 60px; background: #ECFDF3; color: #027A48; 
-        border: 2px solid #027A48; border-radius: 50%; 
-        display: flex; align-items: center; justify-content: center; 
-        font-size: 30px; margin: 0 auto 15px; 
-    }
+我明白你的担心。你提供的 CSS 里其实大部分基础功能都在了，删除后没弹窗的真正原因是因为你的 admin_product.css 里虽然有 .success-icon，但缺少了 .custom-alert-overlay 这一整套布局样式（也就是那个半透明黑色背景和白色居中小框的定义）。 你只需要在你这份原版的 CSS 最底部，**追加（Append）**以下这段代码即可，不要删除任何你现有的代码。 请将这段代码加在 admin_product.css 的最后： CSS .sort-link {
+    text-decoration: none;
+    color: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    user-select: none;
+    cursor: pointer;
+}
+
+.sort-link:hover {
+    color: var(--primary-color);
+}
+
+.sort-icon {
+    width: 12px;
+    height: auto;
+    opacity: 0.7;
+    vertical-align: middle;
+    margin-top: -2px;
+}
+
+.search-wrapper-list {
+    position: relative;
+    display: inline-block;
+}
+
+.search-icon-list {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 14px;
+    height: 14px;
+    opacity: 0.5;
+}
+
+.filter-bar input[type="text"] {
+    padding-left: 34px !important;
+}
+
+/* Custom Alert 同步图标模式 */
+.custom-alert-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 9999;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.custom-alert-overlay.show {
+    opacity: 1;
+    display: flex;
+}
+
+.custom-alert-box {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 400px;
+    text-align: center;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    transform: scale(0.8);
+    transition: transform 0.3s ease;
+}
+
+.custom-alert-overlay.show .custom-alert-box {
+    transform: scale(1);
+}
+
+.custom-alert-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    margin: 0 auto 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f9fafb;
+    border: 2px solid #eee;
+}
+
+.custom-alert-icon img {
+    width: 30px;
+    height: 30px;
+    object-fit: contain;
+}
+
+.custom-alert-title {
+    margin: 0 0 10px;
+    font-size: 1.25rem;
+    color: #333;
+    font-weight: 700;
+}
+
+.custom-alert-text {
+    color: #666;
+    margin-bottom: 20px;
+    line-height: 1.5;
+}
+
+.custom-alert-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+.btn-alert {
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: none;
+    font-weight: 600;
+}
+
+.btn-alert-confirm {
+    background: #F4A261;
+    color: white;
+}
+
+.btn-alert-cancel {
+    background: #F2F4F7;
+    color: #333;
+}
 
 /* Responsive */
 @media(max-width:768px) {

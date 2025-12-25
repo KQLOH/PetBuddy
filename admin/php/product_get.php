@@ -47,7 +47,6 @@ if (!$product) {
     exit;
 }
 
-/* image path */
 $image = trim((string)$product['image']);
 
 $product['image_path'] = $product['image']

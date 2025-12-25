@@ -76,7 +76,6 @@ if (!in_array($dir, ['ASC', 'DESC'])) {
     $dir = 'DESC';
 }
 
-// --- UPDATED SORT LINK FUNCTION ---
 function sortLink($columnKey, $label)
 {
     global $sort, $dir;
@@ -84,22 +83,14 @@ function sortLink($columnKey, $label)
 
     $iconHtml = '';
     if ($sort === $columnKey) {
-        if ($dir === 'ASC') {
-            $iconHtml = ' <img src="../images/up.png" style="width:10px; height:auto; vertical-align:middle;" alt="Asc">';
-        } else {
-            $iconHtml = ' <img src="../images/down.png" style="width:10px; height:auto; vertical-align:middle;" alt="Desc">';
-        }
+        $iconPath = ($dir === 'ASC') ? "../images/up.png" : "../images/down.png";
+        $iconHtml = ' <img src="' . $iconPath . '" class="sort-icon" alt="sort">';
     }
 
     $url = '?' . q(['sort' => $columnKey, 'dir' => $newDir, 'p' => 1]);
     return '<a href="' . htmlspecialchars($url) . '" style="text-decoration:none; color:inherit; font-weight:bold; display:inline-flex; align-items:center; gap:4px;">' . $label . $iconHtml . '</a>';
 }
 
-/* 修改你的 $sql 变量中的 ORDER BY 部分 */
-// 将原有的 ORDER BY p.product_id DESC 替换为：
-// ORDER BY {$sortSqlColumn} {$dir}
-
-/* Count */
 $countSql = "
     SELECT COUNT(*) 
     FROM products p
@@ -145,7 +136,7 @@ function q(array $extra = [])
 function productImageUrl(?string $dbPath): string
 {
     if (!$dbPath) {
-        return 'https://via.placeholder.com/72?text=No+Image';
+        return '../images/default_product.jpg';
     }
 
     return '../../user/php/' . $dbPath;
@@ -181,6 +172,9 @@ function productImageUrl(?string $dbPath): string
             </div>
 
             <form class="filter-bar" method="get">
+                <input type="hidden" name="sort" value="<?= htmlspecialchars($sort) ?>">
+                <input type="hidden" name="dir" value="<?= htmlspecialchars($dir) ?>">
+
                 <select name="category_id" onchange="this.form.submit()">
                     <option value="all">All Categories</option>
                     <?php foreach ($categories as $c): ?>
@@ -280,13 +274,7 @@ function productImageUrl(?string $dbPath): string
                                         Edit
                                     </button>
 
-                                    <button
-                                        type="button"
-                                        class="btn-action btn-delete"
-                                        data-id="<?= (int)$p['product_id'] ?>"
-                                        data-name="<?= htmlspecialchars($p['name']) ?>">
-                                        Delete
-                                    </button>
+                                    <button type="button" class="btn-action btn-delete" data-id="<?= (int)$p['product_id'] ?>" data-name="<?= htmlspecialchars($p['name']) ?>">Delete</button>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -312,9 +300,9 @@ function productImageUrl(?string $dbPath): string
                         <?php endfor; ?>
 
                         <?php if ($page < $totalPages): ?>
-                            <a href="?<?= q(['p' => $page + 1]) ?>">Next >></a>
+                            <a href="?<?= q(['p' => $page + 1]) ?>">Next »</a>
                         <?php else: ?>
-                            <span class="disabled">Next >></span>
+                            <span class="disabled">Next »</span>
                         <?php endif; ?>
                     </div>
                 <?php endif; ?>
@@ -322,20 +310,6 @@ function productImageUrl(?string $dbPath): string
             </div>
         </main>
     </div>
-
-    <div id="deleteModal" class="modal hidden">
-        <div class="modal-box">
-            <h3 id="modalTitle">Confirm deletion</h3>
-            <p id="modalMessage"></p>
-            <div class="modal-actions">
-                <button id="modalCancel" class="btn-secondary">Cancel</button>
-                <form id="deleteForm"> <input type="hidden" name="id" id="deleteId">
-                    <button type="submit" class="btn-danger">Delete</button>
-                </form>
-            </div>
-        </div>
-    </div>
-
     <div id="createModal" class="modal hidden">
         <div class="modal-box modal-large">
             <div class="modal-header">
@@ -344,7 +318,7 @@ function productImageUrl(?string $dbPath): string
             </div>
             <form id="createForm" enctype="multipart/form-data">
                 <div class="modal-image-section">
-                    <img id="createPreview" src="https://via.placeholder.com/160?text=Preview" alt="Preview">
+                    <img id="createPreview" src="../images/default_product.jpg" alt="Preview">
                     <label class="upload-btn">
                         Upload Image
                         <input type="file" name="image" accept="image/*" hidden onchange="previewCreateImage(event)">
@@ -478,220 +452,249 @@ function productImageUrl(?string $dbPath): string
         </div>
     </div>
 
-    <div id="successModal" class="modal hidden">
-        <div class="modal-box" style="text-align:center; padding: 40px;">
-            <div style="font-size: 50px; color: #28a745; margin-bottom: 20px;">✓</div>
-            <h3 style="margin-bottom: 10px;">Success!</h3>
-            <p id="successMessage">Product deleted successfully.</p>
-            <div class="modal-actions" style="justify-content: center; margin-top: 20px;">
-                <button class="btn-primary" onclick="window.location.reload()">OK</button>
+    <div id="customAlert" class="custom-alert-overlay">
+        <div class="custom-alert-box">
+            <div id="customAlertIcon" class="custom-alert-icon"></div>
+            <h3 id="customAlertTitle" class="custom-alert-title"></h3>
+            <p id="customAlertText" class="custom-alert-text"></p>
+            <div id="customAlertButtons" class="custom-alert-buttons">
+                <button id="customAlertCancel" class="btn-alert btn-alert-cancel" style="display:none">Cancel</button>
+                <button id="customAlertConfirm" class="btn-alert btn-alert-confirm">OK</button>
             </div>
         </div>
     </div>
 
-<script>
-    // 1. 侧边栏切换
-    document.getElementById('sidebarToggle').onclick = () =>
-        document.body.classList.toggle('sidebar-collapsed');
+    <script>
+        document.getElementById('sidebarToggle').onclick = () =>
+            document.body.classList.toggle('sidebar-collapsed');
 
-    // 2. 元素引用
-    const deleteModal = document.getElementById('deleteModal');
-    const successModal = document.getElementById('successModal');
-    const deleteForm = document.getElementById('deleteForm');
-    const modalMsg = document.getElementById('modalMessage');
-    const cancelBtn = document.getElementById('modalCancel');
-    const deleteId = document.getElementById('deleteId');
+        function showCustomAlert(type, title, text, callback = null) {
+            const overlay = document.getElementById('customAlert');
+            const iconContainer = document.getElementById('customAlertIcon');
+            const btnCancel = document.getElementById('customAlertCancel');
+            const btnConfirm = document.getElementById('customAlertConfirm');
 
-    // 3. 删除逻辑 (Confirm & AJAX Submit)
-    document.querySelectorAll('.btn-delete').forEach(btn => {
-        btn.onclick = () => {
-            deleteModal.classList.remove('hidden');
-            modalMsg.textContent = `Are you sure you want to delete "${btn.dataset.name}"?`;
-            deleteId.value = btn.dataset.id;
+            document.getElementById('customAlertTitle').innerText = title;
+            document.getElementById('customAlertText').innerText = text;
+
+            iconContainer.innerHTML = '';
+            const img = document.createElement('img');
+            if (type === 'success') {
+                img.src = '../images/success.png';
+            } else if (type === 'error') {
+                img.src = '../images/error.png';
+            } else {
+                img.src = '../images/warning.png';
+            }
+            iconContainer.appendChild(img);
+
+            if (type === 'confirm') {
+                btnCancel.style.display = 'block';
+                btnConfirm.innerText = 'Yes, Delete';
+                btnConfirm.style.backgroundColor = '#D92D20';
+            } else {
+                btnCancel.style.display = 'none';
+                btnConfirm.innerText = 'OK';
+                btnConfirm.style.backgroundColor = '#F4A261';
+            }
+
+            btnConfirm.onclick = () => {
+                closeCustomAlert();
+                if (callback) callback();
+            };
+            btnCancel.onclick = closeCustomAlert;
+
+            overlay.style.display = 'flex';
+            setTimeout(() => overlay.classList.add('show'), 10);
+        }
+
+        function closeCustomAlert() {
+            const overlay = document.getElementById('customAlert');
+            overlay.classList.remove('show');
+            setTimeout(() => overlay.style.display = 'none', 300);
+        }
+
+        document.querySelectorAll('.btn-delete').forEach(btn => {
+            btn.onclick = () => {
+                const productId = btn.dataset.id;
+                const productName = btn.dataset.name;
+
+                showCustomAlert('confirm', 'Delete Product?', `Are you sure you want to delete "${productName}"?`, () => {
+
+                    const params = new URLSearchParams();
+                    params.append('id', productId); // 必须匹配 PHP 里的 $_POST['id']
+
+                    fetch('product_delete.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            body: params
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                showCustomAlert('success', 'Deleted!', 'The product has been removed.', () => {
+                                    window.location.reload();
+                                });
+                            } else {
+                                showCustomAlert('error', 'Error', data.error || 'Delete failed.');
+                            }
+                            window.location.reload();
+                        })
+                        .catch(err => {
+                            console.error('Error:', err);
+                            showCustomAlert('error', 'System Error', 'Could not connect to the server.');
+                        });
+                });
+            };
+        });
+
+        function openCreateProduct() {
+            document.getElementById('createModal').classList.remove('hidden');
+            document.getElementById('createForm').reset();
+            document.getElementById('createPreview').src = '../images/default_product.jpg';
+            document.getElementById('createError').classList.add('hidden');
+        }
+
+        function closeCreateModal() {
+            document.getElementById('createModal').classList.add('hidden');
+        }
+
+        function previewCreateImage(e) {
+            if (e.target.files && e.target.files[0]) {
+                document.getElementById('createPreview').src = URL.createObjectURL(e.target.files[0]);
+            }
+        }
+
+        document.getElementById('createForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            try {
+                const res = await fetch('product_create.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.success) {
+                    closeCreateModal();
+                    showCustomAlert('success', 'Success!', 'New product has been added.', () => {
+                        window.location.reload();
+                    });
+                } else {
+                    const errDiv = document.getElementById('createError');
+                    errDiv.textContent = data.error;
+                    errDiv.classList.remove('hidden');
+                }
+            } catch (err) {
+                alert('Network error');
+            }
         };
-    });
 
-    cancelBtn.onclick = () => deleteModal.classList.add('hidden');
-    
-    // 拦截删除表单提交并执行 AJAX
-    deleteForm.onsubmit = async (e) => {
-        e.preventDefault();
-        const formData = new FormData(deleteForm);
-        try {
-            const res = await fetch('product_delete.php', {
-                method: 'POST',
-                headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                body: formData
-            });
-            const data = await res.json();
-            if (data.success) {
-                deleteModal.classList.add('hidden');
-                successModal.classList.remove('hidden'); // 弹出成功勾选 Modal
-            } else {
-                alert('Error: ' + (data.error || 'Failed to delete product'));
-            }
-        } catch (err) {
-            alert('Network error: Could not complete deletion.');
-        }
-    };
+        async function openViewProduct(id) {
+            const modal = document.getElementById('viewModal');
+            const content = document.getElementById('viewContent');
+            modal.classList.remove('hidden');
+            content.innerHTML = '<div class="loading">Loading...</div>';
 
-    // 4. 创建产品逻辑
-    function openCreateProduct() {
-        document.getElementById('createModal').classList.remove('hidden');
-        document.getElementById('createForm').reset();
-        document.getElementById('createPreview').src = 'https://via.placeholder.com/160?text=Preview';
-        document.getElementById('createError').classList.add('hidden');
-    }
-
-    function closeCreateModal() {
-        document.getElementById('createModal').classList.add('hidden');
-    }
-
-    function previewCreateImage(e) {
-        if (e.target.files && e.target.files[0]) {
-            document.getElementById('createPreview').src = URL.createObjectURL(e.target.files[0]);
-        }
-    }
-
-    document.getElementById('createForm').onsubmit = async (e) => {
-        e.preventDefault();
-        const formData = new FormData(e.target);
-        const errorDiv = document.getElementById('createError');
-        errorDiv.classList.add('hidden');
-
-        try {
-            const res = await fetch('product_create.php', {
-                method: 'POST',
-                headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                body: formData
-            });
-            const data = await res.json();
-            if (data.success) {
-                window.location.reload();
-            } else {
-                errorDiv.textContent = data.error || 'Failed to create product';
-                errorDiv.classList.remove('hidden');
-            }
-        } catch (err) {
-            errorDiv.textContent = 'Network error: ' + err.message;
-            errorDiv.classList.remove('hidden');
-        }
-    };
-
-    // 5. 查看产品逻辑
-    async function openViewProduct(id) {
-        const modal = document.getElementById('viewModal');
-        const content = document.getElementById('viewContent');
-        modal.classList.remove('hidden');
-        content.innerHTML = '<div class="loading">Loading...</div>';
-
-        try {
-            const res = await fetch(`product_get.php?id=${id}`);
-            const data = await res.json();
-            if (data.success && data.product) {
-                const p = data.product;
-                const qty = parseInt(p.stock_qty) || 0;
-                const stockClass = qty <= 0 ? 'stock-out' : (qty <= 5 ? 'stock-low' : 'stock-ok');
-                const stockLabel = qty <= 0 ? 'Out of stock' : qty;
-
-                content.innerHTML = `
+            try {
+                const res = await fetch(`product_get.php?id=${id}`);
+                const data = await res.json();
+                if (data.success && data.product) {
+                    const p = data.product;
+                    content.innerHTML = `
                     <table class="view-table">
-                        <tr><th>Product ID</th><td>${p.product_id}</td></tr>
-                        <tr><th>Photo</th><td><img src="${p.image_path}" alt="Product" class="product-thumb-view"></td></tr>
+                        <tr><th>Product ID</th><td>#${p.product_id}</td></tr>
+                        <tr><th>Photo</th><td><img src="${p.image_path}" class="product-thumb-view" style="max-width:100px;"></td></tr>
                         <tr><th>Name</th><td>${escapeHtml(p.name)}</td></tr>
                         <tr><th>Category</th><td>${escapeHtml(p.category_name || '-')}</td></tr>
-                        <tr><th>Sub Category</th><td>${escapeHtml(p.sub_category_name || '-')}</td></tr>
-                        <tr><th>Price (RM)</th><td>${parseFloat(p.price).toFixed(2)}</td></tr>
-                        <tr><th>Stock</th><td><span class="stock-pill ${stockClass}">${stockLabel}</span></td></tr>
-                        <tr><th>Description</th><td>${escapeHtml(p.description || '-').replace(/\n/g, '<br>')}</td></tr>
+                        <tr><th>Price</th><td>RM ${parseFloat(p.price).toFixed(2)}</td></tr>
+                        <tr><th>Stock</th><td>${p.stock_qty}</td></tr>
+                        <tr><th>Description</th><td>${escapeHtml(p.description || '-')}</td></tr>
                     </table>`;
-            } else {
-                content.innerHTML = '<div class="alert error">Product not found.</div>';
+                } else {
+                    content.innerHTML = '<div class="alert error">Product not found.</div>';
+                }
+            } catch (err) {
+                content.innerHTML = '<div class="alert error">Error loading data.</div>';
             }
-        } catch (err) {
-            content.innerHTML = '<div class="alert error">Error loading data.</div>';
         }
-    }
 
-    function closeViewModal() {
-        document.getElementById('viewModal').classList.add('hidden');
-    }
+        function closeViewModal() {
+            document.getElementById('viewModal').classList.add('hidden');
+        }
 
-    // 6. 编辑产品逻辑
-    async function openEditProduct(id) {
-        const modal = document.getElementById('editModal');
-        const errorDiv = document.getElementById('editError');
-        modal.classList.remove('hidden');
-        errorDiv.classList.add('hidden');
+        async function openEditProduct(id) {
+            const modal = document.getElementById('editModal');
+            const errorDiv = document.getElementById('editError');
+            modal.classList.remove('hidden');
+            errorDiv.classList.add('hidden');
 
-        try {
-            const res = await fetch(`product_get.php?id=${id}`);
-            const data = await res.json();
-            if (data.success && data.product) {
-                const p = data.product;
-                document.getElementById('editProductId').value = p.product_id;
-                document.getElementById('editName').value = p.name || '';
-                document.getElementById('editPrice').value = p.price || '';
-                document.getElementById('editStock').value = p.stock_qty || 0;
-                document.getElementById('editDescription').value = p.description || '';
-                document.getElementById('editCategory').value = p.category_id || '';
-                document.getElementById('editSubCategory').value = p.sub_category_id || '';
-                document.getElementById('editPreview').src = p.image_path || 'https://via.placeholder.com/160?text=Preview';
+            try {
+                const res = await fetch(`product_get.php?id=${id}`);
+                const data = await res.json();
+                if (data.success) {
+                    const p = data.product;
+                    document.getElementById('editProductId').value = p.product_id;
+                    document.getElementById('editName').value = p.name;
+                    document.getElementById('editPrice').value = p.price;
+                    document.getElementById('editStock').value = p.stock_qty;
+                    document.getElementById('editDescription').value = p.description;
+                    document.getElementById('editPreview').src = p.image_path;
+                }
+            } catch (err) {
+                alert('Error loading product data');
             }
-        } catch (err) {
-            errorDiv.textContent = 'Error loading product.';
-            errorDiv.classList.remove('hidden');
         }
-    }
 
-    function closeEditModal() {
-        document.getElementById('editModal').classList.add('hidden');
-    }
-
-    function previewEditImage(e) {
-        if (e.target.files && e.target.files[0]) {
-            document.getElementById('editPreview').src = URL.createObjectURL(e.target.files[0]);
+        function closeEditModal() {
+            document.getElementById('editModal').classList.add('hidden');
         }
-    }
 
-    document.getElementById('editForm').onsubmit = async (e) => {
-        e.preventDefault();
-        const formData = new FormData(e.target);
-        const errorDiv = document.getElementById('editError');
-        errorDiv.classList.add('hidden');
-
-        try {
-            const res = await fetch('product_edit.php', {
-                method: 'POST',
-                body: formData
-            });
-            const data = await res.json();
-            if (data.success) {
-                window.location.reload();
-            } else {
-                errorDiv.textContent = data.error || 'Failed to update product';
-                errorDiv.classList.remove('hidden');
+        function previewEditImage(e) {
+            if (e.target.files && e.target.files[0]) {
+                document.getElementById('editPreview').src = URL.createObjectURL(e.target.files[0]);
             }
-        } catch (err) {
-            errorDiv.textContent = 'Network error: ' + err.message;
-            errorDiv.classList.remove('hidden');
         }
-    };
 
-    // 7. 公用工具函数
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
+        document.getElementById('editForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            try {
+                const res = await fetch('product_edit.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.success) {
+                    closeEditModal();
+                    showCustomAlert('success', 'Updated!', 'Product details saved successfully.', () => {
+                        window.location.reload();
+                    });
+                } else {
+                    const errDiv = document.getElementById('editError');
+                    errDiv.textContent = data.error;
+                    errDiv.classList.remove('hidden');
+                }
+            } catch (err) {
+                alert('Network error');
+            }
+        };
 
-    // 点击 Modal 背景关闭
-    window.onclick = (e) => {
-        if (e.target.classList.contains('modal')) {
-            e.target.classList.add('hidden');
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
-    };
-</script>
+
+        window.onclick = (e) => {
+            if (e.target.classList.contains('modal')) {
+                e.target.classList.add('hidden');
+            }
+        };
+    </script>
 
 </body>
 
