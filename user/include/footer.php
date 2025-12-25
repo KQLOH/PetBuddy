@@ -18,10 +18,18 @@
             </p>
 
             <div class="footer-social">
-                <a href="#"><i class="fab fa-facebook-f"></i></a>
-                <a href="#"><i class="fab fa-twitter"></i></a>
-                <a href="#"><i class="fab fa-instagram"></i></a>
-                <a href="#"><i class="fab fa-pinterest"></i></a>
+                <a href="https://www.facebook.com">
+                    <img src="../images/facebook.png" alt="Facebook">
+                </a>
+                <a href="https://www.twitter.com">
+                    <img src="../images/twitter.png" alt="Twitter">
+                </a>
+                <a href="https://www.instagram.com">
+                    <img src="../images/instagram.png" alt="Instagram">
+                </a>
+                <a href="https://www.pinterest.com">
+                    <img src="../images/pinterest.png" alt="Pinterest">
+                </a>
             </div>
         </div>
 
@@ -49,15 +57,39 @@
         </div>
 
         <div class="footer-col">
-            <h4 class="footer-title">SUBSCRIBE TO OUR EMAIL</h4>
+            <h4 class="footer-title">GET IN TOUCH</h4>
+            <ul class="footer-contact-info">
+                <li>
+                    <a href="tel:+60388881234">
+                        <div class="contact-icon-box">
+                            <img src="../images/telephone.png" alt="Phone">
+                        </div>
+                        <span>+60 3-8888 1234</span>
+                    </a>
+                </li>
 
-            <form class="subscribe-form">
-                <input type="email" placeholder="Your email address" required />
-                <div class="underline"></div>
-            </form>
+                <li>
+                    <a href="mailto:support@petbuddy.my">
+                        <div class="contact-icon-box">
+                            <img src="../images/mail.png" alt="Email">
+                        </div>
+                        <span>support@petbuddy.my</span>
+                    </a>
+                </li>
 
+                <li>
+                    <a href="https://www.google.com/maps/search/?api=1&query=Setapak,Kuala+Lumpur" target="_blank">
+                        <div class="contact-icon-box">
+                            <img src="../images/home-accessory.png" alt="Location">
+                        </div>
+                        <span>Setapak, Kuala Lumpur</span>
+                    </a>
+                </li>
+            </ul>
+
+            <h4 class="footer-title" style="margin-top: 30px;">SECURE PAYMENTS</h4>
             <div class="payment-icons">
-                <img src="../images/payments.png" alt="Accepted Payments" onerror="this.style.display='none'">
+                <img src="../images/payments.png" alt="Accepted Payment Methods">
             </div>
         </div>
 
@@ -72,175 +104,214 @@
     :root {
         --primary-color: #FFB774;
         --primary-dark: #E89C55;
-        --text-dark: #2F2F2F;
-        --border-color: #e8e8e8;
+        --text-dark: #1A1A1A;
+        --text-muted: #666;
+        --bg-light: #fdfdfd;
+        --border-color: #f0f0f0;
+        --transition: all 0.3s ease;
     }
-
-    * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-        font-family: "Inter", system-ui, sans-serif;
-    }
-
-    body {
-        background: #fff;
-    }
-
 
     .site-footer {
-        padding: 80px 0 40px;
-        background: #fff;
+        padding: 80px 0 30px;
+        background: var(--bg-light);
         color: var(--text-dark);
-        border-top: 1px solid #eee;
+        border-top: 1px solid var(--border-color);
+        font-family: "Inter", system-ui, -apple-system, sans-serif;
     }
 
     .footer-container {
-        max-width: 1300px;
+        max-width: 1200px;
         margin: auto;
-        padding: 0 40px;
+        padding: 0 30px;
         display: grid;
-        grid-template-columns: 1.7fr 1fr 1fr 1.3fr;
-        gap: 60px;
+        grid-template-columns: 1.5fr 0.8fr 0.8fr 1.2fr;
+        gap: 50px;
     }
 
-    .footer-col {
+    .footer-col .logo {
         display: flex;
-        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        font-size: 24px;
+        font-weight: 800;
+        color: var(--text-dark);
+        margin-bottom: 20px;
     }
 
+    .logo-img {
+        width: 45px;
+        height: 45px;
+        transition: transform 0.5s ease;
+    }
+
+    .footer-col:hover .logo-img {
+        transform: rotate(15deg);
+    }
 
     .company-name {
-        margin: 20px 0 10px;
-        font-weight: 600;
-        font-size: 18px;
+        font-size: 16px;
+        font-weight: 700;
+        margin-bottom: 12px;
+        color: var(--text-dark);
     }
 
     .footer-desc {
-        color: #555;
-        line-height: 1.7;
+        color: var(--text-muted);
+        line-height: 1.8;
         font-size: 14px;
-        max-width: 260px;
+        margin-bottom: 25px;
     }
 
     .footer-title {
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 700;
-        letter-spacing: 1px;
-        margin-bottom: 20px;
-        color: var(--primary-color);
-    }
-
-
-    .footer-social {
-        margin-top: 20px;
-        display: flex;
-        gap: 20px;
-    }
-
-    .footer-social a {
-        font-size: 18px;
-        color: #333;
-        transition: 0.2s;
-    }
-
-    .footer-social a:hover {
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        margin-bottom: 25px;
         color: var(--primary-dark);
+        position: relative;
     }
 
+    .footer-title::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        bottom: -8px;
+        width: 30px;
+        height: 2px;
+        background: var(--primary-color);
+    }
 
     .footer-links {
         list-style: none;
-        padding: 0;
     }
 
     .footer-links li {
-        margin-bottom: 12px;
+        margin-bottom: 14px;
     }
 
     .footer-links a {
         text-decoration: none;
         font-size: 14px;
-        color: #555;
-        transition: 0.2s;
+        color: var(--text-muted);
+        transition: var(--transition);
+        display: inline-block;
     }
 
     .footer-links a:hover {
         color: var(--primary-dark);
+        transform: translateX(5px);
     }
 
+    .footer-contact-info {
+        list-style: none;
+    }
 
-    .subscribe-form input {
-        border: none;
-        outline: none;
-        width: 100%;
-        padding: 8px 0;
+    .footer-contact-info li {
+        margin-bottom: 18px;
+    }
+
+    .footer-contact-info a {
+        text-decoration: none;
         font-size: 14px;
-    }
-
-    .underline {
-        width: 100%;
-        height: 2px;
-        background: var(--primary-color);
-        margin-top: 5px;
-    }
-
-    .payment-icons img {
-        width: 250px;
-        height: auto;
-        display: block;
-        padding-top: 10px;
-        opacity: 0.9;
-    }
-
-
-    .footer-bottom {
-        margin-top: 40px;
-        text-align: center;
-        color: #777;
-        font-size: 14px;
-        padding-top: 20px;
-        border-top: 1px solid #eee;
-    }
-
-
-    .logo {
+        color: var(--text-muted);
         display: flex;
         align-items: center;
-        gap: 10px;
-        font-size: 22px;
-        font-weight: 700;
-        color: var(--text-dark);
+        gap: 15px;
+        transition: var(--transition);
     }
 
-    .logo-circle {
-        width: 30px;
-        height: 30px;
-        background: var(--primary-color);
-        border-radius: 50%;
+    .contact-icon-box {
+        background: #fff3e6;
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
         display: flex;
         align-items: center;
         justify-content: center;
+        flex-shrink: 0;
+        transition: var(--transition);
     }
 
+    .contact-icon-box img {
+        width: 20px;
+        height: 20px;
+        object-fit: contain;
+    }
 
-    @media (max-width: 900px) {
+    .footer-contact-info a:hover .contact-icon-box {
+        background: var(--primary-color);
+    }
+
+    .footer-contact-info a:hover .contact-icon-box img {
+        filter: brightness(0) invert(1);
+    }
+
+    .payment-icons img {
+        max-width: 220px;
+        height: auto;
+        opacity: 0.9;
+    }
+
+    .footer-bottom {
+        margin-top: 60px;
+        padding-top: 30px;
+        text-align: center;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .footer-bottom p {
+        color: #999;
+        font-size: 13px;
+    }
+
+    @media (max-width: 1024px) {
         .footer-container {
             grid-template-columns: 1fr 1fr;
             gap: 40px;
         }
     }
 
-    @media (max-width: 600px) {
+    @media (max-width: 650px) {
         .footer-container {
             grid-template-columns: 1fr;
         }
+
+        .site-footer {
+            padding: 50px 0 30px;
+        }
     }
 
-    .logo-img {
+    .footer-social {
+        display: flex;
+        gap: 12px;
+    }
+
+    .footer-social a {
+        background: #fff3e6;
         width: 40px;
         height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: var(--transition);
+        text-decoration: none;
+    }
+
+    .footer-social a img {
+        width: 20px;
+        height: 20px;
         object-fit: contain;
+    }
+
+    .footer-social a:hover {
+        background: var(--primary-color);
+        transform: translateY(-3px);
+    }
+
+    .footer-social a:hover img {
+        filter: brightness(0) invert(1);
     }
 </style>
 
