@@ -20,7 +20,6 @@ $cart_items = getCartItems($pdo, $member_id);
     <meta charset="UTF-8">
     <title>PetBuddy | My Shopping Cart</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
     <style>
@@ -331,39 +330,113 @@ $cart_items = getCartItems($pdo, $member_id);
         }
 
 
-        #custom-toast {
-            visibility: hidden;
-            min-width: 200px;
-            background-color: rgba(40, 40, 40, 0.95);
-            color: #fff;
-            text-align: center;
-            border-radius: 50px;
-            padding: 12px 24px;
+        .custom-alert-overlay {
             position: fixed;
-            z-index: 9999;
-            left: 50%;
-            bottom: 30px;
-            transform: translateX(-50%);
-            font-size: 15px;
-            box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.2);
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            display: none;
+            justify-content: center;
+            align-items: center;
             opacity: 0;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: opacity 0.3s ease;
+        }
+
+        .custom-alert-overlay.show {
+            opacity: 1;
+        }
+
+        .custom-alert-box {
+            background: white;
+            width: 90%;
+            max-width: 400px;
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            transform: scale(0.9);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .custom-alert-overlay.show .custom-alert-box {
+            transform: scale(1);
+        }
+
+        .custom-alert-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            margin: 0 auto 20px;
             display: flex;
             align-items: center;
             justify-content: center;
+            font-size: 30px;
+            font-weight: bold;
+        }
+
+        .icon-success {
+            background: #d1fae5;
+            color: #10b981;
+        }
+
+        .icon-error {
+            background: #fee2e2;
+            color: #ef4444;
+        }
+
+        .icon-confirm {
+            background: #fef3c7;
+            color: #f59e0b;
+        }
+
+        .custom-alert-title {
+            font-size: 20px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .custom-alert-text {
+            font-size: 15px;
+            color: #666;
+            margin-bottom: 25px;
+            line-height: 1.5;
+        }
+
+        .custom-alert-buttons {
+            display: flex;
             gap: 10px;
+            justify-content: center;
         }
 
-        #custom-toast.show {
-            visibility: visible;
-            opacity: 1;
-            bottom: 50px;
+        .btn-alert {
+            padding: 10px 25px;
+            border-radius: 50px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: 0.2s;
         }
 
-        .toast-icon {
-            width: 20px;
-            height: 20px;
-            filter: brightness(0) invert(1);
+        .btn-alert-cancel {
+            background: #f3f4f6;
+            color: #666;
+        }
+
+        .btn-alert-cancel:hover {
+            background: #e5e7eb;
+        }
+
+        .btn-alert-confirm {
+            background: #FFB774;
+            color: white;
+        }
+
+        .btn-alert-confirm:hover {
+            filter: brightness(0.95);
         }
     </style>
 </head>
@@ -435,45 +508,81 @@ $cart_items = getCartItems($pdo, $member_id);
                 <div class="summary-row"><span>Subtotal</span><span>RM <span id="pageSubtotal">0.00</span></span></div>
                 <div class="summary-total"><span>Total</span><span style="color: var(--primary-dark);">RM <span id="pageTotal">0.00</span></span></div>
                 <button id="btnCheckout" class="checkout-btn disabled" disabled>Proceed to Checkout</button>
-                <a href="product_listing.php" class="continue-link">Or Continue Shopping</a>
+                <a href="home.php" class="continue-link">Or Continue Shopping</a>
             </div>
         <?php endif; ?>
 
     </div>
 
-    <div id="custom-toast">
-        <img src="../images/cart.png" alt="" class="toast-icon">
-        <span id="custom-toast-msg">Added to cart!</span>
+    <div id="customAlert" class="custom-alert-overlay">
+        <div class="custom-alert-box">
+            <div id="customAlertIcon" class="custom-alert-icon"></div>
+            <h3 id="customAlertTitle" class="custom-alert-title"></h3>
+            <p id="customAlertText" class="custom-alert-text"></p>
+            <div id="customAlertButtons" class="custom-alert-buttons">
+                <button id="customAlertCancel" class="btn-alert btn-alert-cancel" style="display:none">Cancel</button>
+                <button id="customAlertConfirm" class="btn-alert btn-alert-confirm">OK</button>
+            </div>
+        </div>
     </div>
 
     <?php include "../include/footer.php"; ?>
     <?php include '../include/chat_widget.php'; ?>
 
     <script>
-        function safeToast(message) {
-            const toast = document.getElementById('custom-toast');
-            const msgSpan = document.getElementById('custom-toast-msg');
-            const img = toast.querySelector('img');
+        let deleteCallback = null;
 
-            msgSpan.innerText = message;
+        function showCustomAlert(type, title, text, autoClose = false) {
+            const overlay = document.getElementById('customAlert');
+            const icon = document.getElementById('customAlertIcon');
+            const btnCancel = document.getElementById('customAlertCancel');
+            const btnConfirm = document.getElementById('customAlertConfirm');
 
-            if (message.toLowerCase().includes("remove") || message.toLowerCase().includes("delete")) {
-                img.src = '../images/dusbin.png';
+            document.getElementById('customAlertTitle').innerText = title;
+            document.getElementById('customAlertText').innerText = text;
+
+            icon.className = 'custom-alert-icon';
+            if (type === 'success') {
+                icon.classList.add('icon-success');
+                icon.innerHTML = '✓';
+                btnCancel.style.display = 'none';
+                btnConfirm.innerText = 'OK';
+                btnConfirm.onclick = closeCustomAlert;
+            } else if (type === 'error') {
+                icon.classList.add('icon-error');
+                icon.innerHTML = '✕';
+                btnCancel.style.display = 'none';
+                btnConfirm.innerText = 'OK';
+                btnConfirm.onclick = closeCustomAlert;
             } else {
-                img.src = '../images/cart.png';
-            }
-            img.onerror = function() {
-                this.src = '../images/cart.png';
-            };
+                icon.classList.add('icon-confirm');
+                icon.innerHTML = '?';
+                btnCancel.style.display = 'block';
+                btnCancel.onclick = closeCustomAlert;
+                btnConfirm.innerText = 'Yes, Delete';
 
-            toast.classList.add('show');
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, 2500);
+                btnConfirm.onclick = function() {
+                    if (typeof deleteCallback === 'function') deleteCallback();
+                    closeCustomAlert();
+                };
+            }
+
+            overlay.style.display = 'flex';
+            setTimeout(() => overlay.classList.add('show'), 10);
+
+            if (autoClose) setTimeout(closeCustomAlert, 100000);
         }
 
-        $(document).ready(function() {
+        function closeCustomAlert() {
+            const overlay = document.getElementById('customAlert');
+            overlay.classList.remove('show');
+            setTimeout(() => {
+                overlay.style.display = 'none';
+            }, 300);
+        }
 
+
+        $(document).ready(function() {
 
             function updatePageTotals() {
                 let total = 0;
@@ -500,7 +609,6 @@ $cart_items = getCartItems($pdo, $member_id);
             }
             updatePageTotals();
 
-
             $(".cart-row").click(function(e) {
                 if ($(e.target).is("input[type='checkbox']") || $(e.target).closest("button").length > 0) return;
                 let $checkbox = $(this).find(".item-check");
@@ -517,7 +625,6 @@ $cart_items = getCartItems($pdo, $member_id);
                 else $("#selectAll").prop("checked", true);
                 updatePageTotals();
             });
-
 
             $(document).off("click", ".page-qty-btn").on("click", ".page-qty-btn", function() {
                 let $btn = $(this);
@@ -558,7 +665,7 @@ $cart_items = getCartItems($pdo, $member_id);
                 let pid = $row.data("id");
 
 
-                if (confirm("Are you sure you want to delete this item?")) {
+                deleteCallback = function() {
                     $.ajax({
                         url: "remove_cart.php",
                         type: "POST",
@@ -577,18 +684,20 @@ $cart_items = getCartItems($pdo, $member_id);
                                 if (typeof refreshCartSidebar === "function") refreshCartSidebar();
 
 
-                                safeToast("Item removed from cart");
+                                showCustomAlert('success', 'Removed', 'Item removed from cart.', true);
                             } else {
-                                alert("Error removing item: " + response);
+                                showCustomAlert('error', 'Error', 'Error removing item: ' + response);
                             }
                         },
                         error: function() {
-                            alert("System error connecting to server.");
+                            showCustomAlert('error', 'Error', 'System error connecting to server.');
                         }
                     });
-                }
-            });
+                };
 
+
+                showCustomAlert('confirm', 'Remove Item?', 'Are you sure you want to delete this item?');
+            });
 
             $("#btnCheckout").click(function() {
                 let selectedIds = [];
