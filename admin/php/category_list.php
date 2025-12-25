@@ -207,7 +207,7 @@ function categoryImageUrl(?string $dbPath, ?string $categoryName = null): string
                             <th style="width: 180px;"><?= sortLink('name', 'Category Name') ?></th>
                             <th style="min-width: 200px;"><?= sortLink('description', 'Description') ?></th>
                             <th style="min-width: 200px;">Subcategories</th>
-                            <th style="width: 160px; text-align:center;">Action</th>
+                            <th style="width: 160px; text-align:left;">Action</th>
                         </tr>
                     </thead>
                     <tbody>
