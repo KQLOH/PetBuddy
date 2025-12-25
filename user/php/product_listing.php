@@ -779,7 +779,6 @@ function getQueryString($newPage)
             background: #e8e8e8;
         }
 
-        /* Pagination Styles */
         .pagination-container {
             display: flex;
             justify-content: center;
@@ -960,9 +959,9 @@ function getQueryString($newPage)
             <ul class="pagination">
                 
                 <?php if ($page > 1): ?>
-                    <li><a href="?<?= getQueryString($page - 1) ?>" class="page-link">&laquo; Prev</a></li>
+                    <li><a href="?<?= getQueryString($page - 1) ?>" class="page-link">< Prev</a></li>
                 <?php else: ?>
-                    <li><span class="page-link disabled">&laquo; Prev</span></li>
+                    <li><span class="page-link disabled">< Prev</span></li>
                 <?php endif; ?>
 
                 <?php
@@ -988,9 +987,9 @@ function getQueryString($newPage)
                 ?>
 
                 <?php if ($page < $totalPages): ?>
-                    <li><a href="?<?= getQueryString($page + 1) ?>" class="page-link">Next &raquo;</a></li>
+                    <li><a href="?<?= getQueryString($page + 1) ?>" class="page-link">Next ></a></li>
                 <?php else: ?>
-                    <li><span class="page-link disabled">Next &raquo;</span></li>
+                    <li><span class="page-link disabled">Next ></span></li>
                 <?php endif; ?>
 
             </ul>

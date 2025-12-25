@@ -77,7 +77,7 @@ try {
     $stmt->execute(['email' => $email]);
 
     if ($stmt->rowCount() > 0) {
-        echo "<script>alert('❌ Email already exists!'); window.history.back();</script>";
+        echo "<script>alert('Email already exists!'); window.history.back();</script>";
         exit;
     }
 

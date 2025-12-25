@@ -5,10 +5,9 @@ require '../include/db.php';
 $register_error = "";
 $register_success = false;
 $register_success_message = '';
-$step = isset($_SESSION['email_verified']) && $_SESSION['email_verified'] ? 2 : 1; // Step 1: Email + OTP, Step 2: Complete Registration
+$step = isset($_SESSION['email_verified']) && $_SESSION['email_verified'] ? 2 : 1;
 $verified_email = $_SESSION['verified_email'] ?? '';
 
-// Check for registration success (from session flag or URL parameter)
 if ((isset($_SESSION['registration_success']) && $_SESSION['registration_success']) || (isset($_GET['success']) && $_GET['success'] == '1')) {
     $register_success = true;
     $register_success_message = $_SESSION['registration_success_message'] ?? 'Registration successful! Redirecting to login page...';
@@ -16,7 +15,6 @@ if ((isset($_SESSION['registration_success']) && $_SESSION['registration_success
     unset($_SESSION['registration_success_message']);
 }
 
-// Retrieve form data from session if validation failed
 $form_data = $_SESSION['form_data'] ?? [
     'gender' => '',
     'full_name' => '',
@@ -26,7 +24,6 @@ $form_data = $_SESSION['form_data'] ?? [
     'dob_year' => ''
 ];
 
-// Retrieve field errors from session
 $field_errors = $_SESSION['field_errors'] ?? [
     'gender' => '',
     'full_name' => '',
@@ -37,7 +34,6 @@ $field_errors = $_SESSION['field_errors'] ?? [
     'profile_image' => ''
 ];
 
-// Handle Cancel Registration
 if (isset($_GET['cancel']) && $_GET['cancel'] === 'true') {
     unset($_SESSION['email_verified']);
     unset($_SESSION['verified_email']);
@@ -45,7 +41,6 @@ if (isset($_GET['cancel']) && $_GET['cancel'] === 'true') {
     exit;
 }
 
-// Step 2: Complete Registration (after OTP verification)
 if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $gender = $_POST['gender'] ?? '';
     $full_name = trim($_POST['full_name'] ?? '');
@@ -56,7 +51,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $dob_month = $_POST['dob_month'] ?? '';
     $dob_year = $_POST['dob_year'] ?? '';
     
-    // Store form data for repopulation
     $form_data = [
         'gender' => $gender,
         'full_name' => $full_name,
@@ -66,14 +60,12 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
         'dob_year' => $dob_year
     ];
     
-    // Determine Gender
     $db_gender = null;
     $submitted_gender_lower = strtolower($gender);
     if ($submitted_gender_lower === 'male' || $submitted_gender_lower === 'female') {
         $db_gender = $submitted_gender_lower;
     }
     
-    // Format DOB
     $dob = null;
     if ($dob_day && $dob_month && $dob_year) {
         $dob_date_string = "$dob_year-$dob_month-$dob_day";
@@ -82,16 +74,13 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     
-    // Validation
     $server_side_valid = true;
-    
-    // Enhanced Email Validation (even though it was verified in Step 1, validate again for security)
+
     if (!empty($verified_email)) {
         if (!filter_var($verified_email, FILTER_VALIDATE_EMAIL)) {
             $register_error = "Invalid email format. Please verify your email again.";
             $server_side_valid = false;
         } else {
-            // Additional email validation checks
             $emailParts = explode('@', $verified_email);
             if (count($emailParts) !== 2) {
                 $register_error = "Invalid email format. Please verify your email again.";
@@ -100,39 +89,33 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $localPart = $emailParts[0];
                 $domain = strtolower($emailParts[1]);
                 
-                // Check local part length (max 64 characters)
                 if (strlen($localPart) > 64) {
                     $register_error = "Email username is too long. Maximum length is 64 characters.";
                     $server_side_valid = false;
                 }
                 
-                // Check for consecutive dots
                 if (strpos($verified_email, '..') !== false) {
                     $register_error = "Invalid email format. Cannot have consecutive dots.";
                     $server_side_valid = false;
                 }
                 
-                // Check for dot at start or end of local part
                 if (substr($localPart, 0, 1) === '.' || substr($localPart, -1) === '.') {
                     $register_error = "Invalid email format. Email cannot start or end with a dot.";
                     $server_side_valid = false;
                 }
                 
-                // Check domain format
                 $domainParts = explode('.', $domain);
                 if (count($domainParts) < 2) {
                     $register_error = "Invalid email domain. Please check your email address.";
                     $server_side_valid = false;
                 }
                 
-                // Check TLD (should be at least 2 characters and only letters)
                 $tld = end($domainParts);
                 if (strlen($tld) < 2 || !preg_match('/^[a-zA-Z]+$/', $tld)) {
                     $register_error = "Invalid email domain. Please check your email address.";
                     $server_side_valid = false;
                 }
                 
-                // Check for common typos in email domains
                 $commonTypos = [
                     'gmali.com' => 'gmail.com',
                     'gmal.com' => 'gmail.com',
@@ -152,7 +135,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     $server_side_valid = false;
                 }
                 
-                // Validate against common email providers
                 $validDomains = [
                     'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'live.com',
                     'msn.com', 'ymail.com', 'icloud.com', 'me.com', 'mac.com',
@@ -167,7 +149,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     $server_side_valid = false;
                 }
                 
-                // Check total email length (max 254 characters)
                 if (strlen($verified_email) > 254) {
                     $register_error = "Email address is too long. Maximum length is 254 characters.";
                     $server_side_valid = false;
@@ -179,7 +160,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $server_side_valid = false;
     }
     
-    // Field-specific validation with error messages
     if ($server_side_valid) {
         if (empty($gender)) {
             $field_errors['gender'] = "Please select your gender.";
@@ -230,12 +210,10 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     
-    // General error message if any field has error
     if (!$server_side_valid) {
         $register_error = "Please correct the errors below and try again.";
     }
     
-    // Handle Profile Image Upload
     $image_path = null;
     if ($server_side_valid && isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] == 0) {
         $target_dir = "../uploads/";
@@ -246,12 +224,9 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $file_ext = strtolower(pathinfo($_FILES["profile_image"]["name"], PATHINFO_EXTENSION));
         $allowed_exts = ['jpg', 'jpeg', 'png', 'gif'];
         
-        // Validate file type
         $check = getimagesize($_FILES["profile_image"]["tmp_name"]);
         if ($check !== false && in_array($file_ext, $allowed_exts)) {
-            // Validate file size (max 5MB)
             if ($_FILES["profile_image"]["size"] <= 5000000) {
-                // Create unique filename using email hash and timestamp
                 $email_hash = substr(md5($verified_email), 0, 8);
                 $new_filename = "mem_reg_" . $email_hash . "_" . time() . "." . $file_ext;
                 $target_file = $target_dir . $new_filename;
@@ -272,36 +247,29 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     
-    // Set default profile image based on gender if no image was uploaded
     if ($server_side_valid && $image_path === null) {
         if ($db_gender === 'male') {
             $image_path = "images/boy.png";
         } elseif ($db_gender === 'female') {
             $image_path = "images/woman.png";
         } else {
-            // If gender is 'prefer not to say' or other, use boy.png as default fallback
             $image_path = "images/boy.png";
         }
     }
     
     if ($server_side_valid && !empty($verified_email)) {
         try {
-            // Check if email already registered (double check)
             $stmt = $pdo->prepare("SELECT email FROM members WHERE email = ?");
             $stmt->execute([$verified_email]);
             if ($stmt->rowCount() > 0) {
                 $register_error = "Email is already registered.";
             } else {
-                // Register User
                 $password_hash = password_hash($password, PASSWORD_DEFAULT);
                 
-                // Insert user and get the new member_id
                 $sql = "INSERT INTO members (email, password_hash, full_name, phone, gender, dob, image) VALUES (?, ?, ?, ?, ?, ?, ?)";
                 $stmt = $pdo->prepare($sql);
                 
                 if ($stmt->execute([$verified_email, $password_hash, $full_name, $phone, $db_gender, $dob, $image_path])) {
-                    // If image was uploaded (not default image), rename it with the new member_id
-                    // Only rename uploaded images in uploads/ directory, not default images in images/ directory
                     if ($image_path && strpos($image_path, 'uploads/') === 0) {
                         $new_member_id = $pdo->lastInsertId();
                         $old_path = "../" . $image_path;
@@ -319,15 +287,12 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
                     }
                     
-                    // Clear email verification session
                     unset($_SESSION['email_verified']);
                     unset($_SESSION['verified_email']);
                     
-                    // Set registration success flag in session for display
                     $_SESSION['registration_success'] = true;
                     $_SESSION['registration_success_message'] = 'Registration successful! Redirecting to login page...';
                     
-                    // Redirect to same page to show success message first
                     header("Location: register.php?success=1");
                     exit;
                 } else {
@@ -623,7 +588,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
             font-weight: 600;
         }
 
-        /* Include existing styles for Step 2 form elements */
         .form-label {
             display: block;
             font-size: 0.875rem;
@@ -1241,7 +1205,7 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     <div class="form-footer-actions">
                         <a href="home.php" class="footer-link muted-link">
-                            <span class="icon-arrow">←</span> Back to Home
+                            <span class="icon-arrow"><</span> Back to Home
                         </a>
                     </div>
                 </div>
@@ -1252,7 +1216,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php include '../include/footer.php'; ?>
 
     <script>
-        // Check for registration success and show alert, then redirect
         <?php if ($register_success): ?>
         document.addEventListener('DOMContentLoaded', function() {
             showAlert('Registration Successful!', 'Your account has been created successfully. You will be redirected to the login page shortly.', 'success', 3000).then(function() {
@@ -1261,7 +1224,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
         });
         <?php endif; ?>
         
-        // Custom Alert/Confirm Functions (replacement for SweetAlert2)
         function showAlert(title, text, icon = 'success', timer = null) {
             return new Promise((resolve) => {
                 const overlay = document.createElement('div');
@@ -1295,7 +1257,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 document.body.appendChild(overlay);
                 
-                // Trigger animation
                 setTimeout(() => overlay.classList.add('show'), 10);
                 
                 const okBtn = overlay.querySelector('#custom-modal-ok');
@@ -1314,7 +1275,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 });
                 
-                // Auto close if timer is set
                 if (timer) {
                     setTimeout(closeModal, timer);
                 }
@@ -1345,7 +1305,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 document.body.appendChild(overlay);
                 
-                // Trigger animation
                 setTimeout(() => overlay.classList.add('show'), 10);
                 
                 const cancelBtn = overlay.querySelector('#custom-modal-cancel');
@@ -1369,7 +1328,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
             });
         }
 
-        // OTP Input Auto-focus
         document.querySelectorAll('.otp-input').forEach((input, index) => {
             input.addEventListener('input', function(e) {
                 if (this.value.length === 1 && index < 5) {
@@ -1384,19 +1342,15 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
             });
         });
 
-        // Email Validation Function
         function validateEmail(email) {
-            // More strict email validation
             const emailRegex = /^[a-zA-Z0-9][a-zA-Z0-9._-]*[a-zA-Z0-9]@[a-zA-Z0-9][a-zA-Z0-9.-]*\.[a-zA-Z]{2,}$/;
             
             if (!emailRegex.test(email)) {
                 return { valid: false, message: 'Invalid email format. Please enter a valid email address.' };
             }
             
-            // Extract domain
             const domain = email.split('@')[1].toLowerCase();
             
-            // Common email providers
             const validDomains = [
                 'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'live.com',
                 'msn.com', 'ymail.com', 'icloud.com', 'me.com', 'mac.com',
@@ -1406,19 +1360,16 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 'student.tarc.edu.my'
             ];
             
-            // Check if domain is valid (has proper TLD)
             const domainParts = domain.split('.');
             if (domainParts.length < 2) {
                 return { valid: false, message: 'Invalid email domain. Please check your email address.' };
             }
             
-            // Check TLD (should be at least 2 characters)
             const tld = domainParts[domainParts.length - 1];
             if (tld.length < 2 || !/^[a-zA-Z]+$/.test(tld)) {
                 return { valid: false, message: 'Invalid email domain. Please check your email address.' };
             }
             
-            // Check for common typos in email domains
             const commonTypos = {
                 'gmali.com': 'gmail.com',
                 'gmal.com': 'gmail.com',
@@ -1439,12 +1390,10 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 return { valid: false, message: `Did you mean "${commonTypos[domain]}"? Please check your email address.` };
             }
             
-            // Check against common providers - only allow valid email providers
             if (!validDomains.includes(domain)) {
                 return { valid: false, message: 'Please use a valid email provider (Gmail, Hotmail, Yahoo, Outlook, iCloud, etc.).' };
             }
             
-            // Additional checks
             if (email.length > 254) {
                 return { valid: false, message: 'Email address is too long. Maximum length is 254 characters.' };
             }
@@ -1453,12 +1402,10 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 return { valid: false, message: 'Email username is too long. Maximum length is 64 characters.' };
             }
             
-            // Check for consecutive dots
             if (email.includes('..')) {
                 return { valid: false, message: 'Invalid email format. Cannot have consecutive dots.' };
             }
             
-            // Check for dot at start or end of local part
             const localPart = email.split('@')[0];
             if (localPart.startsWith('.') || localPart.endsWith('.')) {
                 return { valid: false, message: 'Invalid email format. Email cannot start or end with a dot.' };
@@ -1467,7 +1414,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
             return { valid: true, message: '', checkRegistered: true };
         }
 
-        // Check if email is already registered
         function checkEmailRegistered(email, callback) {
             $.ajax({
                 url: 'check_email_exists.php',
@@ -1478,12 +1424,11 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     callback(response.exists);
                 },
                 error: function() {
-                    callback(false); // On error, assume not registered to allow proceeding
+                    callback(false);
                 }
             });
         }
 
-        // Send OTP
         function sendOTP() {
             const email = document.getElementById('email-input').value.trim();
             const emailError = document.getElementById('email-error');
@@ -1492,15 +1437,13 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 emailError.textContent = 'Please enter your email address.';
                 return;
             }
-            
-            // Use improved validation
+
             const validation = validateEmail(email);
             if (!validation.valid) {
                 emailError.textContent = validation.message;
                 return;
             }
             
-            // Check if email is already registered BEFORE sending OTP
             emailError.textContent = 'Checking email...';
             emailError.style.color = '#666';
             document.getElementById('send-otp-btn').disabled = true;
@@ -1515,7 +1458,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     return;
                 }
                 
-                // Email is not registered, proceed to send OTP
                 emailError.textContent = '';
                 document.getElementById('send-otp-btn').textContent = 'Sending...';
                 
@@ -1530,7 +1472,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                             document.getElementById('otp-email-display').textContent = email;
                             document.getElementById('email-input').disabled = true;
                             
-                            // Start countdown
                             startCountdown(180);
                             
                             showAlert('Code Sent!', response.message || 'Please check your email for the verification code.', 'success', 3000);
@@ -1570,7 +1511,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
             });
         }
 
-        // Verify OTP
         function verifyOTP() {
             const otp = document.getElementById('otp1').value +
                        document.getElementById('otp2').value +
@@ -1599,7 +1539,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                         });
                     } else {
                         showAlert('Error', response.message, 'error');
-                        // Clear OTP inputs
                         for (let i = 1; i <= 6; i++) {
                             document.getElementById('otp' + i).value = '';
                         }
@@ -1616,7 +1555,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
             });
         }
 
-        // Countdown Timer
         function startCountdown(seconds) {
             const countdownEl = document.getElementById('countdown');
             const countdownText = document.getElementById('countdown-text');
@@ -1642,9 +1580,7 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
             }, 1000);
         }
 
-        // Step 2: Custom Select and Form Validation (same as before)
         document.addEventListener('DOMContentLoaded', function() {
-            // Populate Days and Years
             const dayOptions = document.getElementById('ck-day-options');
             if (dayOptions) {
                 let dayHtml = '';
@@ -1664,7 +1600,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 yearOptions.innerHTML = yearHtml;
             }
 
-            // Custom Select Logic
             document.querySelectorAll('.ck-select').forEach(select => {
                 const selected = select.querySelector('.ck-selected');
                 const optionsBox = select.querySelector('.ck-options');
@@ -1675,9 +1610,7 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     hiddenInput.value = value;
                     selected.textContent = text;
                     selected.style.color = 'var(--text-dark)';
-                    // Remove error styling when value is selected
                     select.classList.remove('ck-select-error');
-                    // Check if all DOB fields are filled
                     if (hiddenInput.name.includes('dob_')) {
                         const dobDay = document.querySelector('[name="dob_day"]').value;
                         const dobMonth = document.querySelector('[name="dob_month"]').value;
@@ -1705,19 +1638,15 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     };
                 });
                 
-                // Set initial value if exists (for form repopulation)
                 if (hiddenInput && hiddenInput.value) {
                     const placeholder = select.getAttribute('data-placeholder');
-                    // Check if current display is placeholder
                     if (selected.textContent === placeholder || selected.textContent === 'Day' || selected.textContent === 'Month' || selected.textContent === 'Year') {
-                        // Find matching option
                         const matchingOption = Array.from(select.querySelectorAll('.ck-option')).find(opt => 
                             opt.getAttribute('data-value') === hiddenInput.value
                         );
                         if (matchingOption) {
                             setSelectedValue(hiddenInput.value, matchingOption.textContent);
                         } else if (hiddenInput.name === 'dob_month') {
-                            // Special handling for month names
                             const monthNames = {
                                 '01': 'January', '02': 'February', '03': 'March', '04': 'April',
                                 '05': 'May', '06': 'June', '07': 'July', '08': 'August',
@@ -1727,7 +1656,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                                 setSelectedValue(hiddenInput.value, monthNames[hiddenInput.value]);
                             }
                         } else if (hiddenInput.value) {
-                            // For day and year, just use the value
                             setSelectedValue(hiddenInput.value, hiddenInput.value);
                         }
                     }
@@ -1740,7 +1668,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             });
 
-            // Profile Image Preview
             const profileImageInput = document.getElementById('profile_image');
             const profilePreview = document.getElementById('profile-preview-img');
             const profilePlaceholder = document.getElementById('profile-placeholder');
@@ -1753,7 +1680,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     profileImageError.textContent = '';
 
                     if (file) {
-                        // Validate file type
                         const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
                         if (!allowedTypes.includes(file.type)) {
                             profileImageError.textContent = 'Please upload JPG, PNG, or GIF files only.';
@@ -1761,14 +1687,12 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                             return;
                         }
 
-                        // Validate file size (5MB)
                         if (file.size > 5000000) {
                             profileImageError.textContent = 'Image file is too large. Maximum size is 5MB.';
                             profileImageInput.value = '';
                             return;
                         }
 
-                        // Show preview
                         const reader = new FileReader();
                         reader.onload = function(e) {
                             profilePreview.src = e.target.result;
@@ -1781,7 +1705,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 });
             }
 
-            // Remove Profile Image
             window.removeProfileImage = function() {
                 if (profileImageInput) profileImageInput.value = '';
                 if (profilePreview) {
@@ -1793,7 +1716,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (profileImageError) profileImageError.textContent = '';
             };
 
-            // Real-time Form Validation (Step 2)
             function validateField(fieldName, value) {
                 const errorElement = document.getElementById(fieldName + '-error');
                 const inputElement = document.querySelector('[name="' + fieldName + '"]') || document.getElementById(fieldName);
@@ -1850,7 +1772,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                         break;
                 }
                 
-                // Update UI
                 if (isValid) {
                     inputElement.classList.remove('input-error');
                     errorElement.textContent = '';
@@ -1862,7 +1783,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 return isValid;
             }
             
-            // Add real-time validation listeners
             const fullNameInput = document.getElementById('full_name');
             const phoneInput = document.querySelector('[name="phone"]');
             const passwordInput = document.getElementById('password');
@@ -1901,14 +1821,12 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     if (this.classList.contains('input-error')) {
                         validateField('confirm_password', this.value);
                     }
-                    // Also validate password when confirm password changes
                     if (passwordInput && passwordInput.value) {
                         validateField('password', passwordInput.value);
                     }
                 });
             }
             
-            // Gender validation
             const genderInputs = document.querySelectorAll('input[name="gender"]');
             genderInputs.forEach(input => {
                 input.addEventListener('change', function() {
@@ -1919,7 +1837,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 });
             });
             
-            // DOB validation
             const dobSelects = document.querySelectorAll('.ck-select');
             dobSelects.forEach(select => {
                 const hiddenInput = select.querySelector('.ck-hidden-input');
@@ -1936,19 +1853,16 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             });
 
-            // Form Validation (Step 2)
             const form = document.getElementById('registration-form');
             if (form) {
                 form.addEventListener('submit', function(e) {
                     let hasErrors = false;
                     
-                    // Validate all fields
                     if (fullNameInput && !validateField('full_name', fullNameInput.value)) hasErrors = true;
                     if (phoneInput && !validateField('phone', phoneInput.value)) hasErrors = true;
                     if (passwordInput && !validateField('password', passwordInput.value)) hasErrors = true;
                     if (confirmPasswordInput && !validateField('confirm_password', confirmPasswordInput.value)) hasErrors = true;
                     
-                    // Check gender
                     const genderSelected = document.querySelector('input[name="gender"]:checked');
                     if (!genderSelected) {
                         const errorElement = document.getElementById('gender-error');
@@ -1958,7 +1872,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
                     }
                     
-                    // Check DOB
                     const dobDay = document.querySelector('[name="dob_day"]').value;
                     const dobMonth = document.querySelector('[name="dob_month"]').value;
                     const dobYear = document.querySelector('[name="dob_year"]').value;
@@ -1975,7 +1888,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                         });
                     }
 
-                    // Validate image if selected
                     if (profileImageInput && profileImageInput.files[0]) {
                         const imageFile = profileImageInput.files[0];
                         const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
@@ -1994,7 +1906,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     if (hasErrors) {
                         e.preventDefault();
                         showAlert('Error', 'Please correct the errors highlighted in red and try again.', 'error');
-                        // Scroll to first error
                         const firstError = document.querySelector('.input-error, .ck-select-error');
                         if (firstError) {
                             firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -2004,7 +1915,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 });
             }
 
-            // Password toggle for Step 2
             const togglePassword = document.querySelector('#togglePassword');
             const password = document.querySelector('#password');
             if (togglePassword && password) {
@@ -2034,7 +1944,6 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         });
 
-        // Confirm Cancel Registration
         const cancelBtn = document.getElementById('cancel-registration-btn');
         if (cancelBtn) {
             cancelBtn.addEventListener('click', function(e) {
