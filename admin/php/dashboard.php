@@ -40,6 +40,39 @@ try {
 } catch (PDOException $e) {
     $recentOrders = [];
 }
+
+try {
+    $stmtAdmin = $pdo->prepare("SELECT image FROM members WHERE member_id = ?");
+    $stmtAdmin->execute([$_SESSION['member_id']]);
+    $adminData = $stmtAdmin->fetch();
+
+    if (!empty($adminData['image'])) {
+        $adminImg = '../../user/' . ltrim($adminData['image'], '/');
+    } else {
+        $adminImg = '../images/default_avatar.png';
+    }
+} catch (PDOException $e) {
+    $adminImg = '../images/default_avatar.png';
+}
+
+try {
+    $statusStmt = $pdo->query("SELECT status, COUNT(*) as count FROM orders GROUP BY status");
+    $orderStatuses = $statusStmt->fetchAll(PDO::FETCH_ASSOC);
+    $totalCount = array_sum(array_column($orderStatuses, 'count'));
+
+    $salesStmt = $pdo->query("
+        SELECT DATE(order_date) as date, SUM(total_amount) as total 
+        FROM orders 
+        WHERE order_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+        GROUP BY DATE(order_date)
+        ORDER BY date ASC
+    ");
+    $dailySales = $salesStmt->fetchAll(PDO::FETCH_ASSOC);
+    $maxSale = !empty($dailySales) ? max(array_column($dailySales, 'total')) : 1;
+} catch (PDOException $e) {
+    $orderStatuses = [];
+    $dailySales = [];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -75,7 +108,21 @@ try {
                         Manage products, orders, members and reviews here.
                     </div>
                 </div>
-                <div class="greeting-icon">🐶</div>
+                <section class="greeting-card">
+                    <div>
+                        <div class="greeting-title">
+                            Welcome back, <?= htmlspecialchars($adminName) ?> 👋
+                        </div>
+                        <div class="greeting-text">
+                            Manage products, orders, members and reviews here.
+                        </div>
+                    </div>
+                    <div class="greeting-icon">
+                        <img src="<?= $adminImg ?>"
+                            alt="Profile"
+                            style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+                    </div>
+                </section>
             </section>
 
             <section class="cards-grid">
@@ -101,6 +148,62 @@ try {
                     <div class="stat-label">Total Reviews</div>
                     <div class="stat-value"><?= $totalReviews ?></div>
                     <div class="stat-footer">Product feedback</div>
+                </div>
+            </section>
+
+            <section class="charts-row">
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">Weekly Sales Trend (RM)</div>
+                    </div>
+                    <div class="css-bar-chart">
+                        <?php foreach ($dailySales as $day):
+                            $height = ($day['total'] / $maxSale) * 100; ?>
+                            <div class="bar-wrapper">
+                                <div class="bar" style="height: <?= $height ?>%;">
+                                    <span class="bar-value"><?= round($day['total']) ?></span>
+                                </div>
+                                <div class="bar-label"><?= date('m-d', strtotime($day['date'])) ?></div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">Order Distribution</div>
+                    </div>
+                    <div class="pie-container">
+                        <?php
+                        $conic = "";
+                        $offset = 0;
+                        $colors = [
+                            'pending' => '#FFB774',
+                            'completed' => '#2E7D32',
+                            'shipped' => '#0288D1',
+                            'cancelled' => '#D32F2F',
+                            'paid' => '#FFD700'
+                        ];
+                        foreach ($orderStatuses as $status) {
+                            $percent = ($status['count'] / $totalCount) * 100;
+                            $color = $colors[$status['status']] ?? '#ccc';
+                            $conic .= "$color $offset% " . ($offset + $percent) . "%, ";
+                            $offset += $percent;
+                        }
+                        $conic = rtrim($conic, ", ");
+                        ?>
+                        <div class="pie-chart" style="background: conic-gradient(<?= $conic ?>);"></div>
+
+                        <div class="legend">
+                            <?php foreach ($orderStatuses as $status): ?>
+                                <div class="legend-item">
+                                    <span class="legend-color" style="background: <?= $colors[$status['status']] ?? '#ccc' ?>;"></span>
+                                    <span><?= ucfirst($status['status']) ?>: <strong><?= $status['count'] ?></strong></span>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
                 </div>
             </section>
 

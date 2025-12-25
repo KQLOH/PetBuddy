@@ -92,22 +92,24 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-function q(array $extra = []) {
+function q(array $extra = [])
+{
     $base = $_GET;
     foreach ($extra as $k => $v) $base[$k] = $v;
     return http_build_query($base);
 }
 
-function sortLink($columnKey, $label) {
+function sortLink($columnKey, $label)
+{
     global $sort, $dir;
     $newDir = ($sort === $columnKey && $dir === 'ASC') ? 'DESC' : 'ASC';
-    
+
     $iconHtml = '';
     if ($sort === $columnKey) {
         $iconPath = ($dir === 'ASC') ? "../images/up.png" : "../images/down.png";
         $iconHtml = ' <img src="' . $iconPath . '" class="sort-icon" alt="sort">';
     }
-    
+
     $url = '?' . q(['sort' => $columnKey, 'dir' => $newDir, 'p' => 1]);
     return '<a href="' . htmlspecialchars($url) . '" style="text-decoration:none; color:inherit; font-weight:bold; display:inline-flex; align-items:center; gap:4px;">' . $label . $iconHtml . '</a>';
 }
@@ -159,6 +161,11 @@ function sortLink($columnKey, $label) {
 
                 <button class="btn-search" type="submit">Search</button>
                 <a href="member_list.php" class="btn-reset">Reset</a>
+                <?php if ($adminRole === 'super_admin'): ?>
+                    <a href="admin_add.php" class="btn-pill-add" style="margin-left: auto;">
+                        <span class="icon">+</span> Add Admin
+                    </a>
+                <?php endif; ?>
             </form>
 
             <div class="panel">
