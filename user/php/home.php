@@ -999,7 +999,42 @@ include '../include/header.php';
         }
 
 
-        /* Modal Prompt Styles */
+        /* Toast Styles (for success messages) */
+        #custom-toast {
+            visibility: hidden;
+            min-width: 200px;
+            background-color: rgba(40, 40, 40, 0.95);
+            color: #fff;
+            text-align: center;
+            border-radius: 50px;
+            padding: 12px 24px;
+            position: fixed;
+            z-index: 9999;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            font-size: 15px;
+            box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.2);
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        #custom-toast.show {
+            visibility: visible;
+            opacity: 1;
+            bottom: 50px;
+        }
+
+        .toast-icon {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* Modal Prompt Styles (for login required) */
         #custom-modal-overlay {
             display: none;
             position: fixed;
@@ -1338,16 +1373,23 @@ include '../include/header.php';
         </div>
     </section>
 
-    <!-- Modal Prompt -->
+    <!-- Toast Notification -->
+    <div id="custom-toast">
+        <img src="../images/success.png" alt="" class="toast-icon">
+        <span id="custom-toast-msg">Added to cart!</span>
+    </div>
+
+    <!-- Modal Prompt (for login required) -->
     <div id="custom-modal-overlay">
         <div id="custom-modal">
             <div class="modal-icon" id="modal-icon">
                 <img src="../images/success.png" alt="">
             </div>
-            <h3 class="modal-title" id="modal-title">Success!</h3>
-            <p class="modal-message" id="modal-message">Operation completed successfully.</p>
+            <h3 class="modal-title" id="modal-title">Login Required</h3>
+            <p class="modal-message" id="modal-message">Please login first to add items to cart.</p>
             <div class="modal-buttons" id="modal-buttons">
-                <button class="modal-btn modal-btn-primary" id="modal-ok-btn">OK</button>
+                <button class="modal-btn modal-btn-primary" id="modal-ok-btn">Go to Login</button>
+                <button class="modal-btn modal-btn-secondary" id="modal-cancel-btn">Cancel</button>
             </div>
         </div>
     </div>
@@ -1413,47 +1455,23 @@ include '../include/header.php';
             }
         });
 
-        function safeToast(message, showLoginBtn = false, title = '') {
-            const overlay = document.getElementById('custom-modal-overlay');
-            const modal = document.getElementById('custom-modal');
-            const iconDiv = document.getElementById('modal-icon');
-            const iconImg = iconDiv.querySelector('img');
-            const titleEl = document.getElementById('modal-title');
-            const messageEl = document.getElementById('modal-message');
-            const buttonsDiv = document.getElementById('modal-buttons');
-
-            // Set title
-            if (title) {
-                titleEl.textContent = title;
-            } else if (showLoginBtn) {
-                titleEl.textContent = 'Login Required';
-            } else if (message.toLowerCase().includes("error") || message.toLowerCase().includes("failed")) {
-                titleEl.textContent = 'Error';
-            } else {
-                titleEl.textContent = 'Success!';
-            }
-
-            // Set message
-            messageEl.textContent = message;
-
-            // Set icon
-            iconDiv.className = 'modal-icon';
-            if (message.toLowerCase().includes("remove") || message.toLowerCase().includes("delete")) {
-                iconImg.src = '../images/dusbin.png';
-            } else if (message.toLowerCase().includes("error") || message.toLowerCase().includes("failed")) {
-                iconImg.src = '../images/error.png';
-                iconDiv.classList.add('error');
-            } else {
-                iconImg.src = '../images/success.png';
-            }
-
-            iconImg.onerror = function() {
-                this.src = '../images/success.png';
-            };
-
-            // Set buttons
-            buttonsDiv.innerHTML = '';
+        function safeToast(message, showLoginBtn = false) {
+            // If login required, show modal
             if (showLoginBtn) {
+                const overlay = document.getElementById('custom-modal-overlay');
+                const modal = document.getElementById('custom-modal');
+                const iconDiv = document.getElementById('modal-icon');
+                const iconImg = iconDiv.querySelector('img');
+                const titleEl = document.getElementById('modal-title');
+                const messageEl = document.getElementById('modal-message');
+                const buttonsDiv = document.getElementById('modal-buttons');
+
+                titleEl.textContent = 'Login Required';
+                messageEl.textContent = message;
+                iconDiv.className = 'modal-icon';
+                iconImg.src = '../images/success.png';
+
+                buttonsDiv.innerHTML = '';
                 const loginBtn = document.createElement('button');
                 loginBtn.className = 'modal-btn modal-btn-primary';
                 loginBtn.textContent = 'Go to Login';
@@ -1470,25 +1488,32 @@ include '../include/header.php';
                     overlay.classList.remove('show');
                 };
                 buttonsDiv.appendChild(cancelBtn);
+
+                overlay.classList.add('show');
+                return;
+            }
+
+            // Otherwise, show toast (bottom notification)
+            const toast = document.getElementById('custom-toast');
+            const msgSpan = document.getElementById('custom-toast-msg');
+            const img = toast.querySelector('img');
+
+            msgSpan.innerText = message;
+
+            if (message.toLowerCase().includes("remove") || message.toLowerCase().includes("delete")) {
+                img.src = '../images/dusbin.png';
             } else {
-                const okBtn = document.createElement('button');
-                okBtn.className = 'modal-btn modal-btn-primary';
-                okBtn.textContent = 'OK';
-                okBtn.onclick = function() {
-                    overlay.classList.remove('show');
-                };
-                buttonsDiv.appendChild(okBtn);
+                img.src = '../images/success.png';
             }
 
-            // Show modal
-            overlay.classList.add('show');
+            img.onerror = function() {
+                this.src = '../images/success.png';
+            };
 
-            // Auto close for non-login messages after 2.5 seconds
-            if (!showLoginBtn) {
-                setTimeout(() => {
-                    overlay.classList.remove('show');
-                }, 2500);
-            }
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2500);
         }
 
 

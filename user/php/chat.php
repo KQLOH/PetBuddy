@@ -336,7 +336,12 @@ $statusSub = $isOnline ? "We typically reply in minutes." : "We'll reply when we
                 fetch('chat_api.php?action=fetch')
                     .then(res => res.json())
                     .then(data => {
-                        if (data.error) return;
+                        if (data.error) {
+                            if (data.error === 'Unauthorized') {
+                                window.location.href = 'login.php';
+                            }
+                            return;
+                        }
 
                         if (data.length !== lastMsgCount) {
                             renderMessages(data);
@@ -435,8 +440,11 @@ $statusSub = $isOnline ? "We typically reply in minutes." : "We'll reply when we
                     .then(data => {
                         if (data.status === 'success') {
                             loadMessages();
+                        } else if (data.error === 'Unauthorized') {
+                            window.location.href = 'login.php';
                         }
-                    });
+                    })
+                    .catch(err => console.error("Send Error:", err));
             }
 
             function scrollToBottom() {
