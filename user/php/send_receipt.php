@@ -1,8 +1,5 @@
 <?php
-/**
- * Send E-Receipt via Email
- * This file handles sending the order receipt to the customer's email
- */
+
 
 session_start();
 require '../include/db.php';
@@ -17,7 +14,7 @@ use PHPMailer\PHPMailer\Exception;
 
 header('Content-Type: application/json');
 
-// Check if user is logged in
+
 if (!isset($_SESSION['member_id'])) {
     echo json_encode(['success' => false, 'message' => 'Please login first']);
     exit;
@@ -32,7 +29,7 @@ if ($order_id <= 0) {
 }
 
 try {
-    // 1. Get Order Details
+    
     $stmt = $pdo->prepare("SELECT * FROM orders WHERE order_id = ? AND member_id = ?");
     $stmt->execute([$order_id, $member_id]);
     $order = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -42,12 +39,12 @@ try {
         exit;
     }
 
-    // 2. Get Member Information
+    
     $stmt = $pdo->prepare("SELECT * FROM members WHERE member_id = ?");
     $stmt->execute([$member_id]);
     $member = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    // 3. Get Order Items
+  
     $stmt = $pdo->prepare("
         SELECT oi.*, p.name, p.image 
         FROM order_items oi 
@@ -57,7 +54,7 @@ try {
     $stmt->execute([$order_id]);
     $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // 4. Get Shipping Information
+    
     $stmt = $pdo->prepare("
         SELECT s.*, ma.recipient_name, ma.recipient_phone, ma.address_line1, ma.address_line2, 
                ma.city, ma.state, ma.postcode, ma.country
@@ -68,18 +65,18 @@ try {
     $stmt->execute([$order_id]);
     $shipping = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    // 5. Get Payment Information
+   
     $stmt = $pdo->prepare("SELECT * FROM payments WHERE order_id = ? ORDER BY payment_date DESC LIMIT 1");
     $stmt->execute([$order_id]);
     $payment = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    // 6. Calculate Subtotal
+    
     $subtotal = 0;
     foreach ($items as $item) {
         $subtotal += floatval($item['unit_price']) * intval($item['quantity']);
     }
 
-    // 7. Build HTML Email Template
+    
     $order_date = date('d M Y, h:i A', strtotime($order['order_date']));
     $shipping_fee = $shipping ? floatval($shipping['shipping_fee']) : 0.00;
     $discount = floatval($order['discount_amount']);
@@ -240,7 +237,7 @@ try {
     </body>
     </html>';
 
-    // 8. Send Email using PHPMailer
+    
     $mail = new PHPMailer(true);
     
     try {

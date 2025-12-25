@@ -1,8 +1,5 @@
 <?php
-/**
- * Send OTP for Email Verification
- * Uses exact same implementation as forgot_password.php
- */
+
 
 session_start();
 include '../include/db.php';
@@ -23,14 +20,14 @@ if (empty($email)) {
     exit;
 }
 
-// Enhanced email validation
+
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     $response['message'] = 'The email format is incorrect. Please check again.';
     echo json_encode($response);
     exit;
 }
 
-// Additional validation checks
+
 $emailParts = explode('@', $email);
 if (count($emailParts) !== 2) {
     $response['message'] = 'Invalid email format. Please enter a valid email address.';
@@ -41,28 +38,28 @@ if (count($emailParts) !== 2) {
 $localPart = $emailParts[0];
 $domain = strtolower($emailParts[1]);
 
-// Check local part length (max 64 characters)
+
 if (strlen($localPart) > 64) {
     $response['message'] = 'Email username is too long. Maximum length is 64 characters.';
     echo json_encode($response);
     exit;
 }
 
-// Check for consecutive dots
+
 if (strpos($email, '..') !== false) {
     $response['message'] = 'Invalid email format. Cannot have consecutive dots.';
     echo json_encode($response);
     exit;
 }
 
-// Check for dot at start or end of local part
+
 if (substr($localPart, 0, 1) === '.' || substr($localPart, -1) === '.') {
     $response['message'] = 'Invalid email format. Email cannot start or end with a dot.';
     echo json_encode($response);
     exit;
 }
 
-// Check domain format
+
 $domainParts = explode('.', $domain);
 if (count($domainParts) < 2) {
     $response['message'] = 'Invalid email domain. Please check your email address.';
@@ -70,7 +67,7 @@ if (count($domainParts) < 2) {
     exit;
 }
 
-// Check TLD (should be at least 2 characters and only letters)
+
 $tld = end($domainParts);
 if (strlen($tld) < 2 || !preg_match('/^[a-zA-Z]+$/', $tld)) {
     $response['message'] = 'Invalid email domain. Please check your email address.';
@@ -78,14 +75,14 @@ if (strlen($tld) < 2 || !preg_match('/^[a-zA-Z]+$/', $tld)) {
     exit;
 }
 
-// Check total email length (max 254 characters)
+
 if (strlen($email) > 254) {
     $response['message'] = 'Email address is too long. Maximum length is 254 characters.';
     echo json_encode($response);
     exit;
 }
 
-// Check for common typos in email domains
+
 $commonTypos = [
     'gmali.com' => 'gmail.com',
     'gmal.com' => 'gmail.com',
@@ -107,7 +104,7 @@ if (isset($commonTypos[$domain])) {
     exit;
 }
 
-// Validate against common email providers - only allow valid email providers
+
 $validDomains = [
     'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'live.com',
     'msn.com', 'ymail.com', 'icloud.com', 'me.com', 'mac.com',
@@ -122,7 +119,7 @@ if (!in_array($domain, $validDomains)) {
     exit;
 }
 
-// Check if email is already registered (check BEFORE sending OTP to save time)
+
 $stmt = $pdo->prepare("SELECT member_id FROM members WHERE email = ?");
 $stmt->execute([$email]);
 if ($stmt->fetch()) {
@@ -131,18 +128,18 @@ if ($stmt->fetch()) {
     exit;
 }
 
-// Generate 6-digit OTP (same as forgot_password.php)
+
 $otp = rand(100000, 999999);
 
-// Store in Session (valid for 3 minutes)
+
 $_SESSION['email_verification'] = [
     'email' => $email,
     'otp' => $otp,
-    'expires_at' => time() + 180, // 3 minutes
+    'expires_at' => time() + 180, 
     'attempts' => 0
 ];
 
-// Send email using EXACT same implementation as forgot_password.php
+
 try {
     $mail = new PHPMailer(true);
     $mail->isSMTP();

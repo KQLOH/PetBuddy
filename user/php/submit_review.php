@@ -20,17 +20,17 @@ if ($product_id <= 0 || $rating < 1 || $rating > 5) {
 }
 
 try {
-    // Check if user already reviewed this product
+    
     $stmtCheck = $pdo->prepare("SELECT review_id FROM product_reviews WHERE member_id = ? AND product_id = ?");
     $stmtCheck->execute([$member_id, $product_id]);
     
     if ($stmtCheck->fetch()) {
-        // Optional: Update existing review
+        
         $stmt = $pdo->prepare("UPDATE product_reviews SET rating = ?, comment = ?, review_date = NOW() WHERE member_id = ? AND product_id = ?");
         $stmt->execute([$rating, $comment, $member_id, $product_id]);
         $msg = "Review updated!";
     } else {
-        // Insert new review
+        
         $stmt = $pdo->prepare("INSERT INTO product_reviews (product_id, member_id, rating, comment) VALUES (?, ?, ?, ?)");
         $stmt->execute([$product_id, $member_id, $rating, $comment]);
         $msg = "Review submitted!";
