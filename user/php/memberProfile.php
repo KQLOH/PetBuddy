@@ -782,7 +782,8 @@ if (isset($pdo)) {
                 <h3>Rate Products</h3>
                 <button class="close-modal" onclick="toggleModal('reviewModal')">
                     <img src="../images/error.png" style="width:16px; height:16px;">
-                </button>            </div>
+                </button>
+            </div>
             <div class="modal-body" id="reviewModalBody" style="max-height: 60vh; overflow-y: auto;">
             </div>
             <div style="padding: 15px; text-align: right; border-top: 1px solid #eee;">
@@ -862,8 +863,32 @@ if (isset($pdo)) {
         }
 
         document.addEventListener('DOMContentLoaded', function() {
-            const initialTab = "<?php echo $active_tab; ?>";
-            switchTab(initialTab);
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const tabParam = urlParams.get('tab');
+            const statusParam = urlParams.get('status');
+
+
+            let targetTab = tabParam ? tabParam : "<?php echo $active_tab; ?>";
+
+
+            setTimeout(() => {
+
+                if (typeof switchTab === 'function') {
+                    switchTab(targetTab);
+                }
+
+
+                if (statusParam && targetTab === 'orders') {
+                    const orderTabs = document.querySelectorAll('.order-tab');
+                    orderTabs.forEach(tab => {
+
+                        if (tab.getAttribute('onclick').includes(`'${statusParam}'`)) {
+                            tab.click();
+                        }
+                    });
+                }
+            }, 100);
         });
 
         function handleFileSelect(input) {
