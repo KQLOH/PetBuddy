@@ -2,12 +2,10 @@
 session_start();
 require "../include/db.php";
 
-// ✨✨✨ 引入 Stripe 库 (手动下载版路径) ✨✨✨
 require_once '../stripe-php/init.php';
 
 require_once "cart_function.php";
 
-// --- 1. 权限与请求验证 ---
 if (!isset($_SESSION['member_id'])) {
     echo "<script>alert('Please login to continue.'); window.location.href='login.php';</script>";
     exit;
@@ -19,7 +17,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// --- 2. 处理订单商品数据 ---
 $all_cart_items = getCartItems($pdo, $member_id);
 $selected_str = $_POST['selected_products'] ?? '';
 $cart_items = [];
@@ -40,13 +37,11 @@ if (empty($cart_items)) {
     exit;
 }
 
-// --- 3. 计算金额 ---
 $subtotal = 0;
 foreach ($cart_items as $item) {
     $subtotal += floatval($item['price']) * intval($item['quantity']);
 }
 
-// 🔥 运费逻辑：超过 50 免邮，否则 15
 if ($subtotal >= 50) {
     $shipping_fee = 0.00;
 } else {
@@ -56,7 +51,6 @@ if ($subtotal >= 50) {
 $discount_amount = 0.00;
 $voucher_id = null;
 
-// 验证优惠券
 $voucher_code = $_POST['voucher_code'] ?? '';
 if (!empty($voucher_code)) {
     $stmt_v = $pdo->prepare("SELECT * FROM vouchers WHERE code = ?");
@@ -76,7 +70,6 @@ if (!empty($voucher_code)) {
 
 $total_amount = max(0, $subtotal + $shipping_fee - $discount_amount);
 
-// --- 4. 获取地址信息 ---
 $full_name = trim($_POST['full_name'] ?? '');
 $phone      = $_POST['phone'] ?? '';
 $addr1 = $_POST['address'] ?? '';
@@ -88,11 +81,9 @@ $country  = $_POST['country'] ?? 'Malaysia';
 
 $shipping_name = $full_name;
 
-// --- 5. 支付方式 ---
 $payment_method_raw = $_POST['payment_method'] ?? 'Cash';
-$payment_method_record = $payment_method_raw; // Default description
+$payment_method_record = $payment_method_raw;
 
-// 细化支付描述
 if ($payment_method_raw === 'Credit Card Mock') {
     $bank = $_POST['card_bank'] ?? 'Bank';
     $last4 = substr($_POST['card_number'] ?? '0000', -4);
@@ -107,23 +98,17 @@ if ($payment_method_raw === 'Credit Card Mock') {
     $payment_method_record = "TNG eWallet ($tng_phone)";
 }
 
-// --- 6. 数据库事务 ---
 try {
     $pdo->beginTransaction();
 
-    // A. 订单状态判断
-    // Mock / TNG / FPX 视为直接成功，Cash 为 Pending，Stripe 为 Pending Payment
     if ($payment_method_raw === 'Cash') {
         $order_status = 'Pending';
     } elseif ($payment_method_raw === 'Stripe') {
         $order_status = 'Pending Payment'; 
     } else {
-        $order_status = 'Paid'; // Mock 和其他模拟支付直接算成功
+        $order_status = 'Paid';
     }
 
-    // =========================================================
-    // B. 插入 Orders
-    // =========================================================
     $sql_order = "INSERT INTO orders (member_id, total_amount, status, discount_amount, voucher_id, order_date) 
                   VALUES (:mid, :total, :status, :discount, :vid, NOW())";
 
@@ -138,9 +123,6 @@ try {
 
     $order_id = $pdo->lastInsertId();
 
-    // =========================================================
-    // C. 智能处理地址 (防止重复添加)
-    // =========================================================
     $stmtCheck = $pdo->prepare("SELECT address_id FROM member_addresses 
         WHERE member_id = :mid 
         AND recipient_name = :rname 
@@ -185,9 +167,6 @@ try {
         $address_id = $pdo->lastInsertId();
     }
 
-    // =========================================================
-    // D. 插入 Shipping
-    // =========================================================
     $sql_ship = "INSERT INTO shipping (order_id, address_id, shipping_fee, shipping_method, shipping_status) 
                  VALUES (:oid, :aid, :fee, :method, 'pending')";
     $stmt_ship = $pdo->prepare($sql_ship);
@@ -198,9 +177,6 @@ try {
         ':method' => 'Standard Delivery'
     ]);
 
-    // =========================================================
-    // E. 插入 Order Items 并 扣减库存
-    // =========================================================
     $sql_item = "INSERT INTO order_items (order_id, product_id, quantity, unit_price) VALUES (:oid, :pid, :qty, :price)";
     $stmt_item = $pdo->prepare($sql_item);
 
@@ -226,7 +202,6 @@ try {
         }
     }
 
-    // F. 插入 Payments
     $payment_ref = strtoupper(uniqid("PAY-"));
     $sql_payment = "INSERT INTO payments (order_id, amount, method, reference_no, payment_date) 
                     VALUES (:oid, :amt, :method, :ref, NOW())";
@@ -238,7 +213,6 @@ try {
         ':ref'    => $payment_ref
     ]);
 
-    // G. 更新用户资料
     if (isset($_POST['save_info'])) {
         $sql_update_user = "UPDATE members SET full_name = :fname, phone = :phone WHERE member_id = :mid";
         $stmt_user = $pdo->prepare($sql_update_user);
@@ -252,7 +226,6 @@ try {
         $pdo->prepare("UPDATE member_addresses SET is_default = 1 WHERE address_id = ?")->execute([$address_id]);
     }
 
-    // H. 清空购物车
     if (!empty($cart_items)) {
         $purchased_ids = array_column($cart_items, 'product_id');
         $placeholders = implode(',', array_fill(0, count($purchased_ids), '?'));
@@ -262,18 +235,12 @@ try {
         $stmt_clear->execute($params);
     }
 
-    // === D. 提交事务 (数据库部分完成) ===
     $pdo->commit();
 
-    // === E. 根据支付方式跳转 ===
-
     if ($payment_method_raw === 'Stripe') {
-        // ✨ Stripe Logic Start ✨
         
-        // 🔑 🔑 🔑 请在这里填入你的 Secret Key 🔑 🔑 🔑
         \Stripe\Stripe::setApiKey('sk_test_51ShoQnDJ45XBXeAmyeWDjVJYunQXJtiFqcbnoFcfysaedAflgYJsyvjSlWaVDXsMfLLwTxcrCYu5gedBCZoBXMHS00fHscjanD');
 
-        // 获取当前域名
         $protocol = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
         $domain = $protocol . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']);
 
@@ -286,7 +253,7 @@ try {
                         'product_data' => [
                             'name' => 'Order #' . $order_id,
                         ],
-                        'unit_amount' => $total_amount * 100, // 分为单位
+                        'unit_amount' => $total_amount * 100,
                     ],
                     'quantity' => 1,
                 ]],
@@ -295,7 +262,6 @@ try {
                 'cancel_url' => $domain . '/cart.php',
             ]);
 
-            // 跳转到 Stripe
             header("Location: " . $session->url);
             exit;
 
@@ -304,7 +270,6 @@ try {
             exit;
         }
     } else {
-        // Mock, Cash, FPX, TNG -> 直接去成功页面
         header("Location: payment_success.php?order_id=" . $order_id);
         exit;
     }
