@@ -1164,7 +1164,9 @@ include '../include/header.php';
                             </div>
                             <h3 class="category-name-new"><?= htmlspecialchars($cat['name']) ?></h3>
                             <p class="category-desc-new"><?= htmlspecialchars($desc) ?></p>
-                            <div class="category-arrow"></div>
+                            <div class="category-arrow">
+                                <img src="../images/arrow-right.png" alt="Arrow" style="width: 25; height: 25;">
+                            </div>
                         </div>
                     </a>
                 <?php endforeach; ?>
