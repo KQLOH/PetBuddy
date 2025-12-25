@@ -23,421 +23,72 @@ $cart_items = getCartItems($pdo, $member_id);
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
     <style>
-        .cart-container {
-            max-width: 1150px;
-            margin: 40px auto;
-            padding: 0 20px;
-            display: flex;
-            gap: 30px;
-            align-items: flex-start;
-        }
-
-        .cart-list {
-            flex: 2;
-            background: #fff;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-            padding: 25px;
-        }
-
-        .cart-header-row {
-            display: flex;
-            border-bottom: 2px solid #f5f5f5;
-            padding-bottom: 15px;
-            margin-bottom: 15px;
-            font-weight: 700;
-            color: #555;
-            align-items: center;
-        }
-
-        .col-check {
-            width: 40px;
-            text-align: center;
-        }
-
-        .col-product {
-            flex: 3;
-        }
-
-        .col-price {
-            flex: 1;
-            text-align: center;
-        }
-
-        .col-qty {
-            flex: 1;
-            text-align: center;
-        }
-
-        .col-total {
-            flex: 1;
-            text-align: right;
-        }
-
-        .col-action {
-            width: 50px;
-            text-align: right;
-        }
-
-        .cart-row {
-            display: flex;
-            align-items: center;
-            border-bottom: 1px solid #eee;
-            padding: 20px 0;
-            transition: background 0.2s;
-            cursor: pointer;
-        }
-
-        .cart-row:last-child {
-            border-bottom: none;
-        }
-
-        .cart-row.selected {
-            background-color: #fffbf6;
-        }
-
-        .product-info {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-        }
-
-        .product-info img {
-            width: 80px;
-            height: 80px;
-            object-fit: cover;
-            border-radius: 8px;
-            border: 1px solid #eee;
-        }
-
-        .product-name {
-            font-weight: 600;
-            color: #333;
-            font-size: 16px;
-        }
-
-        input[type="checkbox"].cart-checkbox {
-            width: 18px;
-            height: 18px;
-            cursor: pointer;
-            accent-color: #E89C55;
-        }
-
-        .page-qty-wrapper {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #f9f9f9;
-            border-radius: 6px;
-            padding: 5px;
-            width: fit-content;
-            margin: auto;
-        }
-
-        .page-qty-btn {
-            border: none;
-            background: transparent;
-            width: 30px;
-            height: 30px;
-            font-size: 18px;
-            cursor: pointer;
-            color: #555;
-            transition: 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .page-qty-btn:hover {
-            background: #e0e0e0;
-            border-radius: 4px;
-            color: #000;
-        }
-
-        .page-qty-display {
-            min-width: 30px;
-            text-align: center;
-            font-weight: 600;
-            font-size: 15px;
-        }
-
-        .item-subtotal {
-            font-weight: 700;
-            color: #E89C55;
-        }
-
-        .page-remove-btn {
-            color: #aaa;
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 18px;
-            transition: 0.2s;
-        }
-
-        .page-remove-btn:hover {
-            color: #ff4d4d;
-        }
-
-        .cart-summary {
-            flex: 1;
-            background: #fff;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-            padding: 25px;
-            position: sticky;
-            top: 100px;
-        }
-
-        .summary-title {
-            font-size: 20px;
-            font-weight: 700;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid #eee;
-        }
-
-        .summary-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 15px;
-            font-size: 15px;
-            color: #555;
-        }
-
-        .summary-total {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 20px;
-            padding-top: 15px;
-            border-top: 2px solid #f5f5f5;
-            font-size: 20px;
-            font-weight: 800;
-            color: #333;
-        }
-
-        .checkout-btn {
-            display: block;
-            width: 100%;
-            background: #FFB774;
-            color: white;
-            text-align: center;
-            padding: 15px;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            margin-top: 25px;
-            border: none;
-            cursor: pointer;
-            text-decoration: none;
-            transition: 0.3s;
-            box-shadow: 0 5px 15px rgba(255, 183, 116, 0.4);
-        }
-
-        .checkout-btn:hover {
-            background: #E89C55;
-            transform: translateY(-2px);
-        }
-
-        .checkout-btn.disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            box-shadow: none;
-        }
-
-        .empty-cart-msg {
-            text-align: center;
-            padding: 60px;
-            color: #777;
-            font-size: 18px;
-        }
-
-        .empty-cart-msg a {
-            color: #FFB774;
-            font-weight: 700;
-            text-decoration: none;
-        }
-
-        .processing {
-            opacity: 0.5;
-            pointer-events: none;
-            position: relative;
-        }
-
-        .continue-link {
-            display: block;
-            text-align: center;
-            margin-top: 15px;
-            font-size: 14px;
-            color: #888;
-            text-decoration: none;
-            transition: 0.3s;
-            font-weight: 500;
-        }
-
-        .continue-link:hover {
-            color: #E89C55;
-            text-decoration: underline;
-        }
-
+        /* === 你的原有样式 === */
+        .cart-container { max-width: 1150px; margin: 40px auto; padding: 0 20px; display: flex; gap: 30px; align-items: flex-start; }
+        .cart-list { flex: 2; background: #fff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); padding: 25px; }
+        .cart-header-row { display: flex; border-bottom: 2px solid #f5f5f5; padding-bottom: 15px; margin-bottom: 15px; font-weight: 700; color: #555; align-items: center; }
+        .col-check { width: 40px; text-align: center; }
+        .col-product { flex: 3; }
+        .col-price { flex: 1; text-align: center; }
+        .col-qty { flex: 1; text-align: center; }
+        .col-total { flex: 1; text-align: right; }
+        .col-action { width: 50px; text-align: right; }
+        .cart-row { display: flex; align-items: center; border-bottom: 1px solid #eee; padding: 20px 0; transition: background 0.2s; cursor: pointer; }
+        .cart-row:last-child { border-bottom: none; }
+        .cart-row.selected { background-color: #fffbf6; }
+        .product-info { display: flex; gap: 15px; align-items: center; }
+        .product-info img { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 1px solid #eee; }
+        .product-name { font-weight: 600; color: #333; font-size: 16px; }
+        input[type="checkbox"].cart-checkbox { width: 18px; height: 18px; cursor: pointer; accent-color: #E89C55; }
+        .page-qty-wrapper { display: flex; align-items: center; justify-content: center; background: #f9f9f9; border-radius: 6px; padding: 5px; width: fit-content; margin: auto; }
+        .page-qty-btn { border: none; background: transparent; width: 30px; height: 30px; font-size: 18px; cursor: pointer; color: #555; transition: 0.2s; display: flex; align-items: center; justify-content: center; }
+        .page-qty-btn:hover { background: #e0e0e0; border-radius: 4px; color: #000; }
+        .page-qty-display { min-width: 30px; text-align: center; font-weight: 600; font-size: 15px; }
+        .item-subtotal { font-weight: 700; color: #E89C55; }
+        .page-remove-btn { color: #aaa; background: none; border: none; cursor: pointer; font-size: 18px; transition: 0.2s; }
+        .page-remove-btn:hover { color: #ff4d4d; }
+        .cart-summary { flex: 1; background: #fff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); padding: 25px; position: sticky; top: 100px; }
+        .summary-title { font-size: 20px; font-weight: 700; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
+        .summary-row { display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 15px; color: #555; }
+        .summary-total { display: flex; justify-content: space-between; margin-top: 20px; padding-top: 15px; border-top: 2px solid #f5f5f5; font-size: 20px; font-weight: 800; color: #333; }
+        .checkout-btn { display: block; width: 100%; background: #FFB774; color: white; text-align: center; padding: 15px; border-radius: 8px; font-size: 16px; font-weight: 600; margin-top: 25px; border: none; cursor: pointer; text-decoration: none; transition: 0.3s; box-shadow: 0 5px 15px rgba(255, 183, 116, 0.4); }
+        .checkout-btn:hover { background: #E89C55; transform: translateY(-2px); }
+        .checkout-btn.disabled { background: #ccc; cursor: not-allowed; box-shadow: none; }
+        .empty-cart-msg { text-align: center; padding: 60px; color: #777; font-size: 18px; }
+        .empty-cart-msg a { color: #FFB774; font-weight: 700; text-decoration: none; }
+        .processing { opacity: 0.5; pointer-events: none; position: relative; }
+        .continue-link { display: block; text-align: center; margin-top: 15px; font-size: 14px; color: #888; text-decoration: none; transition: 0.3s; font-weight: 500; }
+        .continue-link:hover { color: #E89C55; text-decoration: underline; }
+        
         @media (max-width: 768px) {
-            .cart-header-row {
-                display: none;
-            }
-
-            .cart-row {
-                flex-wrap: wrap;
-                gap: 15px;
-                position: relative;
-                padding-left: 40px;
-            }
-
-            .col-check {
-                position: absolute;
-                top: 20px;
-                left: 0;
-            }
-
-            .col-product {
-                width: 100%;
-                flex: none;
-            }
-
-            .col-price,
-            .col-qty,
-            .col-total {
-                flex: auto;
-                text-align: left;
-            }
-
-            .col-action {
-                position: absolute;
-                top: 20px;
-                right: 0;
-            }
+            .cart-header-row { display: none; }
+            .cart-row { flex-wrap: wrap; gap: 15px; position: relative; padding-left: 40px; }
+            .col-check { position: absolute; top: 20px; left: 0; }
+            .col-product { width: 100%; flex: none; }
+            .col-price, .col-qty, .col-total { flex: auto; text-align: left; }
+            .col-action { position: absolute; top: 20px; right: 0; }
         }
+        
+        .page-remove-icon { width: 20px; height: 20px; object-fit: contain; transition: all 0.3s ease; }
+        .page-remove-btn:hover .page-remove-icon { transform: scale(1.1); opacity: 1; }
 
-        .page-remove-icon {
-            width: 20px;
-            height: 20px;
-            object-fit: contain;
-            transition: all 0.3s ease;
-        }
-
-        .page-remove-btn:hover .page-remove-icon {
-            transform: scale(1.1);
-            opacity: 1;
-        }
-
-
-        .custom-alert-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 10000;
-            display: none;
-            justify-content: center;
-            align-items: center;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .custom-alert-overlay.show {
-            opacity: 1;
-        }
-
-        .custom-alert-box {
-            background: white;
-            width: 90%;
-            max-width: 400px;
-            padding: 30px;
-            border-radius: 20px;
-            text-align: center;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-            transform: scale(0.9);
-            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-
-        .custom-alert-overlay.show .custom-alert-box {
-            transform: scale(1);
-        }
-
-        .custom-alert-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            margin: 0 auto 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 30px;
-            font-weight: bold;
-        }
-
-        .icon-success {
-            background: #d1fae5;
-            color: #10b981;
-        }
-
-        .icon-error {
-            background: #fee2e2;
-            color: #ef4444;
-        }
-
-        .icon-confirm {
-            background: #fef3c7;
-            color: #f59e0b;
-        }
-
-        .custom-alert-title {
-            font-size: 20px;
-            margin-bottom: 10px;
-            color: #333;
-        }
-
-        .custom-alert-text {
-            font-size: 15px;
-            color: #666;
-            margin-bottom: 25px;
-            line-height: 1.5;
-        }
-
-        .custom-alert-buttons {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-        }
-
-        .btn-alert {
-            padding: 10px 25px;
-            border-radius: 50px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            border: none;
-            transition: 0.2s;
-        }
-
-        .btn-alert-cancel {
-            background: #f3f4f6;
-            color: #666;
-        }
-
-        .btn-alert-cancel:hover {
-            background: #e5e7eb;
-        }
-
-        .btn-alert-confirm {
-            background: #FFB774;
-            color: white;
-        }
-
-        .btn-alert-confirm:hover {
-            filter: brightness(0.95);
-        }
+        /* ✨✨✨ Custom Alert Styles (必须加) ✨✨✨ */
+        .custom-alert-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; display: none; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s ease; }
+        .custom-alert-overlay.show { opacity: 1; }
+        .custom-alert-box { background: white; width: 90%; max-width: 400px; padding: 30px; border-radius: 20px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.2); transform: scale(0.9); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .custom-alert-overlay.show .custom-alert-box { transform: scale(1); }
+        .custom-alert-icon { width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: bold; }
+        .icon-success { background: #d1fae5; color: #10b981; }
+        .icon-error { background: #fee2e2; color: #ef4444; }
+        .icon-confirm { background: #fef3c7; color: #f59e0b; }
+        .custom-alert-title { font-size: 20px; margin-bottom: 10px; color: #333; }
+        .custom-alert-text { font-size: 15px; color: #666; margin-bottom: 25px; line-height: 1.5; }
+        .custom-alert-buttons { display: flex; gap: 10px; justify-content: center; }
+        .btn-alert { padding: 10px 25px; border-radius: 50px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: 0.2s; }
+        .btn-alert-cancel { background: #f3f4f6; color: #666; }
+        .btn-alert-cancel:hover { background: #e5e7eb; }
+        .btn-alert-confirm { background: #FFB774; color: white; }
+        .btn-alert-confirm:hover { filter: brightness(0.95); }
     </style>
 </head>
 
@@ -530,6 +181,7 @@ $cart_items = getCartItems($pdo, $member_id);
     <?php include '../include/chat_widget.php'; ?>
 
     <script>
+        // ✨✨✨ 自定义弹窗逻辑 (替换 SweetAlert) ✨✨✨
         let deleteCallback = null;
 
         function showCustomAlert(type, title, text, autoClose = false) {
@@ -543,24 +195,23 @@ $cart_items = getCartItems($pdo, $member_id);
 
             icon.className = 'custom-alert-icon';
             if (type === 'success') {
-                icon.classList.add('icon-success');
+                icon.classList.add('icon-success'); 
                 icon.innerHTML = '✓';
                 btnCancel.style.display = 'none';
                 btnConfirm.innerText = 'OK';
                 btnConfirm.onclick = closeCustomAlert;
             } else if (type === 'error') {
-                icon.classList.add('icon-error');
+                icon.classList.add('icon-error'); 
                 icon.innerHTML = '✕';
                 btnCancel.style.display = 'none';
                 btnConfirm.innerText = 'OK';
                 btnConfirm.onclick = closeCustomAlert;
-            } else {
-                icon.classList.add('icon-confirm');
+            } else { // confirm
+                icon.classList.add('icon-confirm'); 
                 icon.innerHTML = '?';
                 btnCancel.style.display = 'block';
                 btnCancel.onclick = closeCustomAlert;
                 btnConfirm.innerText = 'Yes, Delete';
-
                 btnConfirm.onclick = function() {
                     if (typeof deleteCallback === 'function') deleteCallback();
                     closeCustomAlert();
@@ -570,20 +221,20 @@ $cart_items = getCartItems($pdo, $member_id);
             overlay.style.display = 'flex';
             setTimeout(() => overlay.classList.add('show'), 10);
 
-            if (autoClose) setTimeout(closeCustomAlert, 100000);
+            if (autoClose) {
+                setTimeout(closeCustomAlert, 3000); // 3秒自动关闭
+            }
         }
 
         function closeCustomAlert() {
             const overlay = document.getElementById('customAlert');
             overlay.classList.remove('show');
-            setTimeout(() => {
-                overlay.style.display = 'none';
-            }, 300);
+            setTimeout(() => { overlay.style.display = 'none'; }, 300);
         }
-
 
         $(document).ready(function() {
 
+            // 更新总价函数
             function updatePageTotals() {
                 let total = 0;
                 let count = 0;
@@ -601,14 +252,12 @@ $cart_items = getCartItems($pdo, $member_id);
                 $("#pageSubtotal").text(total.toFixed(2));
                 $("#pageTotal").text(total.toFixed(2));
                 $("#selectedCount").text(count + (count === 1 ? " item" : " items") + " selected");
-                if (count === 0) {
-                    $("#btnCheckout").addClass("disabled").prop("disabled", true);
-                } else {
-                    $("#btnCheckout").removeClass("disabled").prop("disabled", false);
-                }
+                if (count === 0) { $("#btnCheckout").addClass("disabled").prop("disabled", true); } 
+                else { $("#btnCheckout").removeClass("disabled").prop("disabled", false); }
             }
             updatePageTotals();
 
+            // 复选框逻辑
             $(".cart-row").click(function(e) {
                 if ($(e.target).is("input[type='checkbox']") || $(e.target).closest("button").length > 0) return;
                 let $checkbox = $(this).find(".item-check");
@@ -626,6 +275,7 @@ $cart_items = getCartItems($pdo, $member_id);
                 updatePageTotals();
             });
 
+            // 数量更新
             $(document).off("click", ".page-qty-btn").on("click", ".page-qty-btn", function() {
                 let $btn = $(this);
                 let $row = $btn.closest(".cart-row");
@@ -641,10 +291,7 @@ $cart_items = getCartItems($pdo, $member_id);
                 $.ajax({
                     url: "update_cart_quantity.php",
                     type: "POST",
-                    data: {
-                        product_id: pid,
-                        action: action
-                    },
+                    data: { product_id: pid, action: action },
                     success: function(response) {
                         $row.removeClass("processing");
                         if (response.trim() === "success") {
@@ -659,22 +306,20 @@ $cart_items = getCartItems($pdo, $member_id);
                 });
             });
 
-
+            // ✨✨✨ 删除功能 (替换为自定义弹窗) ✨✨✨
             $(document).off("click", ".page-remove-btn").on("click", ".page-remove-btn", function() {
                 let $row = $(this).closest(".cart-row");
                 let pid = $row.data("id");
 
-
+                // 设置回调
                 deleteCallback = function() {
                     $.ajax({
-                        url: "remove_cart.php",
+                        url: "remove_cart.php", 
                         type: "POST",
-                        data: {
-                            product_id: pid
-                        },
+                        data: { product_id: pid },
                         success: function(response) {
                             if (response.trim() === "success") {
-
+                                // 移除行
                                 $row.fadeOut(300, function() {
                                     $(this).remove();
                                     updatePageTotals();
@@ -683,7 +328,7 @@ $cart_items = getCartItems($pdo, $member_id);
 
                                 if (typeof refreshCartSidebar === "function") refreshCartSidebar();
 
-
+                                // ✨ 弹出成功提示 (Removed)
                                 showCustomAlert('success', 'Removed', 'Item removed from cart.', true);
                             } else {
                                 showCustomAlert('error', 'Error', 'Error removing item: ' + response);
@@ -695,10 +340,11 @@ $cart_items = getCartItems($pdo, $member_id);
                     });
                 };
 
-
+                // 显示确认弹窗
                 showCustomAlert('confirm', 'Remove Item?', 'Are you sure you want to delete this item?');
             });
 
+            // 结账按钮
             $("#btnCheckout").click(function() {
                 let selectedIds = [];
                 $(".item-check:checked").each(function() {
@@ -711,5 +357,4 @@ $cart_items = getCartItems($pdo, $member_id);
     </script>
 
 </body>
-
 </html>
