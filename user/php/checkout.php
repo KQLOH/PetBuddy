@@ -27,7 +27,7 @@ $saved_addresses = $stmtAddr->fetchAll(PDO::FETCH_ASSOC);
 
 // 4. Determine Initial Field Values
 $prefill = [
-    'full_name' => '', // Full Name field
+    'full_name' => '', 
     'phone' => '', 
     'addr1' => '', 'addr2' => '', 
     'postcode' => '', 'city' => '', 'state' => '', 'email' => $user_email
@@ -40,9 +40,7 @@ if (!empty($saved_addresses)) {
     $r_name = !empty($def['recipient_name']) ? $def['recipient_name'] : $user_full_name;
     $r_phone = !empty($def['recipient_phone']) ? $def['recipient_phone'] : $user_phone;
 
-    // ✨ 修改：不再拆分名字，直接使用完整名字
     $prefill['full_name'] = $r_name; 
-    
     $prefill['phone'] = $r_phone;
     $prefill['addr1'] = $def['address_line1'];
     $prefill['addr2'] = $def['address_line2'];
@@ -50,9 +48,7 @@ if (!empty($saved_addresses)) {
     $prefill['city'] = $def['city'];
     $prefill['state'] = $def['state'];
 } 
-// Fallback to Member Profile Data
 else {
-    // ✨ 修改：直接使用用户全名
     $prefill['full_name'] = $user_full_name;
     $prefill['phone'] = $user_phone;
 }
@@ -161,7 +157,7 @@ $total = $checkout_subtotal + $shipping_fee;
         
         /* Dropdown Style */
         .address-selector-wrapper { margin-bottom: 20px; background: #FFF9F5; padding: 15px; border: 1px solid var(--primary-color); border-radius: 8px; }
-        .address-selector-wrapper label { font-weight: 600; color: var(--primary-dark); margin-bottom: 8px; }
+        .address-selector-wrapper label { font-weight: 600; color: var(--primary-dark); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
         .address-selector-wrapper select { border-color: var(--primary-color); }
         .payment-container { display: flex; flex-direction: column; gap: 12px; }
         .payment-card { background: #fff; border: 2px solid #eee; border-radius: 12px; overflow: hidden; transition: all 0.3s ease; position: relative; }
@@ -171,15 +167,41 @@ $total = $checkout_subtotal + $shipping_fee;
         .payment-header-row input[type="radio"] { display: none; }
         .custom-radio { width: 22px; height: 22px; border: 2px solid #ccc; border-radius: 50%; margin-right: 15px; position: relative; transition: 0.2s; display: flex; align-items: center; justify-content: center; }
         .payment-card.selected .custom-radio { border-color: var(--primary-color); background: var(--primary-color); }
-        .payment-card.selected .custom-radio::after { content: '\f00c'; font-family: "Font Awesome 6 Free"; font-weight: 900; color: white; font-size: 12px; }
+        /* 使用纯CSS画对勾，不依赖FontAwesome */
+        .payment-card.selected .custom-radio::after { 
+            content: ''; 
+            width: 6px; height: 10px; 
+            border: solid white; 
+            border-width: 0 2px 2px 0; 
+            transform: rotate(45deg); 
+            margin-top: -2px; 
+        }
         .payment-label { font-weight: 600; font-size: 15px; color: #333; flex: 1; }
-        .payment-icons { display: flex; gap: 8px; opacity: 0.7; }
-        .payment-icons i { font-size: 22px; }
+        
+        /* Payment Icons - Images */
+        .payment-icons { display: flex; gap: 8px; align-items: center; }
+        .payment-icons img { height: 22px; width: auto; object-fit: contain; }
+
         .payment-details { display: none; padding: 0 20px 20px 20px; margin-top: -5px; animation: slideDown 0.3s ease-out; }
         .payment-card.selected .payment-details { display: block; }
+        
+        /* Helper Text & Input Icons */
         .helper-text { font-size: 13px; color: #666; background: rgba(0,0,0,0.03); padding: 12px; border-radius: 6px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .helper-text img { width: 14px; height: 14px; opacity: 0.6; }
+        
+        /* Input Icon Positioning */
+        .input-icon-wrapper { position: relative; }
+        .input-icon-img { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; object-fit: contain; opacity: 0.5; }
+
+        /* Inline Icons */
+        .inline-icon { width: 16px; height: 16px; object-fit: contain; vertical-align: middle; }
+
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-        .voucher-trigger-btn { background: none; border: none; color: var(--primary-dark); font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: underline; margin-top: 5px; display: inline-block; }
+        
+        /* Voucher Styles */
+        .voucher-trigger-btn { background: none; border: none; color: var(--primary-dark); font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: underline; margin-top: 5px; display: inline-flex; align-items: center; gap: 5px; }
+        .voucher-trigger-btn img { width: 16px; height: 16px; }
+        
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; display: none; justify-content: center; align-items: center; }
         .modal-overlay.active { display: flex; animation: fadeIn 0.2s; }
         .voucher-modal { background: #fff; width: 90%; max-width: 450px; border-radius: 12px; padding: 25px; position: relative; max-height: 80vh; overflow-y: auto; }
@@ -237,11 +259,12 @@ $total = $checkout_subtotal + $shipping_fee;
 
                 <?php if (!empty($saved_addresses)): ?>
                 <div class="address-selector-wrapper">
-                    <label><i class="fas fa-address-book"></i> Select from Address Book</label>
+                    <label>
+                        <img src="../images/address_book.png" class="inline-icon"> Select from Address Book
+                    </label>
                     <select id="savedAddressSelector" onchange="fillAddress(this.value)">
                         <?php foreach ($saved_addresses as $addr): 
                             $isDef = $addr['is_default'] ? '(Default)' : '';
-                            // Make sure to handle potential missing keys gracefully
                             $safe_addr = array_merge([
                                 'recipient_name' => $user_full_name,
                                 'recipient_phone' => $user_phone,
@@ -331,8 +354,8 @@ $total = $checkout_subtotal + $shipping_fee;
                             <input type="radio" name="payment_method" value="Credit Card" required onclick="selectPayment(this)">
                             <div class="custom-radio"></div> <span class="payment-label">Credit / Debit Card</span>
                             <div class="payment-icons">
-                                <i class="fab fa-cc-visa" style="color:#1a1f71;"></i>
-                                <i class="fab fa-cc-mastercard" style="color:#eb001b;"></i>
+                                <img src="../images/visa.png" alt="Visa">
+                                <img src="../images/mastercard.png" alt="Mastercard">
                             </div>
                         </label>
                         <div class="payment-details">
@@ -363,9 +386,9 @@ $total = $checkout_subtotal + $shipping_fee;
                             </div>
                             <div class="form-group" style="margin-bottom: 12px;">
                                 <label style="font-size:12px; color:#555; margin-bottom:4px; display:block;">Credit / Debit Card No.</label>
-                                <div style="position: relative;">
+                                <div class="input-icon-wrapper">
                                     <input type="text" name="card_number" placeholder="16-digit Card Number" maxlength="16" oninput="validateNumber(this)">
-                                    <i class="fas fa-credit-card" style="position: absolute; right: 15px; top: 15px; color: #aaa;"></i>
+                                    <img src="../images/card_icon.png" class="input-icon-img">
                                 </div>
                             </div>
                             <div class="form-row" style="gap: 15px; margin-bottom: 12px;">
@@ -406,7 +429,7 @@ $total = $checkout_subtotal + $shipping_fee;
                             </div>
                         </label>
                         <div class="payment-details">
-                            <div class="helper-text"><i class="fas fa-lock"></i> Securely login to your bank account via FPX.</div>
+                            <div class="helper-text"><img src="../images/lock.png"> Securely login to your bank account via FPX.</div>
                             
                             <div class="form-group" style="margin-bottom: 12px;">
                                 <label style="font-size:12px; color:#555; margin-bottom:6px; display:block;">Select Bank</label>
@@ -446,7 +469,9 @@ $total = $checkout_subtotal + $shipping_fee;
                             <input type="radio" name="payment_method" value="TNG" required onclick="selectPayment(this)">
                             <div class="custom-radio"></div>
                             <span class="payment-label">Touch 'n Go eWallet</span>
-                            <div class="payment-icons"><i class="fas fa-wallet" style="color:#005eb8;"></i></div>
+                            <div class="payment-icons">
+                                <img src="../images/e-wallet.png" alt="TNG">
+                            </div>
                         </label>
                         <div class="payment-details">
                             
@@ -457,9 +482,9 @@ $total = $checkout_subtotal + $shipping_fee;
 
                             <div class="form-group" style="margin-bottom: 12px;">
                                 <label style="font-size:12px; color:#555; margin-bottom:4px; display:block;">6-Digit PIN</label>
-                                <div style="position: relative;">
+                                <div class="input-icon-wrapper">
                                     <input type="password" name="tng_pin" placeholder="Enter 6-digit PIN" maxlength="6" inputmode="numeric" oninput="validateNumber(this)" style="letter-spacing: 2px;">
-                                    <i class="fas fa-key" style="position: absolute; right: 15px; top: 15px; color: #aaa; font-size:12px;"></i>
+                                    <img src="../images/key.png" class="input-icon-img">
                                 </div>
                             </div>
 
@@ -471,7 +496,9 @@ $total = $checkout_subtotal + $shipping_fee;
                             <input type="radio" name="payment_method" value="Cash" required onclick="selectPayment(this)">
                             <div class="custom-radio"></div>
                             <span class="payment-label">Cash on Delivery</span>
-                            <div class="payment-icons"><i class="fas fa-money-bill-wave" style="color:#4caf50;"></i></div>
+                            <div class="payment-icons">
+                                <img src="../images/cash.png" alt="Cash">
+                            </div>
                         </label>
                         <div class="payment-details">
                             <div class="helper-text">Please prepare exact change for the rider upon delivery.</div>
@@ -509,7 +536,7 @@ $total = $checkout_subtotal + $shipping_fee;
                     <button type="button" class="btn-apply">Apply</button>
                 </div>
                 <button type="button" class="voucher-trigger-btn" onclick="openVoucherModal()">
-                    <i class="fas fa-ticket-alt"></i> Select Voucher
+                    <img src="../images/ticket.png" class="inline-icon"> Select Voucher
                 </button>
             </div>
             
@@ -558,14 +585,14 @@ $total = $checkout_subtotal + $shipping_fee;
             
             <div class="total-line" id="discount_row" style="display:none; color: var(--primary-dark);">
                 <span style="display:flex; align-items:center; gap:5px;">
-                    Discount <i class="fas fa-tag"></i>
+                    Discount <img src="../images/tag.png" class="inline-icon">
                 </span>
                 <span>- RM <span id="display_discount">0.00</span></span>
             </div>
 
             <div class="total-line">
                 <span style="display:flex; align-items:center; gap:5px;">
-                    Shipping <i class="far fa-question-circle" style="font-size:12px; color:#737373;"></i>
+                    Shipping <img src="../images/info.png" class="inline-icon" style="opacity:0.5;">
                 </span>
                 
                 <span>
@@ -593,12 +620,10 @@ $total = $checkout_subtotal + $shipping_fee;
     </div>
 
     <script>
-        // 1. ✨ Address Selector Logic (Updated to full name) ✨
+        // 1. Address Selector Logic
         function fillAddress(jsonStr) {
             if (jsonStr === 'new') {
-                // Clear all fields
                 document.getElementById('f_name').value = '';
-                // l_name is removed
                 document.getElementById('phone').value = '';
                 document.getElementById('addr1').value = '';
                 document.getElementById('addr2').value = '';
@@ -607,10 +632,7 @@ $total = $checkout_subtotal + $shipping_fee;
                 document.getElementById('billing_state').value = '';
             } else {
                 const addr = JSON.parse(jsonStr);
-                
-                // ✨ 修改：直接填入完整名字
                 document.getElementById('f_name').value = addr.recipient_name || '';
-                
                 document.getElementById('phone').value = addr.recipient_phone;
                 document.getElementById('addr1').value = addr.address_line1;
                 document.getElementById('addr2').value = addr.address_line2;
@@ -674,7 +696,7 @@ $total = $checkout_subtotal + $shipping_fee;
             $(".btn-apply").click();
         }
 
-        // 4. jQuery & AJAX Logic (Voucher + Local Postcode)
+        // 4. jQuery & AJAX Logic
         $(document).ready(function() {
             
             // A. Voucher Apply
@@ -684,7 +706,7 @@ $total = $checkout_subtotal + $shipping_fee;
                 let subtotal = parseFloat($("#display_subtotal").text().replace(/,/g, ''));
                 let shipping = <?= $shipping_fee ?>; 
 
-                if(!code) { Swal.fire("Error", "Please enter a code", "error"); return; }
+                if(!code) { alert("Please enter a code"); return; }
 
                 $.ajax({
                     url: "apply_voucher.php",
@@ -699,17 +721,17 @@ $total = $checkout_subtotal + $shipping_fee;
                             $("#discount_row").fadeIn();
                             $("#display_total").text(newTotal.toFixed(2));
                             $("#hidden_voucher_code").val(code);
-                            Swal.fire({ icon: 'success', title: 'Applied!', text: 'Saved RM ' + discount.toFixed(2), toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
+                            alert("Voucher Applied! Saved RM " + discount.toFixed(2));
                             $(".discount-input").prop('disabled', true);
                             $(".btn-apply").text("Applied").css("background", "#2F2F2F");
                         } else {
-                            Swal.fire("Invalid Code", res.message, "error");
+                            alert(res.message);
                             $("#hidden_voucher_code").val("");
                             $("#discount_row").hide();
                             $("#display_total").text((subtotal + shipping).toFixed(2));
                         }
                     },
-                    error: function() { Swal.fire("Error", "System error applying voucher", "error"); }
+                    error: function() { alert("System error applying voucher"); }
                 });
             });
 
@@ -721,7 +743,7 @@ $total = $checkout_subtotal + $shipping_fee;
                     $("#billing_city").attr("placeholder", "Searching...");
                     
                     $.ajax({
-                        url: "get_location.php", // <--- Using LOCAL file
+                        url: "get_location.php", 
                         type: "GET",
                         data: { postcode: postcode },
                         dataType: "json",
